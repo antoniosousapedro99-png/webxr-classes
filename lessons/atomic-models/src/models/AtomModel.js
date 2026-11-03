@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { shellsFor } from '../data/elements.js';
-import { clearGroup } from '../ui/labels.js';
+import { clearGroup } from '../../../../shared/ui/labels.js';
 
 // Bohr-style atom: packed nucleus of protons + neutrons, electrons on shells.
 // NOT to scale (the Scale mode shows the real proportions).

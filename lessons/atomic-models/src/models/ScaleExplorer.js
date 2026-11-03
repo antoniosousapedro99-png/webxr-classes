@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { getElement } from '../data/elements.js';
 import { atomToNucleusRatio } from '../data/atomInfo.js';
 import { formatLength } from '../util/format.js';
-import { makeLabel, clearGroup } from '../ui/labels.js';
+import { makeLabel, clearGroup } from '../../../../shared/ui/labels.js';
 
 // Two ways to feel the scale of atoms:
 //  • compare — real atoms side by side, all drawn to one scale (1 pm → 0.4 mm)

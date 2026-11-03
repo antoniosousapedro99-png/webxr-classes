@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { MAX_Z } from '../data/elements.js';
 import { COLORS } from './AtomModel.js';
 import * as X from '../chemist/explain.js';
-import { sound } from '../util/sound.js';
+import { sound } from '../../../../shared/util/sound.js';
 
 // Hands-on atom building: pull protons, neutrons and electrons out of the atom,
 // or take new ones from the tray and drop them into the nucleus / shells.

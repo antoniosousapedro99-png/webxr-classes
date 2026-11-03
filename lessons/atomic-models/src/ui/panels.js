@@ -1,12 +1,12 @@
 import { MOLECULES, moleculeExtentA } from '../data/molecules.js';
-import { CATEGORY_NAMES, getElement, VDW_RADII, IONIC_RADII } from '../data/elements.js';
+import { CATEGORY_NAMES, CATEGORY_COLORS, MAX_Z, getElement, VDW_RADII, IONIC_RADII } from '../data/elements.js';
 import { needsText } from '../chemist/explain.js';
 import { describeAtom, atomToNucleusRatio } from '../data/atomInfo.js';
 import { COMPARE_PRESETS, NUCLEUS_OBJECTS, COMPARE_SCALE } from '../models/ScaleExplorer.js';
 import { MOLECULE_SCALE } from '../models/MoleculeModel.js';
 import { questionsFor, roomScale } from '../chemist/Chemist.js';
 import { formatLength, compareLength, formatNumber } from '../util/format.js';
-import { THEME } from './CanvasPanel.js';
+import { THEME, font, roundRect } from '../../../../shared/ui/CanvasPanel.js';
 import { REACTIONS, moleculeDef } from '../data/reactions.js';
 import { formulaOf } from '../data/bonding.js';
 import { atomsIn, sci } from '../room/RoomScan.js';
@@ -59,7 +59,7 @@ function atomControls(ui, app) {
     { id: 'empty', label: 'Empty', onClick: () => app.setAtom({ p: 0, n: 0, e: 0 }) },
   ], { height: 68, size: 27 });
   ui.heading('Or pick an element');
-  ui.periodicTable(a.p, (Z) => app.pickElement(Z));
+  periodicTable(ui, a.p, (Z) => app.pickElement(Z));
   ui.text(app.presenting
     ? 'Or by hand: pinch a particle to pull it out of the atom, take new ones from the tray below.'
     : 'Or by hand: drag a particle out of the atom, or drag new ones in from the tray below.', { size: 23, color: THEME.dim });
@@ -330,4 +330,35 @@ function roomInfo(ui, app) {
   }
   ui.kv('Total so far', `≈ ${sci(total)} atoms`, { size: 26, color: '#7ee2a8' });
   ui.text('Every one of those atoms has a nucleus 10,000–100,000× smaller than itself. Tap a tag on a surface to learn more.', { size: 23, color: THEME.dim });
+}
+
+/** Mini periodic table of the first 36 elements (each cell is a button). */
+function periodicTable(ui, selectedZ, onPick) {
+  const { ctx } = ui;
+  const cw = ui.contentWidth / 18;
+  const ch = 58;
+  for (let Z = 1; Z <= MAX_Z; Z++) {
+    const el = getElement(Z);
+    const x = ui.pad + (el.group - 1) * cw;
+    const y = ui.y + (el.period - 1) * ch;
+    const id = `pt-${Z}`;
+    const hover = ui.panel.hoverId === id;
+    roundRect(ctx, x + 2, y + 2, cw - 4, ch - 4, 8);
+    ctx.fillStyle = CATEGORY_COLORS[el.category];
+    ctx.fill();
+    if (Z === selectedZ || hover) {
+      ctx.lineWidth = Z === selectedZ ? 5 : 3;
+      ctx.strokeStyle = Z === selectedZ ? '#ffffff' : '#c9d0ff';
+      ctx.stroke();
+    }
+    ctx.font = font(22, 700);
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(el.symbol, x + cw / 2, y + ch / 2 + 1);
+    ui.panel.buttons.push({ id, x, y, w: cw, h: ch, onClick: () => onPick(Z) });
+  }
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ui.y += ch * 4 + 12;
 }

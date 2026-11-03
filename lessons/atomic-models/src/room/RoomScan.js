@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { materialFor } from '../data/materials.js';
-import { makeLabel } from '../ui/labels.js';
+import { makeLabel } from '../../../../shared/ui/labels.js';
 import { sup, formatLength } from '../util/format.js';
 
 // Uses the headset's knowledge of the real room (WebXR plane detection: table, wall, window, floor…).

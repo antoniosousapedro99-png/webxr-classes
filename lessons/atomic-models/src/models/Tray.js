@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { makeLabel, clearGroup } from '../ui/labels.js';
+import { makeLabel, clearGroup } from '../../../../shared/ui/labels.js';
 
 // A shelf in front of the model holding parts to take (protons… or atoms) and a bin to drop things in.
 // Positions are in lab space; the shelf sits below the model, a little towards the user.

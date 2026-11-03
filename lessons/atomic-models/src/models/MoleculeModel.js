@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { MOLECULES } from '../data/molecules.js';
 import { bySymbol, VDW_RADII, IONIC_RADII } from '../data/elements.js';
-import { clearGroup } from '../ui/labels.js';
+import { clearGroup } from '../../../../shared/ui/labels.js';
 
 // 1 Å (10⁻¹⁰ m) is shown as 10 cm → the model is magnified one billion times.
 export const MOLECULE_SCALE = 0.1;

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { bySymbol, VDW_RADII } from '../data/elements.js';
 import { BUILD_ATOMS, bondLength, bondEnergy, idealAngle, formulaOf, formulaKey, KNOWN } from '../data/bonding.js';
-import { sound } from '../util/sound.js';
+import { sound } from '../../../../shared/util/sound.js';
 import * as X from '../chemist/explain.js';
 
 // Hands-on, editable ball-and-stick molecules.

@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { getElement, CATEGORY_COLORS, MAX_Z } from '../data/elements.js';
 
 // A flat UI panel drawn on a 2D canvas and shown as a texture in 3D.
 // The same panel works with a mouse, touch, XR controllers and hand pinches:
@@ -275,36 +274,5 @@ class PanelDrawer {
     this.button({ id: `${id}-minus`, label: '−', onClick: onMinus }, right - bw * 2 - 140, this.y, bw, h, 46);
     ctx.textBaseline = 'top';
     this.y += h + 14;
-  }
-
-  /** Mini periodic table of the first 36 elements. */
-  periodicTable(selectedZ, onPick) {
-    const { ctx } = this;
-    const cw = this.contentWidth / 18;
-    const ch = 58;
-    for (let Z = 1; Z <= MAX_Z; Z++) {
-      const el = getElement(Z);
-      const x = this.pad + (el.group - 1) * cw;
-      const y = this.y + (el.period - 1) * ch;
-      const id = `pt-${Z}`;
-      const hover = this.panel.hoverId === id;
-      roundRect(ctx, x + 2, y + 2, cw - 4, ch - 4, 8);
-      ctx.fillStyle = CATEGORY_COLORS[el.category];
-      ctx.fill();
-      if (Z === selectedZ || hover) {
-        ctx.lineWidth = Z === selectedZ ? 5 : 3;
-        ctx.strokeStyle = Z === selectedZ ? '#ffffff' : '#c9d0ff';
-        ctx.stroke();
-      }
-      ctx.font = font(22, 700);
-      ctx.fillStyle = '#ffffff';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(el.symbol, x + cw / 2, y + ch / 2 + 1);
-      this.panel.buttons.push({ id, x, y, w: cw, h: ch, onClick: () => onPick(Z) });
-    }
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    this.y += ch * 4 + 12;
   }
 }
