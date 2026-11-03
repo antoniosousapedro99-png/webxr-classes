@@ -227,7 +227,7 @@ class PanelDrawer {
   }
 
   /** Horizontal bar with a label and value, e.g. for energy. */
-  bar(label, value, max, color) {
+  bar(label, value, max, color, unit = 'kJ') {
     const { ctx } = this;
     ctx.font = font(24, 600);
     ctx.fillStyle = THEME.dim;
@@ -235,7 +235,7 @@ class PanelDrawer {
     ctx.fillText(label, this.pad, this.y);
     ctx.textAlign = 'right';
     ctx.fillStyle = THEME.text;
-    ctx.fillText(`${Math.round(value)} kJ`, this.W - this.pad, this.y);
+    ctx.fillText(`${Math.round(value)} ${unit}`, this.W - this.pad, this.y);
     ctx.textAlign = 'left';
     this.y += 32;
     roundRect(ctx, this.pad, this.y, this.contentWidth, 22, 11);

@@ -49,6 +49,8 @@ export const sound = {
   bond: () => { tone(520, 0.12, { gain: 0.1 }); setTimeout(() => tone(780, 0.18, { gain: 0.1 }), 70); },
   click: () => tone(1200, 0.04, { type: 'square', gain: 0.05 }),
   thud: () => tone(160, 0.15, { type: 'sine', gain: 0.2, to: 60 }),
+  beep: () => tone(1000, 0.22, { type: 'square', gain: 0.07 }),
+  power: () => { tone(220, 0.15, { type: 'triangle', gain: 0.1 }); setTimeout(() => tone(440, 0.2, { type: 'triangle', gain: 0.1 }), 120); },
   refuse: () => tone(180, 0.18, { type: 'sawtooth', gain: 0.06 }),
   /** A whoomph whose size depends on how much energy was released (kJ/mol). */
   release: (kj) => {

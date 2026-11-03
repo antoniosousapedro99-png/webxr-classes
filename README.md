@@ -5,6 +5,7 @@ Mixed reality lessons built with [WebXR](https://immersiveweb.dev/) and [three.j
 | Lesson | Subject | Path |
 | --- | --- | --- |
 | **Atom Scale Lab** | Chemistry | [`lessons/atomic-models/`](lessons/atomic-models/) |
+| **PC Builder Lab** | Computer Science | [`lessons/pc-builder/`](lessons/pc-builder/) |
 
 ## Atom Scale Lab
 
@@ -61,6 +62,42 @@ The lab appears in front of the student in their real room (passthrough mixed re
 | Phone AR | Tap | Touch and drag | — | "Place on a surface", then tap |
 | Desktop / tablet | Click | Drag | Shift-drag | Drag empty space to orbit |
 
+## PC Builder Lab
+
+Students build a working computer from real, life-size parts on their table, Lego-style. They take a part from the tray, bring it to the case, and let go when the preview turns green.
+
+### Lesson objectives → features
+
+| Objective | What students do |
+| --- | --- |
+| Identify the different components in a computer | Every part is a realistic 3D model (motherboard, CPU, cooler, RAM, NVMe/SATA SSD, hard drive, graphics card, power supply, case). Pointing at a part names it, and **Labels** tags everything installed. |
+| Describe the purpose of each component | Picking up a part shows what it does, with a running kitchen analogy (CPU = chef, RAM = worktop, storage = pantry…), and where it goes. Installing it shows what it connects to. **Ask the technician** answers common questions. |
+| Explain how the components work together | **Power on** runs a realistic start-up on a floating monitor: PSU → BIOS/POST → memory test → graphics → loading the OS from storage into RAM → load test. **How it works** then animates power, data, image and heat flowing between the parts in six steps. |
+
+### Compatibility (the "make sure everything fits" part)
+
+- **Refused when you try to install them, with the reason:**
+  - wrong CPU socket (AM4 / AM5 / LGA1700)
+  - DDR4 vs DDR5 memory
+  - motherboard size (ATX / Micro-ATX / Mini-ITX) vs case
+  - graphics card too long
+  - cooler too tall, or a liquid cooler with no radiator mount
+  - 3.5-inch drive in a 2.5-inch bay
+  - NVMe drive in a SATA bay (and the other way round)
+  - full-size PSU in an SFX-only case
+- **Found when you press Power, like in real life:**
+  - no PSU / motherboard / CPU
+  - no cooler: overheats and shuts down
+  - no RAM: beep code
+  - CPU without built-in graphics and no graphics card: black screen
+  - no storage: "no bootable device"
+  - PSU too weak: shuts down under load
+  - cooler too small: thermal throttling
+- **Live checklist:** shown on the right panel, with a power budget bar.
+- **Changing the case:** keeps every part that still fits and returns the rest to the tray.
+- **Taking out the motherboard:** brings everything attached to it.
+- **Safety:** reaching inside a running PC switches it off first, with a safety note.
+
 ## Running it
 
 WebXR only works on **HTTPS** (or `localhost`).
@@ -73,7 +110,7 @@ WebXR only works on **HTTPS** (or `localhost`).
 python3 -m http.server 8080
 ```
 
-Then open http://localhost:8080/lessons/atomic-models/ on your computer. To test on a Quest over USB, forward the port so the headset sees it as `localhost`:
+Then open http://localhost:8080/ on your computer and choose a lesson. To test on a Quest over USB, forward the port so the headset sees it as `localhost`:
 
 ```bash
 adb reverse tcp:8080 tcp:8080
@@ -95,6 +132,14 @@ and returns `{ "answer": "..." }`. An **Ask AI about this** button then appears.
 
 ```
 index.html                         landing page listing the lessons
+shared/                            used by every lesson
+  LessonApp.js                     three.js + WebXR setup, lab + panels, placement, render loop
+  ui/                              canvas panels, labels, mouse/touch/controller/hand input
+  util/sound.js                    synthesised sound effects
+lessons/pc-builder/
+  src/data/parts.js, rules.js      the parts catalogue and compatibility rules
+  src/model/                       life-size part models, the case + slots, tray, power-on + tour
+  src/ui/                          panels and "technician explains" texts
 lessons/atomic-models/
   index.html, style.css, config.js
   src/main.js                      app, WebXR session, placement, render loop
