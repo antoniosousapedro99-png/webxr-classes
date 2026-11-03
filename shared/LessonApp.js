@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CanvasPanel } from './ui/CanvasPanel.js';
 import { Interaction } from './ui/Interaction.js';
+import { THEME } from './ui/CanvasPanel.js';
+import { Presence, sessionFromURL } from './net/Presence.js';
+import { newSessionCode } from './net/code.js';
 
 // Everything every WebXR lesson needs, so each lesson only adds its own content:
 //  • three.js scene, desktop camera + orbit controls, lights, floor grid
@@ -15,6 +18,12 @@ import { Interaction } from './ui/Interaction.js';
 //   update(dt, frame)    per-frame animation
 //   grabTargets()        objects that can be picked up / tapped
 //   onXRStart(session, isAR), onXREnd(), onXRFrame(frame, refSpace)
+//
+// Shared sessions (?session=CODE in the URL): everyone keeps their own models and sees the others
+// beside them. A lesson takes part by providing:
+//   netState()           a small JSON snapshot of what it shows (sent to the others when it changes)
+//   createReplica()      → { group, apply(snapshot), update(dt)?, heldObject(held)? } to show someone else's work
+//   this.netHolding      { label, ... } while the user is holding something (shown in their avatar's hand)
 
 export class LessonApp {
   constructor({ labPos = new THREE.Vector3(0, 1.2, 0), camPos = new THREE.Vector3(0, 1.45, 1.35), background = 0x0d1020 } = {}) {
@@ -37,6 +46,18 @@ export class LessonApp {
   /** Call at the end of the lesson's constructor. */
   start() {
     this.interaction = new Interaction(this);
+    this.lessonId = (location.pathname.match(/lessons\/([^/]+)/) || [])[1] || 'lesson';
+    const session = sessionFromURL();
+    if (session) {
+      this.presence = new Presence(this, { lessonId: this.lessonId, ...session });
+      this.sessionPanel = new CanvasPanel({ width: 0.5, height: 0.14, name: 'session' });
+      this.sessionPanel.mesh.position.set(-0.62, -0.45, 0.14);
+      this.sessionPanel.mesh.rotation.y = 0.42;
+      this.lab.add(this.sessionPanel.mesh);
+      this.sessionPanel.setBuilder((ui) => this.drawSession(ui));
+      this.panels.push(this.sessionPanel);
+    }
+    this.initSessionUI(session);
     this.initXRButtons();
     this.refresh();
     this.clock = new THREE.Clock();
@@ -197,6 +218,66 @@ export class LessonApp {
     return this.presenting ? this.renderer.xr.getCamera() : this.camera;
   }
 
+  // ───────────── shared sessions ─────────────
+
+  drawSession(ui) {
+    const pr = this.presence;
+    ui.y = 18;
+    const status = pr.status === 'connected' ? (pr.peers.size ? '' : ' · waiting for others to join') : pr.status === 'failed' ? ' · could not connect' : ' · connecting…';
+    ui.text(`SESSION ${pr.code}${status}`, { size: 24, weight: 700, color: pr.status === 'failed' ? '#ff6b6b' : THEME.accent });
+    const ctx = ui.ctx;
+    let x = ui.pad;
+    for (const person of pr.people.slice(0, 6)) {
+      ctx.font = '600 22px system-ui, sans-serif';
+      const w = ctx.measureText(person.name).width + 34;
+      if (x + w > ui.W - ui.pad) break;
+      ctx.fillStyle = `#${person.color.toString(16).padStart(6, '0')}`;
+      ctx.beginPath();
+      ctx.arc(x + 9, ui.y + 14, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = THEME.text;
+      ctx.textBaseline = 'top';
+      ctx.fillText(person.name, x + 24, ui.y + 2);
+      x += w + 14;
+    }
+  }
+
+  /** The 2D start screen: show the session code, or offer to start / join one. */
+  initSessionUI(session) {
+    const overlay = document.getElementById('overlay');
+    if (!overlay) return;
+    const box = document.createElement('div');
+    box.className = 'session-box';
+    const url = new URL(location.href);
+    if (session) {
+      url.searchParams.set('session', session.code);
+      box.innerHTML = `<p><strong>Shared session <span class="code">${session.code}</span></strong><br>Colleagues join from the lessons page with this code, or with this link.</p>
+        <div class="buttons"><button class="secondary" id="copy-link">Copy link</button><button class="secondary" id="leave-session">Leave session</button></div>`;
+      box.querySelector('#copy-link').onclick = (e) => {
+        navigator.clipboard?.writeText(url.toString()).then(() => { e.target.textContent = 'Link copied'; }).catch(() => prompt('Copy this link:', url.toString()));
+      };
+      box.querySelector('#leave-session').onclick = () => {
+        url.searchParams.delete('session');
+        location.href = url.toString();
+      };
+    } else {
+      box.innerHTML = `<p>Working with someone? <button class="link" id="start-session">Start a shared session</button> or join one:</p>
+        <form class="buttons" id="join-form"><input id="join-code" maxlength="8" placeholder="Code" autocomplete="off" aria-label="Session code"><button class="secondary">Join</button></form>`;
+      box.querySelector('#start-session').onclick = () => {
+        url.searchParams.set('session', newSessionCode());
+        location.href = url.toString();
+      };
+      box.querySelector('#join-form').onsubmit = (e) => {
+        e.preventDefault();
+        const code = box.querySelector('#join-code').value.trim().toUpperCase();
+        if (!code) return;
+        url.searchParams.set('session', code);
+        location.href = url.toString();
+      };
+    }
+    overlay.appendChild(box);
+  }
+
   // ───────────── WebXR ─────────────
 
   async initXRButtons() {
@@ -334,6 +415,15 @@ export class LessonApp {
     }
     this.interaction.update();
     this.update(dt, frame);
+    if (this.presence) {
+      this.presence.update(dt);
+      this.sessionRedraw = (this.sessionRedraw ?? 0) + dt;
+      if (this.sessionRedraw > 1) {
+        this.sessionRedraw = 0;
+        this.sessionPanel.redraw();
+      }
+    }
     this.renderer.render(this.scene, this.camera);
   }
 }
+

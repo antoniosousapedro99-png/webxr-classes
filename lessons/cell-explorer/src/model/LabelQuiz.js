@@ -105,9 +105,13 @@ export class LabelQuiz {
     const lab = this.app.lab;
     const offset = o.position.clone().sub(lab.worldToLocal(world.clone()));
     o.rotation.y = 0;
+    this.app.netHolding = { label: `Label: ${ORGANELLES[o.userData.tag].name}` };
     return {
       move: (w) => o.position.copy(lab.worldToLocal(w.clone())).add(offset),
-      release: () => this.drop(o),
+      release: () => {
+        this.app.netHolding = null;
+        this.drop(o);
+      },
     };
   }
 

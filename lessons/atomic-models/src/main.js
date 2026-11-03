@@ -286,6 +286,71 @@ class App extends LessonApp {
     this.windowAimed = true;
   }
 
+  // ───────────── shared sessions ─────────────
+
+  netState() {
+    const s = this.state;
+    const out = { mode: s.mode, atom: s.atom, view: s.atomView };
+    if (this.buildingMolecules) {
+      const r = (v) => Math.round(v * 1000) / 1000;
+      const index = new Map(this.builder.atoms.map((a, i) => [a, i]));
+      out.bench = {
+        atoms: this.builder.atoms.map((a) => [a.sym, r(a.pos.x), r(a.pos.y), r(a.pos.z)]),
+        bonds: this.builder.bonds.map((b) => [index.get(b.a), index.get(b.b), b.order]),
+      };
+    }
+    return out;
+  }
+
+  /** A colleague's work: their atom, or the molecules on their workbench. */
+  createReplica() {
+    const group = new THREE.Group();
+    const atom = new AtomModel();
+    const bench = new THREE.Group();
+    group.add(atom.group, bench);
+    const sphere = new THREE.SphereGeometry(1, 20, 14);
+    const stick = new THREE.CylinderGeometry(0.0065, 0.0065, 1, 8);
+    const mats = {};
+    const matFor = (sym) => (mats[sym] ??= new THREE.MeshStandardMaterial({ color: bySymbol(sym)?.color ?? 0xffffff, roughness: 0.35 }));
+    const grey = new THREE.MeshStandardMaterial({ color: 0xd8dbe8 });
+    let benchKey = '';
+    return {
+      group,
+      apply(s) {
+        atom.group.visible = s.mode === 'atom';
+        if (s.mode === 'atom') atom.set({ ...s.atom, view: s.view });
+        bench.visible = !!s.bench;
+        const key = JSON.stringify(s.bench ?? null);
+        if (!s.bench || key === benchKey) return;
+        benchKey = key;
+        bench.clear();
+        const pos = s.bench.atoms.map(([, x, y, z]) => new THREE.Vector3(x, y, z));
+        s.bench.atoms.forEach(([sym], i) => {
+          const m = new THREE.Mesh(sphere, matFor(sym));
+          m.scale.setScalar(sym === 'H' ? 0.022 : 0.032);
+          m.position.copy(pos[i]);
+          bench.add(m);
+        });
+        for (const [a, b] of s.bench.bonds) {
+          const dir = pos[b].clone().sub(pos[a]);
+          const m = new THREE.Mesh(stick, grey);
+          m.position.copy(pos[a]).add(pos[b]).multiplyScalar(0.5);
+          m.scale.y = dir.length();
+          m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+          bench.add(m);
+        }
+      },
+      update: (dt) => atom.animate(dt),
+      heldObject(held) {
+        const color = held.sym ? bySymbol(held.sym)?.color : { proton: 0xe5484d, neutron: 0x9aa4b5, electron: 0x4cc9ff }[held.kind];
+        if (color == null) return null;
+        const m = new THREE.Mesh(sphere, new THREE.MeshStandardMaterial({ color }));
+        m.scale.setScalar(held.sym === 'H' ? 0.022 : held.kind ? 0.016 : 0.032);
+        return m;
+      },
+    };
+  }
+
   // ───────────── WebXR hooks ─────────────
 
   onXRStart() {

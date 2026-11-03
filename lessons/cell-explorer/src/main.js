@@ -176,6 +176,35 @@ class App extends LessonApp {
     this.say(ANSWERS[qid]);
   }
 
+  // ───────────── shared sessions ─────────────
+
+  netState() {
+    const s = this.state;
+    return { cell: s.cellType, mode: s.mode, knocked: [...this.cell.knocked], cut: s.cut, specimen: this.explorer.specimen?.id ?? null };
+  }
+
+  /** A colleague's cell: the same model, with their knock-outs. */
+  createReplica() {
+    const group = new THREE.Group();
+    let cell = null;
+    return {
+      group,
+      apply(s) {
+        if (!cell || cell.type !== s.cell) {
+          if (cell) group.remove(cell.group);
+          cell = new Cell(s.cell);
+          cell.group.position.copy(CELL_POS);
+          group.add(cell.group);
+        }
+        for (const id of [...cell.knocked]) if (!s.knocked.includes(id)) cell.revive(id);
+        for (const id of s.knocked) if (!cell.knocked.has(id)) cell.knock(id);
+        cell.cut = s.cut;
+        cell.group.visible = s.mode !== 'compare';
+      },
+      update: (dt) => cell?.update(dt),
+    };
+  }
+
   // ───────────── wiring ─────────────
 
   grabTargets() {

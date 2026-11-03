@@ -8,6 +8,21 @@ Mixed reality lessons built with [WebXR](https://immersiveweb.dev/) and [three.j
 | **PC Builder Lab** | Computer Science | [`lessons/pc-builder/`](lessons/pc-builder/) |
 | **Cell Explorer** | Biology | [`lessons/cell-explorer/`](lessons/cell-explorer/) |
 
+## Shared sessions (work alongside colleagues)
+
+Every lesson can be opened **solo** or in a **shared session**:
+
+1. On the lessons page, enter your name, pick a lesson and choose **Start a shared session**. You get a 4-letter code, e.g. `K7QM`, shown in the lesson and on a small panel under the controls in the headset.
+2. A colleague picks the same lesson and chooses **Join with code**, or opens the link from **Copy link**.
+
+Each person has **their own models**. Everyone else appears beside you at their own desk: an avatar with head, body, tracked hands and their name, plus a live copy of their work. You can see their PC being built part by part, their atom or molecule, or their cell with its knock-outs, and whatever part or organelle is in their hand. Desks sit side by side in the same order for everyone, so if you see someone on your right, they see you on their left.
+
+**How it connects:** peer-to-peer (WebRTC) using [Trystero](https://github.com/dmotz/trystero), bundled in `shared/vendor/`. Public Nostr relays are only used to introduce the devices; after that, lesson data goes directly between them. No server is needed, so it works on GitHub Pages.
+
+- Some school or corporate networks block direct peer-to-peer connections. If people can't see each other, add a TURN server in `shared/net/config.js`.
+- To use your own relays instead of the public ones, list them in the same file.
+- To test on one computer, open the same session in two tabs with `&net=local` added to the URL.
+
 ## Atom Scale Lab
 
 > Build and explore atomic models, while also learning about the actual scale of models, relative to each other. All you need to do is look out the window…
@@ -152,6 +167,8 @@ and returns `{ "answer": "..." }`. An **Ask AI about this** button then appears.
 index.html                         landing page listing the lessons
 shared/                            used by every lesson
   LessonApp.js                     three.js + WebXR setup, lab + panels, placement, render loop
+  net/                             shared sessions: transport (P2P / same-device), presence (avatars, desks, copies), config
+  vendor/                          Trystero (MIT) bundled as one file
   ui/                              canvas panels, labels, mouse/touch/controller/hand input
   util/sound.js                    synthesised sound effects
   fx/Flows.js                      animated flows between points (used for processes)

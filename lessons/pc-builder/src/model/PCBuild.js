@@ -223,6 +223,7 @@ export class PCBuild {
     this.rebuild();
     const types = SLOT_TYPES[PARTS[id].cat];
     const anySlot = this.slots.some((s) => types.includes(s.type));
+    app.netHolding = { label: PARTS[id].short, part: id }; // colleagues see it in your hand
     const e = T.picked(id, !!from, stash, anySlot);
     if (wasOn) e.text = `${T.SAFETY.title}: ${T.SAFETY.text} ${e.text}`;
     app.explain(e);
@@ -266,6 +267,7 @@ export class PCBuild {
         }
       },
       release: () => {
+        app.netHolding = null;
         this.group.remove(held);
         if (this.preview) this.group.remove(this.preview);
         this.preview = null;

@@ -87,10 +87,12 @@ export class Explorer {
     const home = copy.position.clone();
     const offset = home.clone().sub(lab.worldToLocal(world.clone()));
     sound.click();
+    this.app.netHolding = { label: ORGANELLES[id].name };
 
     return {
       move: (w) => copy.position.copy(lab.worldToLocal(w.clone())).add(offset),
       release: () => {
+        this.app.netHolding = null;
         if (copy.position.distanceTo(home) < 0.06) {
           // Barely moved: that was a tap — put it back and tell them about it.
           lab.remove(copy);

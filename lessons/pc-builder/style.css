@@ -17,3 +17,8 @@ button {
 button.secondary { background: #2b3560; }
 button:disabled { background: #2a3050; color: #8890b5; cursor: default; }
 body.in-xr #overlay { display: none; }
+.session-box { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(124, 140, 255, 0.3); }
+.session-box p { margin: 0 0 8px; }
+.session-box .code { font: 700 18px ui-monospace, Menlo, monospace; letter-spacing: 0.12em; color: #fff; background: #2b3560; padding: 2px 8px; border-radius: 6px; }
+.session-box input { font: 600 15px ui-monospace, Menlo, monospace; text-transform: uppercase; letter-spacing: 0.1em; width: 7em; padding: 9px 10px; border-radius: 10px; border: 1px solid #3a4470; background: #121831; color: #fff; }
+button.link { background: none; padding: 0; color: #9aa8ff; text-decoration: underline; font: inherit; }

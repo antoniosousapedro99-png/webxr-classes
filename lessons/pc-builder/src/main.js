@@ -5,6 +5,7 @@ import { sound } from '../../../shared/util/sound.js';
 import { CASES } from './data/parts.js';
 import { emptyBuild } from './data/rules.js';
 import { PCBuild } from './model/PCBuild.js';
+import { partMesh } from './model/parts3d.js';
 import { PartsTray } from './model/PartsTray.js';
 import { bootScript, TourFX } from './model/boot.js';
 import { drawControls, drawInfo, drawCard } from './ui/panels.js';
@@ -100,6 +101,39 @@ class App extends LessonApp {
 
   grabTargets() {
     return [...this.pc.grabTargets, ...this.tray.grabTargets];
+  }
+
+  // ───────────── shared sessions ─────────────
+
+  netState() {
+    return { build: this.state.build, on: this.powered ? 1 : 0 };
+  }
+
+  /** A colleague's PC: the same model, driven by the build they share. */
+  createReplica() {
+    const view = { state: { build: emptyBuild('mid'), labels: false } };
+    const pc = new PCBuild(view);
+    pc.rebuild();
+    let key = '';
+    let on = false;
+    return {
+      group: pc.group,
+      apply(s) {
+        on = !!s.on;
+        const k = JSON.stringify(s.build);
+        if (k === key) return;
+        key = k;
+        view.state.build = JSON.parse(k);
+        pc.rebuild();
+      },
+      update: (dt) => pc.animate(dt, on),
+      heldObject(held) {
+        if (!held.part) return null;
+        const m = partMesh(held.part);
+        m.position.copy(pc.centreOffset(held.part)).negate();
+        return m;
+      },
+    };
   }
 
   // ───────────── power ─────────────

@@ -7,33 +7,103 @@
   <style>
     :root { color-scheme: dark; }
     body { margin: 0; padding: 32px 16px; background: #0d1020; color: #eef1ff; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-    main { max-width: 720px; margin: 0 auto; }
+    main { max-width: 760px; margin: 0 auto; }
     h1 { margin: 0 0 8px; }
-    p { color: #c4cbef; line-height: 1.5; }
-    a.card { display: block; margin-top: 20px; padding: 20px; border-radius: 16px; background: #161b33; border: 1px solid rgba(124, 140, 255, 0.45); color: inherit; text-decoration: none; }
-    a.card:hover { background: #1d2445; }
+    p { color: #c4cbef; line-height: 1.5; margin: 0 0 12px; }
+    .name { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0 4px; color: #c4cbef; }
+    input { font: 600 16px system-ui, sans-serif; padding: 10px 12px; border-radius: 10px; border: 1px solid #3a4470; background: #121831; color: #fff; }
+    #code { font-family: ui-monospace, Menlo, monospace; text-transform: uppercase; letter-spacing: 0.15em; width: 7em; }
+    .card { display: block; width: 100%; text-align: left; margin-top: 18px; padding: 20px; border-radius: 16px; background: #161b33; border: 1px solid rgba(124, 140, 255, 0.45); color: inherit; font: inherit; cursor: pointer; }
+    .card:hover, .card:focus-visible { background: #1d2445; outline: none; border-color: #9aa8ff; }
+    .card h2 { margin: 8px 0 6px; }
     .tag { display: inline-block; padding: 2px 10px; border-radius: 999px; background: #3a3470; font-size: 13px; }
+    dialog { max-width: 440px; width: calc(100% - 32px); box-sizing: border-box; border: 1px solid rgba(124, 140, 255, 0.5); border-radius: 18px; background: #141a33; color: #eef1ff; padding: 24px; }
+    dialog::backdrop { background: rgba(5, 7, 15, 0.7); }
+    dialog h2 { margin: 0 0 4px; }
+    .choices { display: grid; gap: 10px; margin-top: 16px; }
+    button.big { font: 600 17px system-ui, sans-serif; padding: 14px 16px; border-radius: 12px; border: 0; cursor: pointer; background: #5b6cff; color: #fff; text-align: left; }
+    button.big small { display: block; font-weight: 400; font-size: 13px; opacity: 0.85; margin-top: 2px; }
+    button.big.secondary { background: #2b3560; }
+    .join { display: flex; gap: 8px; flex-wrap: wrap; }
+    .join button { flex: 1; min-width: 120px; }
+    .close { margin-top: 14px; background: none; border: 0; color: #9aa8ff; cursor: pointer; font: inherit; text-decoration: underline; padding: 0; }
+    .error { color: #ff8a8a; min-height: 1.2em; margin: 6px 0 0; font-size: 14px; }
   </style>
 </head>
 <body>
   <main>
     <h1>WebXR Classes</h1>
-    <p>Mixed reality lessons that run in the browser — open them on a Meta Quest (or another WebXR headset), or explore on any screen.</p>
-    <a class="card" href="lessons/atomic-models/">
+    <p>Mixed reality lessons that run in the browser. Open them on a Meta Quest (or another WebXR headset), or explore on any screen. Work alone, or start a shared session so colleagues can work beside you.</p>
+    <label class="name">Your name (shown above your head in shared sessions) <input id="name" maxlength="24" placeholder="e.g. Alex" autocomplete="nickname"></label>
+
+    <button class="card" data-lesson="atomic-models">
       <span class="tag">Chemistry</span>
       <h2>Atom Scale Lab</h2>
-      <p>Build and explore atomic models, compare the sizes of atoms and molecules, and discover the real scale of an atom — all you need to do is look out of the window.</p>
-    </a>
-    <a class="card" href="lessons/pc-builder/">
+      <p>Build and explore atomic models, compare the sizes of atoms and molecules, perform reactions by hand and discover the real scale of an atom — all you need to do is look out of the window.</p>
+    </button>
+    <button class="card" data-lesson="pc-builder">
       <span class="tag">Computer Science</span>
       <h2>PC Builder Lab</h2>
       <p>Build your own computer from real, life-size parts like Lego — check that everything is compatible, power it on, and follow the power and data to see how the components work together.</p>
-    </a>
-    <a class="card" href="lessons/cell-explorer/">
+    </button>
+    <button class="card" data-lesson="cell-explorer">
       <span class="tag">Biology</span>
       <h2>Cell Explorer</h2>
       <p>Investigate animal, plant and bacterial cells thousands of times bigger than life — name every part, pull organelles out to examine them, and see what happens to the cell when one goes missing.</p>
-    </a>
+    </button>
   </main>
+
+  <dialog id="start">
+    <h2 id="lesson-title">Lesson</h2>
+    <p>How do you want to open it?</p>
+    <div class="choices">
+      <button class="big" id="solo">Open solo<small>Just you</small></button>
+      <button class="big secondary" id="create">Start a shared session<small>Get a code a colleague can join. You each build your own, and see each other.</small></button>
+      <form class="join" id="join">
+        <input id="code" maxlength="8" placeholder="CODE" autocomplete="off" aria-label="Session code">
+        <button class="big secondary">Join with code</button>
+      </form>
+      <p class="error" id="error"></p>
+    </div>
+    <button class="close" id="cancel">Back to lessons</button>
+  </dialog>
+
+  <script type="module">
+    import { newSessionCode } from './shared/net/code.js';
+
+    const nameInput = document.getElementById('name');
+    try { nameInput.value = localStorage.getItem('webxr-classes:name') || ''; } catch {}
+    nameInput.addEventListener('input', () => {
+      try { localStorage.setItem('webxr-classes:name', nameInput.value.trim()); } catch {}
+    });
+
+    const dialog = document.getElementById('start');
+    let lesson = null;
+    for (const card of document.querySelectorAll('.card')) {
+      card.addEventListener('click', () => {
+        lesson = card.dataset.lesson;
+        document.getElementById('lesson-title').textContent = card.querySelector('h2').textContent;
+        document.getElementById('error').textContent = '';
+        dialog.showModal();
+      });
+    }
+    const go = (session) => {
+      const url = new URL(`lessons/${lesson}/`, location.href);
+      if (session) url.searchParams.set('session', session);
+      location.href = url.toString();
+    };
+    document.getElementById('solo').onclick = () => go(null);
+    document.getElementById('create').onclick = () => go(newSessionCode());
+    document.getElementById('join').onsubmit = (e) => {
+      e.preventDefault();
+      const code = document.getElementById('code').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (code.length < 4) {
+        document.getElementById('error').textContent = 'Enter the 4-letter code your colleague sees in their lesson.';
+        return;
+      }
+      go(code);
+    };
+    document.getElementById('cancel').onclick = () => dialog.close();
+  </script>
 </body>
 </html>

@@ -55,6 +55,7 @@ export class AtomBuilder {
     mesh.position.copy(app.lab.worldToLocal(world.clone()));
     app.lab.add(mesh);
 
+    app.netHolding = { label: X.PARTICLES[kind].name, kind };
     let felt = false;
     let lastPulse = 0;
     return {
@@ -91,6 +92,7 @@ export class AtomBuilder {
         }
       },
       release: (w) => {
+        app.netHolding = null;
         app.tray.highlightBin(false);
         app.lab.remove(mesh);
         mesh.material.dispose();
