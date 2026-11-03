@@ -85,6 +85,7 @@ export class AtomModel {
       v.sub(centre).multiplyScalar(NUCLEON_R * 2 * 0.92);
       maxR = Math.max(maxR, v.length());
       const m = new THREE.Mesh(this.geoNucleon, isProton.has(i) ? this.matP : this.matN);
+      m.userData.part = isProton.has(i) ? 'proton' : 'neutron';
       m.position.copy(v);
       this.nucleus.add(m);
     });
@@ -118,6 +119,7 @@ export class AtomModel {
       for (let i = 0; i < count; i++) {
         const a = (i / count) * Math.PI * 2;
         const el = new THREE.Mesh(this.geoElectron, this.matE);
+        el.userData.part = 'electron';
         el.position.set(Math.cos(a) * r, Math.sin(a) * r, 0);
         orbit.add(el);
       }
@@ -147,6 +149,13 @@ export class AtomModel {
       depthWrite: false, blending: THREE.AdditiveBlending,
     }));
     this.electrons.add(this.cloud);
+  }
+
+  /** Every proton, neutron and (in shell view) electron can be picked up. */
+  get grabTargets() {
+    const t = [...this.nucleus.children];
+    for (const o of this.orbits) t.push(...o.children);
+    return t;
   }
 
   animate(dt) {

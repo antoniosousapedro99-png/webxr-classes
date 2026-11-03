@@ -1,12 +1,17 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getElement, MAX_Z } from './data/elements.js';
+import { getElement, MAX_Z, bySymbol } from './data/elements.js';
 import { AtomModel } from './models/AtomModel.js';
 import { MoleculeModel } from './models/MoleculeModel.js';
 import { ScaleExplorer } from './models/ScaleExplorer.js';
+import { MoleculeBuilder } from './models/MoleculeBuilder.js';
+import { AtomBuilder, ATOM_TRAY_ITEMS } from './models/AtomBuilder.js';
+import { Tray } from './models/Tray.js';
+import { MOLECULES } from './data/molecules.js';
+import { TRAY_ATOMS } from './data/bonding.js';
 import { CanvasPanel } from './ui/CanvasPanel.js';
 import { Interaction } from './ui/Interaction.js';
-import { drawControls, drawInfo } from './ui/panels.js';
+import { drawControls, drawInfo, drawExplain } from './ui/panels.js';
 import { answerFor, askRemote } from './chemist/Chemist.js';
 
 const DESKTOP_LAB_POS = new THREE.Vector3(0, 1.2, 0);
@@ -25,6 +30,7 @@ class App {
       comparePreset: 'period2',
       nucleusObject: 'marble',
       chemist: { qid: null, answer: null },
+      explain: null, // { title, text } shown on the floating "Chemist explains" card
       placing: false,
       speak: false,
     };
@@ -99,16 +105,29 @@ class App {
     this.scale = new ScaleExplorer();
     this.lab.add(this.atom.group, this.molecule.group, this.scale.group);
 
+    // Hands-on building: a tray of parts + bin, and editable molecules.
+    this.tray = new Tray();
+    this.trayKind = null;
+    this.atomBuilder = new AtomBuilder(this);
+    this.builder = new MoleculeBuilder(this);
+    this.builder.load(MOLECULES[this.state.molecule]);
+    this.lab.add(this.tray.group, this.builder.group);
+
     this.controlPanel = new CanvasPanel({ width: 0.5, height: 0.72, name: 'controls' });
     this.infoPanel = new CanvasPanel({ width: 0.5, height: 0.72, name: 'info' });
     this.controlPanel.mesh.position.set(-0.62, 0, 0.14);
     this.controlPanel.mesh.rotation.y = 0.42;
     this.infoPanel.mesh.position.set(0.62, 0, 0.14);
     this.infoPanel.mesh.rotation.y = -0.42;
-    this.lab.add(this.controlPanel.mesh, this.infoPanel.mesh);
-    this.panels = [this.controlPanel, this.infoPanel];
+    // Floating card above the model that explains whatever you just picked up or changed.
+    this.explainPanel = new CanvasPanel({ width: 0.68, height: 0.25, name: 'explain' });
+    this.explainPanel.mesh.position.set(0, 0.44, -0.04);
+    this.explainPanel.mesh.rotation.x = 0.22;
+    this.lab.add(this.controlPanel.mesh, this.infoPanel.mesh, this.explainPanel.mesh);
+    this.panels = [this.controlPanel, this.infoPanel, this.explainPanel];
     this.controlPanel.setBuilder((ui) => drawControls(ui, this));
     this.infoPanel.setBuilder((ui) => drawInfo(ui, this));
+    this.explainPanel.setBuilder((ui) => drawExplain(ui, this));
   }
 
   // ───────────── state changes (called from panel buttons) ─────────────
@@ -117,6 +136,58 @@ class App {
     Object.assign(this.state, patch);
     // Anything except play/pause changes what is on show, so clear the old answer.
     if (!('spin' in patch)) this.state.chemist = { qid: null, answer: null };
+    if ('mode' in patch || 'scaleSub' in patch) this.state.explain = null;
+  }
+
+  /** Show an explanation on the floating card (and read it out if voice is on). */
+  explain(e) {
+    if (!e) return;
+    this.state.explain = e;
+    this.state.chemist = { qid: null, answer: null };
+    this.say(`${e.title}. ${e.text}`);
+    this.refresh();
+  }
+
+  say(text) {
+    if (this.state.speak && 'speechSynthesis' in window) {
+      speechSynthesis.cancel();
+      speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+    }
+  }
+
+  /** The molecule builder changed (bond made/broken, atom added/removed). */
+  onWorkbenchChanged(explanation) {
+    const preset = this.builder.presetMatch;
+    if (preset) this.state.molecule = preset;
+    if (explanation) this.explain(explanation);
+    else this.refresh();
+  }
+
+  /** Load a ready-made molecule onto the workbench. */
+  loadMolecule(id) {
+    this.set({ molecule: id });
+    if (!MOLECULES[id].crystal) this.builder.load(MOLECULES[id]);
+    const m = MOLECULES[id];
+    this.state.explain = m.crystal
+      ? { title: `${m.name} (${m.formula})`, text: 'Ionic lattices are shown as a model only. Pick a covalent molecule to take it apart with your hands.' }
+      : { title: `${m.name} (${m.formula}) loaded`, text: 'Pinch or grab an atom and pull it off to break a bond. Bring atoms close to bond them, tap a bond to make it double or triple, drop atoms in the bin to remove them.' };
+  }
+
+  clearWorkbench() {
+    this.builder.clear();
+    this.builder.analyze();
+    this.state.explain = { title: 'Empty workbench', text: 'Take atoms from the tray and bring them together to build a molecule. Try two H and one O!' };
+  }
+
+  get buildingMolecules() {
+    return this.state.mode === 'molecules' && !MOLECULES[this.state.molecule].crystal;
+  }
+
+  /** Everything that can currently be picked up. */
+  grabTargets() {
+    if (this.state.mode === 'atom') return [...this.atomBuilder.grabTargets, ...this.tray.grabTargets];
+    if (this.buildingMolecules) return [...this.builder.grabTargets, ...this.tray.grabTargets];
+    return [];
   }
 
   setMode(mode) {
@@ -157,10 +228,7 @@ class App {
 
   showAnswer(qid, answer, redraw = true) {
     this.state.chemist = { qid, answer };
-    if (this.state.speak && 'speechSynthesis' in window) {
-      speechSynthesis.cancel();
-      speechSynthesis.speak(new SpeechSynthesisUtterance(answer));
-    }
+    this.say(answer);
     if (redraw) this.refresh();
   }
 
@@ -193,10 +261,23 @@ class App {
   refresh() {
     const s = this.state;
     this.atom.group.visible = s.mode === 'atom';
-    this.molecule.group.visible = s.mode === 'molecules';
+    const crystal = MOLECULES[s.molecule].crystal;
+    s.workbench = this.buildingMolecules && !this.builder.presetMatch ? 'custom' : 'preset';
+    this.molecule.group.visible = s.mode === 'molecules' && crystal;
+    this.builder.group.visible = this.buildingMolecules;
+    this.tray.group.visible = s.mode === 'atom' || this.buildingMolecules;
+    const trayKind = s.mode === 'atom' ? 'atom' : 'molecule';
+    if (this.tray.group.visible && trayKind !== this.trayKind) {
+      this.trayKind = trayKind;
+      this.tray.setItems(trayKind === 'atom'
+        ? ATOM_TRAY_ITEMS
+        : TRAY_ATOMS.map((sym) => ({ kind: sym, label: `${bySymbol(sym).name} ${sym}`, color: bySymbol(sym).color, radius: sym === 'H' ? 0.022 : 0.03 })), trayKind === 'atom' ? this.atomBuilder : this.builder);
+    }
+    if (this.builder.style !== s.molStyle) this.builder.setStyle(s.molStyle);
+    this.explainPanel.mesh.visible = !!s.explain && s.mode !== 'scale';
     this.scale.group.visible = s.mode === 'scale';
     if (s.mode === 'atom') this.atom.set({ ...s.atom, view: s.atomView });
-    if (s.mode === 'molecules') this.molecule.set(s.molecule, s.molStyle);
+    if (s.mode === 'molecules' && crystal) this.molecule.set(s.molecule, s.molStyle);
     if (s.mode === 'scale') {
       const Z = Math.max(1, s.atom.p);
       const A = s.atom.p ? s.atom.p + s.atom.n : 1;
@@ -326,6 +407,7 @@ class App {
 
   frame(frame) {
     const dt = Math.min(this.clock.getDelta(), 0.1);
+    this.tray.screenCamera = this.presenting ? null : this.camera;
     if (this.presenting) {
       this.framesSinceStart++;
       // Wait a few frames so the headset pose is valid before placing the lab.
@@ -341,8 +423,9 @@ class App {
       if (this.state.mode === 'atom') this.atom.animate(dt);
       if (this.state.mode === 'molecules') this.molecule.animate(dt);
     }
-    if (this.state.mode === 'scale') this.scale.animate(dt);
     this.interaction.update();
+    if (this.buildingMolecules) this.builder.animate();
+    if (this.state.mode === 'scale') this.scale.animate(dt);
     this.renderer.render(this.scene, this.camera);
   }
 }

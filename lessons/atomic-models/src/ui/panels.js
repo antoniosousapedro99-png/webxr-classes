@@ -1,5 +1,6 @@
-import { MOLECULES } from '../data/molecules.js';
-import { CATEGORY_NAMES, getElement } from '../data/elements.js';
+import { MOLECULES, moleculeExtentA } from '../data/molecules.js';
+import { CATEGORY_NAMES, getElement, VDW_RADII, IONIC_RADII } from '../data/elements.js';
+import { needsText } from '../chemist/explain.js';
 import { describeAtom, atomToNucleusRatio } from '../data/atomInfo.js';
 import { COMPARE_PRESETS, NUCLEUS_OBJECTS, COMPARE_SCALE } from '../models/ScaleExplorer.js';
 import { MOLECULE_SCALE } from '../models/MoleculeModel.js';
@@ -51,6 +52,9 @@ function atomControls(ui, app) {
   ], { height: 68, size: 27 });
   ui.heading('Or pick an element');
   ui.periodicTable(a.p, (Z) => app.pickElement(Z));
+  ui.text(app.presenting
+    ? 'Or by hand: pinch a particle to pull it out of the atom, take new ones from the tray below.'
+    : 'Or by hand: drag a particle out of the atom, or drag new ones in from the tray below.', { size: 23, color: THEME.dim });
   ui.heading('Electron view');
   ui.buttons([
     { id: 'bohr', label: 'Bohr shells', active: app.state.atomView === 'bohr', onClick: () => app.set({ atomView: 'bohr' }) },
@@ -61,20 +65,22 @@ function atomControls(ui, app) {
 
 function moleculeControls(ui, app) {
   const s = app.state;
-  ui.heading('Choose a molecule');
+  ui.heading('Load a molecule to explore');
   ui.buttons(Object.entries(MOLECULES).map(([id, m]) => ({
     id: `mol-${id}`,
     label: `${m.formula} · ${m.name}`,
-    active: s.molecule === id,
-    onClick: () => app.set({ molecule: id }),
-  })), { cols: 2, height: 66, size: 27, gap: 12 });
+    active: s.molecule === id && (m.crystal || app.builder.presetMatch === id),
+    onClick: () => app.loadMolecule(id),
+  })), { cols: 2, height: 62, size: 26, gap: 10 });
+  ui.buttons([{ id: 'empty-bench', label: 'Empty workbench — build from scratch', onClick: () => app.clearWorkbench() }], { height: 62, size: 26 });
   ui.heading('Model style');
   ui.buttons([
     { id: 'ball', label: 'Ball & stick', active: s.molStyle === 'ball', onClick: () => app.set({ molStyle: 'ball' }) },
     { id: 'space', label: 'Space-filling', active: s.molStyle === 'space', onClick: () => app.set({ molStyle: 'space' }) },
-    { id: 'spin', label: s.spin ? 'Pause' : 'Rotate', onClick: () => app.set({ spin: !s.spin }) },
-  ], { height: 68, size: 27 });
-  ui.text('Ball & stick: every atom of an element is the same size, every bond the same thickness — so you can compare models fairly. Space-filling: real relative sizes.', { size: 24, color: THEME.dim });
+  ], { height: 62, size: 26 });
+  ui.text(app.presenting
+    ? 'Build by hand: pinch an atom and pull to break a bond · hold it near another atom and let go to bond · tap a bond for double/triple · grip to move a whole molecule · drop in the bin to remove.'
+    : 'Build: drag an atom away to break a bond · drop it near another to bond · click a bond for double/triple · Shift-drag moves a whole molecule · drop in the bin to remove.', { size: 23, color: THEME.dim });
 }
 
 function scaleControls(ui, app) {
@@ -150,6 +156,10 @@ function atomInfo(ui, app) {
 }
 
 function moleculeInfo(ui, app) {
+  if (!MOLECULES[app.state.molecule].crystal) {
+    workbenchInfo(ui, app);
+    return;
+  }
   const m = MOLECULES[app.state.molecule];
   ui.title(`${m.name}  ${m.formula}`);
   ui.gap(6);
@@ -182,4 +192,54 @@ function scaleInfo(ui, app) {
   ui.kv('Atom is bigger than nucleus by', `${formatNumber(r.ratio)}×`);
   ui.kv('Edge of the atom', formatLength(r.R), { color: '#4cc9ff' });
   ui.text(`That is ${compareLength(r.R)}. Look out the window: the faint blue bubble around you is the edge of the atom. Everything between is almost empty space!`, { size: 27, color: THEME.dim });
+}
+
+function workbenchInfo(ui, app) {
+  const comps = app.builder.components;
+  ui.title('On the workbench');
+  if (!comps.length) {
+    ui.text('Nothing yet — take atoms from the tray.', { size: 26, color: THEME.dim });
+    return;
+  }
+  for (const c of comps.slice(0, 5)) {
+    const status = c.complete
+      ? (c.known ? `${c.known.name} ✓` : 'complete ✓')
+      : needsText(c);
+    ui.kv(c.formula, status, { size: 26, color: c.complete ? '#7ee2a8' : '#ffd166' });
+  }
+  if (comps.length > 5) ui.text(`…and ${comps.length - 5} more`, { size: 24, color: THEME.dim });
+  const id = app.builder.presetMatch;
+  if (id) {
+    const m = MOLECULES[id];
+    ui.gap(4);
+    ui.kv('Shape', m.shape, { size: 26 });
+    ui.kv('Bond angle', m.angle, { size: 26 });
+    ui.text(`Polar? ${m.polar}`, { size: 24, color: THEME.dim });
+    const real = moleculeExtentA(m, VDW_RADII, IONIC_RADII) * 1e-10;
+    ui.text(`Real size ≈ ${formatLength(real)} across; this model is magnified 1 billion× (1 Å → 10 cm).`, { size: 24 });
+  } else {
+    ui.text('Dashed yellow rings show atoms that still have free bonding sites.', { size: 24, color: THEME.dim });
+  }
+}
+
+// ───────────────────────── Floating card: what you just did ─────────────────────────
+
+export function drawExplain(ui, app) {
+  const e = app.state.explain;
+  if (!e) return;
+  const { ctx } = ui;
+  ui.y = 28;
+  ui.text('CHEMIST EXPLAINS', { size: 22, weight: 700, color: THEME.accent });
+  ui.text(e.title, { size: 36, weight: 700, width: ui.contentWidth - 70 });
+  ui.gap(4);
+  // Shrink the text until it fits the card.
+  const top = ui.y;
+  let size = 30;
+  ctx.font = `400 ${size}px system-ui`;
+  while (size > 20 && ui.wrap(e.text, ui.contentWidth).length * size * 1.3 > ui.H - top - 24) {
+    size -= 1;
+    ctx.font = `400 ${size}px system-ui`;
+  }
+  ui.text(e.text, { size, lineHeight: 1.3 });
+  ui.button({ id: 'explain-close', label: '×', onClick: () => app.set({ explain: null }) }, ui.W - 96, 24, 64, 56, 40);
 }
