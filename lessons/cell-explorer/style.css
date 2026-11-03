@@ -22,3 +22,4 @@ body.in-xr #overlay { display: none; }
 .session-box .code { font: 700 18px ui-monospace, Menlo, monospace; letter-spacing: 0.12em; color: #fff; background: #2b3560; padding: 2px 8px; border-radius: 6px; }
 .session-box input { font: 600 15px ui-monospace, Menlo, monospace; text-transform: uppercase; letter-spacing: 0.1em; width: 7em; padding: 9px 10px; border-radius: 10px; border: 1px solid #3a4470; background: #121831; color: #fff; }
 button.link { background: none; padding: 0; color: #9aa8ff; text-decoration: underline; font: inherit; }
+.same-room { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 14px; color: #c4cbef; }

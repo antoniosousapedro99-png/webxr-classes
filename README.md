@@ -17,6 +17,13 @@ Every lesson can be opened **solo** or in a **shared session**:
 
 Each person has **their own models**. Everyone else appears beside you at their own desk: an avatar with head, body, tracked hands and their name, plus a live copy of their work. You can see their PC being built part by part, their atom or molecule, or their cell with its knock-outs, and whatever part or organelle is in their hand. Desks sit side by side in the same order for everyone, so if you see someone on your right, they see you on their left.
 
+**Same room:** tick **"We're in the same room"** when starting or joining a session. In the headset, everyone presses **Line up with the room** on the small session panel under the controls. Then each person touches the same two real points in the same order, for example two corners of a shared table, pinching or pulling the trigger at each one. This gives every headset the same frame of reference. Once you are lined up:
+- each person's work appears on their real desk
+- avatar heads, bodies and hands are hidden, because you see the real people through passthrough
+- name tags and anything virtual in someone's hand stay visible
+
+Until everyone is lined up (a ✓ next to each name), people appear at side-by-side desks with avatars. Line up again after restarting the headset session.
+
 **How it connects:** peer-to-peer (WebRTC) using [Trystero](https://github.com/dmotz/trystero), bundled in `shared/vendor/`. Public Nostr relays are only used to introduce the devices; after that, lesson data goes directly between them. No server is needed, so it works on GitHub Pages.
 
 - Some school or corporate networks block direct peer-to-peer connections. If people can't see each other, add a TURN server in `shared/net/config.js`.

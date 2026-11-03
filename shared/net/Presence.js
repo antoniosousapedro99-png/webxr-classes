@@ -9,6 +9,9 @@ import { makeLabel } from '../ui/labels.js';
 //  • On each desk you see that person's avatar (head, body, hands, name) and a live copy of their
 //    work, built by the lesson from the state they share (lesson.netState / lesson.createReplica).
 //  • Everything is sent relative to the sender's own lab, so it lines up whatever room they're in.
+//  • Same-room sessions (?room=same): once everyone has "lined up with the room" (touched the same two
+//    real points), each desk appears where that person's lab really is, and avatars hide — you see the
+//    real person through passthrough. Only their name tag and anything virtual in their hand remain.
 
 const COLORS = [0x5b8cff, 0xff8a5c, 0x3ccf91, 0xffc94d, 0xb48cff, 0xff6b9a, 0x4cc9ff, 0xe0e070];
 const SEAT_GAP = 1.75; // metres between desks
@@ -17,7 +20,7 @@ const POSE_HZ = 15;
 export function sessionFromURL() {
   const p = new URLSearchParams(location.search);
   const code = p.get('session');
-  return code ? { code: code.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8), net: p.get('net') || 'p2p' } : null;
+  return code ? { code: code.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8), net: p.get('net') || 'p2p', sameRoom: p.get('room') === 'same' } : null;
 }
 
 export function myName() {
@@ -32,9 +35,11 @@ const hashColor = (id) => COLORS[[...id].reduce((a, c) => (a * 31 + c.charCodeAt
 const q3 = (v) => Math.round(v * 1000) / 1000;
 
 export class Presence {
-  constructor(app, { lessonId, code, net }) {
+  constructor(app, { lessonId, code, net, sameRoom = false }) {
     this.app = app;
     this.code = code;
+    this.sameRoom = sameRoom;
+    this.roomToWorld = null; // set once this headset has lined up with the room
     this.name = myName();
     this.status = 'connecting';
     this.peers = new Map();
@@ -91,7 +96,36 @@ export class Presence {
   // ───────────── people ─────────────
 
   get people() {
-    return [{ name: `${this.name} (you)`, color: hashColor(this.selfId ?? 'me') }, ...[...this.peers.values()].map((p) => ({ name: p.name, color: p.color }))];
+    const mark = (lined) => (this.sameRoom ? (lined ? ' ✓' : ' …') : '');
+    return [
+      { name: `${this.name} (you)${mark(!!this.roomToWorld)}`, color: hashColor(this.selfId ?? 'me') },
+      ...[...this.peers.values()].map((p) => ({ name: `${p.name}${mark(!!p.pose?.lab)}`, color: p.color })),
+    ];
+  }
+
+  /**
+   * Line up with the room from two real points touched in the same order on every headset.
+   * The shared "room frame" has its origin at A, x pointing (level) towards B, y straight up.
+   */
+  setRoomPoints(a, b) {
+    const x = new THREE.Vector3(b.x - a.x, 0, b.z - a.z);
+    if (x.lengthSq() < 0.01) return false; // points too close together to give a direction
+    x.normalize();
+    const y = new THREE.Vector3(0, 1, 0);
+    const z = new THREE.Vector3().crossVectors(x, y);
+    this.roomToWorld = new THREE.Matrix4().makeBasis(x, y, z).setPosition(a);
+    this.worldToRoom = this.roomToWorld.clone().invert();
+    return true;
+  }
+
+  clearRoom() {
+    this.roomToWorld = null;
+    this.worldToRoom = null;
+  }
+
+  /** Is this colleague shown at their real place in the room? */
+  aligned(p) {
+    return this.sameRoom && !!this.roomToWorld && !!p.pose?.lab;
   }
 
   nameTag(name, color) {
@@ -146,9 +180,22 @@ export class Presence {
     const me = ids.indexOf(this.selfId);
     for (const p of this.peers.values()) {
       const k = ids.indexOf(p.id) - me;
-      p.root.position.set(k * SEAT_GAP, 0, Math.abs(k) * 0.25);
-      p.root.rotation.y = -Math.sign(k) * 0.3; // turned a little towards you
+      p.seat = { pos: new THREE.Vector3(k * SEAT_GAP, 0, Math.abs(k) * 0.25), yaw: -Math.sign(k) * 0.3 }; // turned a little towards you
+      if (!this.aligned(p)) {
+        p.root.position.copy(p.seat.pos);
+        p.root.rotation.set(0, p.seat.yaw, 0);
+      }
     }
+  }
+
+  /** Put a colleague's desk where their lab really is (same room, both lined up). */
+  placeAtRealDesk(p) {
+    const [x, y, z, yaw] = p.pose.lab;
+    const theirLab = new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(1, 1, 1));
+    const world = this.roomToWorld.clone().multiply(theirLab);
+    this.app.lab.updateMatrixWorld();
+    const local = this.app.lab.matrixWorld.clone().invert().multiply(world);
+    local.decompose(p.root.position, p.root.quaternion, new THREE.Vector3());
   }
 
   // ───────────── sending ─────────────
@@ -167,7 +214,16 @@ export class Presence {
         hands[i] = app.lab.worldToLocal(app.interaction.sourcePoint(c)).toArray().map(q3);
       }
     }
-    return { h: [...pos.toArray(), q.x, q.y, q.z, q.w].map(q3), hands, held: app.netHolding ?? null };
+    // Same room: where my lab really is, in the shared room frame (so others can put my desk there).
+    let lab = null;
+    if (this.sameRoom && this.worldToRoom) {
+      const m = this.worldToRoom.clone().multiply(app.lab.matrixWorld);
+      const p = new THREE.Vector3();
+      const r = new THREE.Quaternion();
+      m.decompose(p, r, new THREE.Vector3());
+      lab = [...p.toArray(), new THREE.Euler().setFromQuaternion(r, 'YXZ').y].map(q3);
+    }
+    return { h: [...pos.toArray(), q.x, q.y, q.z, q.w].map(q3), hands, held: app.netHolding ?? null, lab };
   }
 
   sendState(force = false, to) {
@@ -202,6 +258,16 @@ export class Presence {
       p.replica?.update?.(dt);
       const pose = p.pose;
       if (!pose) continue;
+      // Same room and lined up: their desk goes where it really is, and their body is the real one.
+      const real = this.aligned(p);
+      if (real) this.placeAtRealDesk(p);
+      else if (p.seat && p.wasReal) {
+        p.root.position.copy(p.seat.pos);
+        p.root.rotation.set(0, p.seat.yaw, 0);
+      }
+      p.wasReal = real;
+      for (const c of p.head.children) c.visible = !real;
+      p.body.visible = !real;
       const [x, y, z, qx, qy, qz, qw] = pose.h;
       p.head.position.lerp(new THREE.Vector3(x, y, z), k);
       p.head.quaternion.slerp(new THREE.Quaternion(qx, qy, qz, qw), k);
@@ -213,6 +279,7 @@ export class Presence {
       pose.hands.forEach((h, i) => {
         const hand = p.hands[i];
         hand.visible = !!h;
+        hand.children[0].visible = !real; // the hand ball (the real hand is visible in the same room)
         if (h) hand.position.lerp(new THREE.Vector3(...h), hand.visible ? k : 1);
       });
       // what they're holding, shown in the hand that holds it (or by their head on a screen)

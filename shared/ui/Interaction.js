@@ -260,7 +260,7 @@ export class Interaction {
     });
 
     c.addEventListener('selectstart', () => {
-      if (this.app.state.placing) return;
+      if (this.app.state.placing || this.calibratingClick(c)) return;
       const hit = this.pick(c);
       c.userData.pending = hit ? { ...hit, t: performance.now() } : null;
       if (hit?.object && !this.startGrab(c, hit.object, 'single')) {
@@ -268,6 +268,13 @@ export class Interaction {
       }
     });
     c.addEventListener('select', () => {
+      if (this.app.calibrating && c.userData.calibrated) {
+        // lining up with the room: this press marks a point, unless it was on the panel button
+        c.userData.calibrated = false;
+        this.app.calibrationPoint(this.sourcePoint(c));
+        this.app.refresh();
+        return;
+      }
       if (this.app.state.placing) {
         this.app.confirmPlacement();
         return;
@@ -306,6 +313,16 @@ export class Interaction {
     const hand = renderer.xr.getHand(i);
     scene.add(hand);
     this.hands.push(hand);
+  }
+
+  /** While lining up with the room, a press that isn't on a panel marks a point. */
+  calibratingClick(c) {
+    if (!this.app.calibrating) return false;
+    const hit = this.castFromController(c);
+    if (hit?.panel) return false; // let them press panel buttons (e.g. cancel)
+    c.userData.calibrated = true;
+    c.userData.pending = null;
+    return true;
   }
 
   grabLab(c) {

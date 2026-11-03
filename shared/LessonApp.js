@@ -50,8 +50,8 @@ export class LessonApp {
     const session = sessionFromURL();
     if (session) {
       this.presence = new Presence(this, { lessonId: this.lessonId, ...session });
-      this.sessionPanel = new CanvasPanel({ width: 0.5, height: 0.14, name: 'session' });
-      this.sessionPanel.mesh.position.set(-0.62, -0.45, 0.14);
+      this.sessionPanel = new CanvasPanel({ width: 0.5, height: session.sameRoom ? 0.19 : 0.14, name: 'session' });
+      this.sessionPanel.mesh.position.set(-0.62, session.sameRoom ? -0.475 : -0.45, 0.14);
       this.sessionPanel.mesh.rotation.y = 0.42;
       this.lab.add(this.sessionPanel.mesh);
       this.sessionPanel.setBuilder((ui) => this.drawSession(ui));
@@ -223,6 +223,12 @@ export class LessonApp {
   drawSession(ui) {
     const pr = this.presence;
     ui.y = 18;
+    if (pr.sameRoom) {
+      const lined = !!pr.roomToWorld;
+      const label = this.calibrating ? `Touch point ${this.calibrating.points.length === 0 ? 'A' : 'B'}…  (tap to cancel)` : lined ? 'Lined up ✓ · line up again' : 'Line up with the room';
+      ui.button({ id: 'calibrate', label, active: !!this.calibrating, disabled: !this.presenting, onClick: () => this.toggleCalibration() }, ui.pad, ui.y, ui.contentWidth, 54, 24);
+      ui.y += 66;
+    }
     const status = pr.status === 'connected' ? (pr.peers.size ? '' : ' · waiting for others to join') : pr.status === 'failed' ? ' · could not connect' : ' · connecting…';
     ui.text(`SESSION ${pr.code}${status}`, { size: 24, weight: 700, color: pr.status === 'failed' ? '#ff6b6b' : THEME.accent });
     const ctx = ui.ctx;
@@ -242,6 +248,50 @@ export class LessonApp {
     }
   }
 
+  // ───────────── same room: line up with the room ─────────────
+
+  toggleCalibration() {
+    if (this.calibrating) {
+      this.endCalibration();
+      return;
+    }
+    this.calibrating = { points: [] };
+    this.explain({
+      title: 'Line up with the room',
+      text: 'Agree with your colleagues on two points you can all reach, e.g. two corners of the same table. Touch point A with your fingertips and pinch (or put the controller tip on it and pull the trigger). Then do the same for point B. Everyone must use the same two points, in the same order.',
+    });
+  }
+
+  /** Called by Interaction while lining up: the hand/controller tip was pressed here (world space). */
+  calibrationPoint(p) {
+    const cal = this.calibrating;
+    if (!cal) return;
+    cal.points.push(p.clone());
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.012, 16, 12), new THREE.MeshBasicMaterial({ color: cal.points.length === 1 ? 0xffd166 : 0x7ee2a8, toneMapped: false }));
+    dot.position.copy(p);
+    this.scene.add(dot);
+    (this.calibrationMarks ??= []).push(dot);
+    this.interaction.pulse(0.6, 60);
+    if (cal.points.length === 1) {
+      this.explain({ title: 'Point A marked', text: 'Now touch point B — the second point everyone agreed on — and pinch or pull the trigger.' });
+      return;
+    }
+    const ok = this.presence.setRoomPoints(cal.points[0], cal.points[1]);
+    this.endCalibration();
+    this.explain(ok
+      ? { title: 'Lined up with the room', text: 'Once your colleagues have lined up too, their work appears on their real desks and you see them through passthrough. If anything looks off, line up again.' }
+      : { title: 'Points too close together', text: 'Choose two points at least 10 cm apart (e.g. opposite corners of a table) and try again.' });
+  }
+
+  endCalibration() {
+    this.calibrating = null;
+    setTimeout(() => {
+      for (const m of this.calibrationMarks ?? []) this.scene.remove(m);
+      this.calibrationMarks = [];
+    }, 4000);
+    this.refresh();
+  }
+
   /** The 2D start screen: show the session code, or offer to start / join one. */
   initSessionUI(session) {
     const overlay = document.getElementById('overlay');
@@ -251,20 +301,26 @@ export class LessonApp {
     const url = new URL(location.href);
     if (session) {
       url.searchParams.set('session', session.code);
-      box.innerHTML = `<p><strong>Shared session <span class="code">${session.code}</span></strong><br>Colleagues join from the lessons page with this code, or with this link.</p>
+      box.innerHTML = `<p><strong>Shared session <span class="code">${session.code}</span></strong> · ${session.sameRoom ? 'same room' : 'different rooms'}<br>Colleagues join from the lessons page with this code, or with this link.${session.sameRoom ? ' In the headset, everyone presses “Line up with the room” and touches the same two points.' : ''}</p>
         <div class="buttons"><button class="secondary" id="copy-link">Copy link</button><button class="secondary" id="leave-session">Leave session</button></div>`;
       box.querySelector('#copy-link').onclick = (e) => {
         navigator.clipboard?.writeText(url.toString()).then(() => { e.target.textContent = 'Link copied'; }).catch(() => prompt('Copy this link:', url.toString()));
       };
       box.querySelector('#leave-session').onclick = () => {
         url.searchParams.delete('session');
+        url.searchParams.delete('room');
         location.href = url.toString();
       };
     } else {
       box.innerHTML = `<p>Working with someone? <button class="link" id="start-session">Start a shared session</button> or join one:</p>
-        <form class="buttons" id="join-form"><input id="join-code" maxlength="8" placeholder="Code" autocomplete="off" aria-label="Session code"><button class="secondary">Join</button></form>`;
+        <form class="buttons" id="join-form"><input id="join-code" maxlength="8" placeholder="Code" autocomplete="off" aria-label="Session code"><button class="secondary">Join</button></form>
+        <label class="same-room"><input type="checkbox" id="same-room"> We’re in the same room</label>`;
+      const sameRoom = () => {
+        if (box.querySelector('#same-room').checked) url.searchParams.set('room', 'same');
+      };
       box.querySelector('#start-session').onclick = () => {
         url.searchParams.set('session', newSessionCode());
+        sameRoom();
         location.href = url.toString();
       };
       box.querySelector('#join-form').onsubmit = (e) => {
@@ -272,6 +328,7 @@ export class LessonApp {
         const code = box.querySelector('#join-code').value.trim().toUpperCase();
         if (!code) return;
         url.searchParams.set('session', code);
+        sameRoom();
         location.href = url.toString();
       };
     }
@@ -362,6 +419,9 @@ export class LessonApp {
     this.grid.visible = true;
     document.body.classList.remove('in-xr');
     this.onXREnd?.();
+    // Each new headset session has a new coordinate system, so the room line-up must be redone.
+    this.presence?.clearRoom();
+    this.calibrating = null;
     this.recenter();
     this.refresh();
   }

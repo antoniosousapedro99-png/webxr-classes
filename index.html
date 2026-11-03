@@ -26,6 +26,9 @@
     button.big.secondary { background: #2b3560; }
     .join { display: flex; gap: 8px; flex-wrap: wrap; }
     .join button { flex: 1; min-width: 120px; }
+    .same { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: center; padding: 10px 2px; color: #eef1ff; font-weight: 600; }
+    .same input { width: 20px; height: 20px; margin: 0; }
+    .same small { grid-column: 2; font-weight: 400; color: #a3abd1; font-size: 13px; }
     .close { margin-top: 14px; background: none; border: 0; color: #9aa8ff; cursor: pointer; font: inherit; text-decoration: underline; padding: 0; }
     .error { color: #ff8a8a; min-height: 1.2em; margin: 6px 0 0; font-size: 14px; }
   </style>
@@ -59,6 +62,7 @@
     <div class="choices">
       <button class="big" id="solo">Open solo<small>Just you</small></button>
       <button class="big secondary" id="create">Start a shared session<small>Get a code a colleague can join. You each build your own, and see each other.</small></button>
+      <label class="same"><input type="checkbox" id="same-room"> We’re in the same room<small>Hide avatars and show everyone’s work on their real desks. In the headset, each person lines up by touching the same two points.</small></label>
       <form class="join" id="join">
         <input id="code" maxlength="8" placeholder="CODE" autocomplete="off" aria-label="Session code">
         <button class="big secondary">Join with code</button>
@@ -90,6 +94,7 @@
     const go = (session) => {
       const url = new URL(`lessons/${lesson}/`, location.href);
       if (session) url.searchParams.set('session', session);
+      if (session && document.getElementById('same-room').checked) url.searchParams.set('room', 'same');
       location.href = url.toString();
     };
     document.getElementById('solo').onclick = () => go(null);
