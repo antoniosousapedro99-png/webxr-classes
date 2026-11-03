@@ -7,6 +7,9 @@ import { MOLECULE_SCALE } from '../models/MoleculeModel.js';
 import { questionsFor, roomScale } from '../chemist/Chemist.js';
 import { formatLength, compareLength, formatNumber } from '../util/format.js';
 import { THEME } from './CanvasPanel.js';
+import { REACTIONS, moleculeDef } from '../data/reactions.js';
+import { formulaOf } from '../data/bonding.js';
+import { atomsIn, sci } from '../room/RoomScan.js';
 
 // ───────────────────────── Left panel: controls ─────────────────────────
 
@@ -15,12 +18,14 @@ export function drawControls(ui, app) {
   ui.buttons([
     { id: 'tab-atom', label: 'Atom', active: s.mode === 'atom', onClick: () => app.setMode('atom') },
     { id: 'tab-mol', label: 'Molecules', active: s.mode === 'molecules', onClick: () => app.setMode('molecules') },
+    { id: 'tab-react', label: 'Reactions', active: s.mode === 'reactions', onClick: () => app.setMode('reactions') },
     { id: 'tab-scale', label: 'Scale', active: s.mode === 'scale', onClick: () => app.setMode('scale') },
-  ], { height: 84, size: 34 });
+  ], { height: 80, size: 30, gap: 10 });
   ui.gap(8);
 
   if (s.mode === 'atom') atomControls(ui, app);
   else if (s.mode === 'molecules') moleculeControls(ui, app);
+  else if (s.mode === 'reactions') reactionControls(ui, app);
   else scaleControls(ui, app);
 
   ui.divider();
@@ -32,8 +37,11 @@ export function drawControls(ui, app) {
   if (app.hitTestSource) {
     general.push({ id: 'place', label: s.placing ? 'Tap to drop here' : 'Place on a surface', active: s.placing, onClick: () => app.togglePlacing() });
   }
+  if (app.presenting && app.room.tableNear(app.lab.position)) {
+    general.push({ id: 'table', label: 'Put lab on my table', onClick: () => app.placeOnTable() });
+  }
   general.push({ id: 'speak', label: s.speak ? 'Voice: on' : 'Voice: off', active: s.speak, onClick: () => app.toggleSpeak(), disabled: !('speechSynthesis' in window) });
-  ui.buttons(general, { height: 70, size: 28 });
+  ui.buttons(general, { cols: Math.min(general.length, 2), height: 64, size: 26 });
   ui.text(app.presenting
     ? 'Point and pinch / pull the trigger to press. Squeeze the grip to grab and move the whole lab.'
     : 'Drag to orbit, scroll to zoom. Use a headset for mixed reality.', { size: 24, color: THEME.dim });
@@ -88,7 +96,15 @@ function scaleControls(ui, app) {
   ui.buttons([
     { id: 'sub-compare', label: 'Compare atom sizes', active: s.scaleSub === 'compare', onClick: () => app.set({ scaleSub: 'compare' }) },
     { id: 'sub-room', label: 'Nucleus in the room', active: s.scaleSub === 'room', onClick: () => app.set({ scaleSub: 'room' }) },
-  ], { height: 72, size: 28 });
+    { id: 'sub-myroom', label: 'What’s my room made of?', active: s.scaleSub === 'myroom', onClick: () => app.set({ scaleSub: 'myroom' }) },
+  ], { cols: 2, height: 66, size: 26 });
+
+  if (s.scaleSub === 'myroom') {
+    ui.text(app.presenting
+      ? 'Your headset knows where your table, walls, floor and window are. Point at a green-outlined surface’s tag and tap it to find out which atoms it is made of — and roughly how many.'
+      : 'On a headset this uses your real table, walls and window. Here you see an example room: click a tag to find out what it is made of.', { size: 25, color: THEME.dim });
+    return;
+  }
 
   if (s.scaleSub === 'compare') {
     ui.heading('Choose a set of atoms');
@@ -118,6 +134,8 @@ export function drawInfo(ui, app) {
   const s = app.state;
   if (s.mode === 'atom') atomInfo(ui, app);
   else if (s.mode === 'molecules') moleculeInfo(ui, app);
+  else if (s.mode === 'reactions') reactionInfo(ui, app);
+  else if (s.scaleSub === 'myroom') roomInfo(ui, app);
   else scaleInfo(ui, app);
 
   ui.divider();
@@ -191,7 +209,9 @@ function scaleInfo(ui, app) {
   ui.gap(4);
   ui.kv('Atom is bigger than nucleus by', `${formatNumber(r.ratio)}×`);
   ui.kv('Edge of the atom', formatLength(r.R), { color: '#4cc9ff' });
-  ui.text(`That is ${compareLength(r.R)}. Look out the window: the faint blue bubble around you is the edge of the atom. Everything between is almost empty space!`, { size: 27, color: THEME.dim });
+  ui.text(app.windowAimed
+    ? `That is ${compareLength(r.R)}. Look through YOUR window: the blue beacon out there marks the edge of the atom. Everything in between is almost empty space!`
+    : `That is ${compareLength(r.R)}. Look out the window: the faint blue bubble around you is the edge of the atom. Everything between is almost empty space!`, { size: 27, color: THEME.dim });
 }
 
 function workbenchInfo(ui, app) {
@@ -242,4 +262,72 @@ export function drawExplain(ui, app) {
   }
   ui.text(e.text, { size, lineHeight: 1.3 });
   ui.button({ id: 'explain-close', label: '×', onClick: () => app.set({ explain: null }) }, ui.W - 96, 24, 64, 56, 40);
+}
+
+// ───────────────────────── Reactions ─────────────────────────
+
+function reactionControls(ui, app) {
+  const s = app.state;
+  ui.heading('Choose a reaction');
+  ui.buttons(Object.entries(REACTIONS).map(([id, r]) => ({
+    id: `rx-${id}`, label: r.equation, active: s.reaction === id, onClick: () => app.loadReaction(id),
+  })), { cols: 1, height: 60, size: 28, gap: 10 });
+  ui.buttons([{ id: 'rx-reset', label: 'Start again', onClick: () => app.loadReaction(s.reaction) }], { height: 60, size: 26 });
+  ui.text(app.presenting
+    ? 'Pull atoms apart to break bonds (stronger bonds fight back harder!). Let go of an atom next to another to bond them, tap a bond to make it double. Blue dots are the shared electrons.'
+    : 'Drag atoms apart to break bonds, drop them next to each other to bond, click a bond to make it double. Blue dots are the shared electrons.', { size: 24, color: THEME.dim });
+}
+
+function reactionInfo(ui, app) {
+  const r = REACTIONS[app.state.reaction];
+  ui.title(r.name, { size: 40 });
+  ui.text(r.equation, { size: 40, weight: 700, color: '#ffd166' });
+
+  ui.heading('Atoms: start → now');
+  const start = app.startCounts ?? {};
+  const now = app.atomCounts();
+  const syms = Object.keys(start).sort();
+  ui.text(syms.map((sym) => `${sym}: ${start[sym]} → ${now[sym] ?? 0}${(now[sym] ?? 0) === start[sym] ? ' ✓' : ''}`).join('     '), { size: 28 });
+  ui.text('Atoms are never created or destroyed — only rearranged.', { size: 23, color: THEME.dim });
+
+  ui.heading('Energy (kJ per mole)');
+  const { in: ein, out: eout } = app.builder.energy;
+  const max = Math.max(800, ein, eout);
+  ui.bar('In: breaking bonds', ein, max, '#ff8a5c');
+  ui.bar('Out: making bonds', eout, max, '#7ee2a8');
+  const net = eout - ein;
+  ui.text(app.state.reactionDone
+    ? `${net >= 0 ? 'Exothermic' : 'Endothermic'}: ${Math.abs(Math.round(net))} kJ ${net >= 0 ? 'released' : 'taken in'}`
+    : `So far: ${Math.abs(Math.round(net))} kJ ${net >= 0 ? 'given out' : 'put in'}`, { size: 27, weight: 700, color: net >= 0 ? '#7ee2a8' : '#ff8a5c' });
+
+  const made = app.productProgress();
+  ui.text(`Made: ${Object.entries(r.products).map(([id, n]) => `${formulaOfId(id)} ${made[id]}/${n}`).join(', ')}`, { size: 26 });
+}
+
+function formulaOfId(id) {
+  const counts = {};
+  for (const [sym] of moleculeDef(id).atoms) counts[sym] = (counts[sym] || 0) + 1;
+  return formulaOf(counts);
+}
+
+// ───────────────────────── What's my room made of? ─────────────────────────
+
+function roomInfo(ui, app) {
+  const room = app.room;
+  ui.title('What’s my room made of?', { size: 40 });
+  if (room.source === 'demo') ui.text('Example room — on a headset your real surfaces appear.', { size: 24, color: THEME.dim });
+  if (!room.list.length) {
+    ui.text(app.presenting
+      ? 'No room data yet. On your Quest, run Space Setup (Settings → Environment setup) and allow this page to use spatial data, then come back here.'
+      : 'Loading…', { size: 26, color: '#ffd166' });
+    return;
+  }
+  let total = 0;
+  for (const p of room.list.slice(0, 7)) {
+    const n = atomsIn(p);
+    total += n;
+    ui.kv(`${p.material.name} (${p.material.material})`, `≈ ${sci(n)} atoms`, { size: 24 });
+  }
+  ui.kv('Total so far', `≈ ${sci(total)} atoms`, { size: 26, color: '#7ee2a8' });
+  ui.text('Every one of those atoms has a nucleus 10,000–100,000× smaller than itself. Tap a tag on a surface to learn more.', { size: 23, color: THEME.dim });
 }

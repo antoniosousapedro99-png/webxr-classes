@@ -82,17 +82,33 @@ export function atomPicked(sym, used, fromTray) {
 
 export function bondBroken(a, b, order) {
   const e = bondEnergy(a, b, order);
+  const feel = e >= 700 ? ' Did you feel how hard that was? It is one of the strongest bonds there is.' : e && e < 260 ? ' That one gave way easily — it is a weak bond.' : '';
   return {
     title: `Bond broken: ${a}${SYMBOL[order]}${b}`,
-    text: `A covalent bond is a pair of electrons shared by two atoms${order > 1 ? ` (a ${BOND_NAMES[order]} bond shares ${order} pairs)` : ''}. Pulling them apart takes energy${e ? ` — about ${e} kJ per mole` : ''}. Each atom now has a free bonding site again.`,
+    text: `A covalent bond is a pair of electrons shared by two atoms${order > 1 ? ` (a ${BOND_NAMES[order]} bond shares ${order} pairs)` : ''}. Pulling them apart takes energy${e ? ` — about ${e} kJ per mole` : ''}.${feel} Each atom now has a free bonding site again.`,
   };
+}
+
+/** Who pulls the shared electrons harder (electronegativity). */
+export function polarity(a, b) {
+  const d = BUILD_ATOMS[a].chi - BUILD_ATOMS[b].chi;
+  if (Math.abs(d) < 0.4) return 'The electrons are shared almost equally (non-polar).';
+  const [more, less] = d > 0 ? [a, b] : [b, a];
+  return `${nameOf(more)} pulls the shared electrons closer (see the blue dot), so it is slightly negative (δ−) and ${nameOf(less).toLowerCase()} slightly positive (δ+) — a polar bond.`;
 }
 
 export function bondFormed(a, b) {
   const e = bondEnergy(a, b, 1);
   return {
     title: `Bond formed: ${a}–${b}`,
-    text: `${nameOf(a)} and ${nameOf(b)} now share a pair of electrons, bringing each closer to a full outer shell. Forming a bond releases energy${e ? ` (about ${e} kJ/mol)` : ''}.`,
+    text: `${nameOf(a)} and ${nameOf(b)} now share a pair of electrons, bringing each closer to a full outer shell. Forming a bond releases energy${e ? ` (about ${e} kJ/mol)` : ''}. ${polarity(a, b)}`,
+  };
+}
+
+export function cannotDestroy(sym) {
+  return {
+    title: 'Atoms can’t be destroyed!',
+    text: `In a chemical reaction atoms are only rearranged — never created or destroyed. ${sym ? `That ${nameOf(sym).toLowerCase()} atom` : 'Every atom'} has to end up in one of the products.`,
   };
 }
 
@@ -115,7 +131,7 @@ export function bondTapped(a, b, order) {
   const e = bondEnergy(a, b, order);
   return {
     title: `${cap(BOND_NAMES[order])} bond: ${a}${SYMBOL[order]}${b}`,
-    text: `${order} shared pair${order > 1 ? 's' : ''} of electrons holds these atoms together${e ? ` (about ${e} kJ/mol to break)` : ''}.`,
+    text: `${order} shared pair${order > 1 ? 's' : ''} of electrons holds these atoms together${e ? ` (about ${e} kJ/mol to break)` : ''}. ${polarity(a, b)}`,
   };
 }
 
@@ -144,3 +160,35 @@ export function needsText(component) {
 }
 
 export { KNOWN };
+
+// ── Forces inside the atom ──────────────────────────────
+
+export const FORCES = {
+  proton: {
+    title: 'Feel that push?',
+    text: 'The nucleus is positive and so is your proton — like charges repel. Push it all the way in: once it touches, the strong nuclear force (far stronger, but only over tiny distances) grabs it.',
+  },
+  electron: {
+    title: 'Feel the pull?',
+    text: 'Opposite charges attract: the positive nucleus pulls on your negative electron. That attraction is what keeps electrons in their shells.',
+  },
+  neutron: {
+    title: 'No push, no pull',
+    text: 'A neutron has no charge, so the nucleus neither repels nor attracts it electrically — it slides straight in.',
+  },
+};
+
+// ── Reactions ───────────────────────────────────────────
+
+export function reactionStart(r) {
+  return { title: `${r.name}: ${r.equation}`, text: `${r.hint} Breaking bonds takes energy in, making bonds gives energy out — watch the energy meter. No atoms can be added or thrown away.` };
+}
+
+export function reactionDone(r, energy) {
+  const net = energy.out - energy.in;
+  const exo = net >= 0;
+  return {
+    title: exo ? `Exothermic! ${Math.round(net)} kJ released` : `Endothermic: ${Math.round(-net)} kJ taken in`,
+    text: `Breaking bonds took in ${Math.round(energy.in)} kJ; making new ones gave out ${Math.round(energy.out)} kJ (per mole). ${exo ? 'More came out than went in, so the surroundings heat up — the products are shaking with that energy.' : 'More went in than came out, so the surroundings cool down.'} ${r.fact}`,
+  };
+}

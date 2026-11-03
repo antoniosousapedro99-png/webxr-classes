@@ -34,6 +34,22 @@ The lab appears in front of the student in their real room (passthrough mixed re
 - The builder recognises over 20 molecules, including water, ethanol, hydrogen peroxide and hydrogen cyanide.
 - **Chemist explains card:** floats above the model and says what each part does every time you pick something up, pull it apart or join it. For example: what a proton is and that removing one turned carbon into boron, or that breaking an O–H bond takes 463 kJ/mol. Dashed yellow rings mark atoms that still need bonds.
 
+**Reactions tab:** students perform real reactions with their hands by breaking the reactants apart and rebuilding them into products. The reactions are 2H₂ + O₂ → 2H₂O, CH₄ + 2O₂ → CO₂ + 2H₂O, H₂ + Cl₂ → 2HCl, N₂ + 3H₂ → 2NH₃ and C₂H₄ + H₂ → C₂H₆.
+- A live energy meter shows energy in (breaking bonds) and energy out (making bonds), using average bond enthalpies. The results land close to measured values: methane gives 802 kJ/mol.
+- Atoms can't be thrown in the bin or taken from the tray, so conservation of mass is something students feel. The panel tracks atoms at the start and now.
+- Finishing the products sets off a flash of light, a glow and a shockwave ring. Sound and haptics scale with the energy released, and the products shake with heat.
+
+**Feel the forces:**
+- Stronger bonds must be pulled further before they snap, and the controller buzzes harder as you stretch them: N≡N fights back far more than H–H.
+- Blue dots show each shared electron pair, sitting closer to the more electronegative atom, with δ+/δ− explained.
+- In the atom, a proton is pushed back as it nears the (positive) nucleus until the strong force grabs it. An electron is pulled in. A neutron feels nothing.
+
+**Your real room** (WebXR plane detection; needs Space Setup on Quest):
+- *Scale → What's my room made of?* tags your real table, walls, floor, window and door. Tap a tag to see its material, its atoms and roughly how many atoms it holds.
+- *Nucleus in the room* points its "edge of the atom" beacon out through your real window.
+- *Put lab on my table* moves the lab onto your table.
+- On a normal screen an example room is shown instead.
+
 **Ask the Chemist:** every tab has context-aware questions ("Why is it charged?", "Will it react?", "Why this shape?", "How do we know?" and more). Answers are built from what the student is looking at, they work offline, and they can be read aloud. An optional AI endpoint can be added (see below).
 
 ### Controls
@@ -88,7 +104,11 @@ lessons/atomic-models/
   src/ui/                          canvas-texture panels, labels, XR/mouse input
   src/chemist/Chemist.js           "Ask the Chemist" answers (+ optional AI endpoint)
   src/chemist/explain.js           "Chemist explains" texts for picking up / separating / joining parts
-  src/data/bonding.js              valences, bond lengths & energies, molecules the builder recognises
+  src/data/bonding.js              valences, electronegativity, bond lengths & energies, molecules the builder recognises
+  src/data/reactions.js            the reactions in the Reactions tab
+  src/data/materials.js            what room surfaces are made of
+  src/room/RoomScan.js             reads the headset's room data (planes) and tags surfaces
+  src/models/Effects.js            reaction flash / glow / shockwave;  src/util/sound.js: synthesised sounds
 ```
 
 three.js (r160) is loaded from jsDelivr through an import map, so there is nothing to install.

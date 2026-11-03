@@ -153,6 +153,11 @@ export class Interaction {
     }
   }
 
+  /** Haptic buzz on every connected controller (e.g. when a reaction goes off). */
+  pulseAll(intensity = 1, ms = 200) {
+    for (const c of this.controllers) c.userData.inputSource?.gamepad?.hapticActuators?.[0]?.pulse?.(intensity, ms);
+  }
+
   /** Haptic buzz on the given source, or on every source holding something. */
   pulse(intensity = 0.5, ms = 30, source = null) {
     const sources = source ? [source] : [...this.active.keys()];

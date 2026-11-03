@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { MAX_Z } from '../data/elements.js';
 import { COLORS } from './AtomModel.js';
 import * as X from '../chemist/explain.js';
+import { sound } from '../util/sound.js';
 
 // Hands-on atom building: pull protons, neutrons and electrons out of the atom,
 // or take new ones from the tray and drop them into the nucleus / shells.
@@ -54,10 +55,40 @@ export class AtomBuilder {
     mesh.position.copy(app.lab.worldToLocal(world.clone()));
     app.lab.add(mesh);
 
+    let felt = false;
+    let lastPulse = 0;
     return {
       move: (w) => {
-        mesh.position.copy(app.lab.worldToLocal(w.clone()));
+        const hand = app.lab.worldToLocal(w.clone());
+        mesh.position.copy(hand);
         app.tray.highlightBin(app.tray.binContains(w));
+
+        // Electric forces near the atom: protons are pushed away, electrons pulled in.
+        const centre = app.atom.group.position;
+        const rel = hand.clone().sub(centre);
+        const d = rel.length();
+        const inner = kind === 'electron' ? app.atom.nucleusRadius + 0.03 : Math.max(app.atom.nucleusRadius, 0.012) + 0.012;
+        const range = 0.14;
+        const zone = d > inner && d < inner + range ? 1 - (d - inner) / range : 0;
+        const charge = Math.min(1, 0.3 + app.state.atom.p / 8); // a bigger nucleus pushes/pulls harder
+        let force = 0;
+        if (zone > 0 && app.state.atom.p > 0) {
+          if (kind === 'proton') force = 0.03 * zone * charge; // shown pushed back outwards
+          if (kind === 'electron') force = -0.02 * zone * charge; // shown pulled inwards
+          // (particles just pulled out keep their 'what changed' explanation)
+          if (!felt && !fromAtom && (kind !== 'neutron' || zone > 0.5)) {
+            felt = true;
+            app.explain(X.FORCES[kind]);
+          }
+        }
+        if (force) {
+          mesh.position.addScaledVector(rel.normalize(), force);
+          const now = performance.now();
+          if (now - lastPulse > 50) {
+            lastPulse = now;
+            app.interaction.pulse(Math.min(1, Math.abs(force) * 35), 40);
+          }
+        }
       },
       release: (w) => {
         app.tray.highlightBin(false);
@@ -76,7 +107,9 @@ export class AtomBuilder {
           }
           app.state.atom[key] += 1;
           app.refresh();
-          app.interaction.pulse(0.5, 40);
+          app.interaction.pulse(kind === 'proton' ? 1 : 0.5, kind === 'proton' ? 90 : 40);
+          if (kind === 'electron') sound.bond();
+          else sound.snap();
           app.explain(X.particleDropped(kind, true, prev, { ...app.state.atom }));
         } else if (!fromAtom) {
           app.explain(X.particleDropped(kind, false, prev, prev));

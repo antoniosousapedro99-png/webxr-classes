@@ -8,7 +8,12 @@ import { MoleculeBuilder } from './models/MoleculeBuilder.js';
 import { AtomBuilder, ATOM_TRAY_ITEMS } from './models/AtomBuilder.js';
 import { Tray } from './models/Tray.js';
 import { MOLECULES } from './data/molecules.js';
-import { TRAY_ATOMS } from './data/bonding.js';
+import { TRAY_ATOMS, formulaKey } from './data/bonding.js';
+import { REACTIONS, moleculeDef } from './data/reactions.js';
+import { Effects } from './models/Effects.js';
+import { RoomScan } from './room/RoomScan.js';
+import * as X from './chemist/explain.js';
+import { sound } from './util/sound.js';
 import { CanvasPanel } from './ui/CanvasPanel.js';
 import { Interaction } from './ui/Interaction.js';
 import { drawControls, drawInfo, drawExplain } from './ui/panels.js';
@@ -26,6 +31,8 @@ class App {
       spin: true,
       molecule: 'H2O',
       molStyle: 'ball',
+      reaction: 'hydrogen',
+      reactionDone: false,
       scaleSub: 'compare',
       comparePreset: 'period2',
       nucleusObject: 'marble',
@@ -111,7 +118,10 @@ class App {
     this.atomBuilder = new AtomBuilder(this);
     this.builder = new MoleculeBuilder(this);
     this.builder.load(MOLECULES[this.state.molecule]);
+    this.builder.context = 'molecules';
     this.lab.add(this.tray.group, this.builder.group);
+    this.effects = new Effects(this.lab);
+    this.room = new RoomScan(this);
 
     this.controlPanel = new CanvasPanel({ width: 0.5, height: 0.72, name: 'controls' });
     this.infoPanel = new CanvasPanel({ width: 0.5, height: 0.72, name: 'info' });
@@ -157,6 +167,12 @@ class App {
 
   /** The molecule builder changed (bond made/broken, atom added/removed). */
   onWorkbenchChanged(explanation) {
+    if (this.state.mode === 'reactions') {
+      if (this.checkReaction()) return;
+      if (explanation) this.explain(explanation);
+      else this.refresh();
+      return;
+    }
     const preset = this.builder.presetMatch;
     if (preset) this.state.molecule = preset;
     if (explanation) this.explain(explanation);
@@ -166,6 +182,8 @@ class App {
   /** Load a ready-made molecule onto the workbench. */
   loadMolecule(id) {
     this.set({ molecule: id });
+    this.builder.context = 'molecules';
+    this.builder.rules = { tray: true, bin: true };
     if (!MOLECULES[id].crystal) this.builder.load(MOLECULES[id]);
     const m = MOLECULES[id];
     this.state.explain = m.crystal
@@ -174,24 +192,98 @@ class App {
   }
 
   clearWorkbench() {
+    this.builder.context = 'molecules';
+    this.builder.rules = { tray: true, bin: true };
     this.builder.clear();
     this.builder.analyze();
     this.state.explain = { title: 'Empty workbench', text: 'Take atoms from the tray and bring them together to build a molecule. Try two H and one O!' };
   }
 
+  /** Is the hands-on molecule workbench on show (Molecules tab, or Reactions tab)? */
   get buildingMolecules() {
-    return this.state.mode === 'molecules' && !MOLECULES[this.state.molecule].crystal;
+    const m = this.state.mode;
+    return m === 'reactions' || (m === 'molecules' && !MOLECULES[this.state.molecule].crystal);
+  }
+
+  // ───────────── reactions ─────────────
+
+  loadReaction(id) {
+    const r = REACTIONS[id];
+    this.set({ reaction: id, reactionDone: false });
+    const defs = r.reactants.flatMap(([mid, n]) => Array(n).fill(moleculeDef(mid)));
+    const cols = Math.min(defs.length, 4);
+    const list = defs.map((def, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      return [def, new THREE.Vector3((col - (cols - 1) / 2) * 0.2, 0.05 - row * 0.2, 0)];
+    });
+    this.builder.loadSet(list);
+    this.builder.context = 'reactions';
+    this.builder.rules = { tray: false, bin: false };
+    this.startCounts = this.atomCounts();
+    this.state.explain = X.reactionStart(r);
+  }
+
+  atomCounts() {
+    const c = {};
+    for (const a of this.builder.atoms) c[a.sym] = (c[a.sym] || 0) + 1;
+    return c;
+  }
+
+  /** How many of each product are finished on the bench, e.g. { H2O: 1 }. */
+  productProgress() {
+    const r = REACTIONS[this.state.reaction];
+    const made = {};
+    for (const id of Object.keys(r.products)) {
+      const counts = {};
+      for (const [sym] of moleculeDef(id).atoms) counts[sym] = (counts[sym] || 0) + 1;
+      const key = formulaKey(counts);
+      made[id] = this.builder.components.filter((c) => c.complete && formulaKey(c.counts) === key).length;
+    }
+    return made;
+  }
+
+  checkReaction() {
+    const r = REACTIONS[this.state.reaction];
+    const made = this.productProgress();
+    const done = Object.entries(r.products).every(([id, n]) => made[id] === n)
+      && this.builder.components.every((c) => c.complete);
+    if (!done || this.state.reactionDone) return false;
+    this.state.reactionDone = true;
+    const net = this.builder.energy.out - this.builder.energy.in;
+    const strength = Math.min(1, Math.abs(net) / 800);
+    this.effects.burst(Math.max(0.25, strength), net >= 0);
+    this.builder.heat = net >= 0 ? 0.4 + strength * 0.6 : 0;
+    sound.release(net);
+    this.interaction.pulseAll(1, 300);
+    this.explain(X.reactionDone(r, this.builder.energy));
+    return true;
+  }
+
+  /** Put the lab on the real table nearest to you (needs room data from the headset). */
+  placeOnTable() {
+    const cam = new THREE.Vector3();
+    this.renderer.xr.getCamera().getWorldPosition(cam);
+    const t = this.room.tableNear(cam);
+    if (!t) return;
+    this.lab.position.copy(t.centre).add(new THREE.Vector3(0, 0.32, 0));
+    this.lab.rotation.set(0, Math.atan2(cam.x - t.centre.x, cam.z - t.centre.z), 0);
   }
 
   /** Everything that can currently be picked up. */
   grabTargets() {
     if (this.state.mode === 'atom') return [...this.atomBuilder.grabTargets, ...this.tray.grabTargets];
+    if (this.state.mode === 'reactions') return this.builder.grabTargets;
     if (this.buildingMolecules) return [...this.builder.grabTargets, ...this.tray.grabTargets];
+    if (this.state.mode === 'scale' && this.state.scaleSub === 'myroom') return this.room.grabTargets;
     return [];
   }
 
   setMode(mode) {
     this.set({ mode });
+    // The workbench is shared by Molecules and Reactions: reload it when switching between them.
+    if (mode === 'reactions' && this.builder.context !== 'reactions') this.loadReaction(this.state.reaction);
+    if (mode === 'molecules' && this.builder.context !== 'molecules') this.loadMolecule(this.state.molecule);
   }
 
   setAtom(patch) {
@@ -266,6 +358,9 @@ class App {
     this.molecule.group.visible = s.mode === 'molecules' && crystal;
     this.builder.group.visible = this.buildingMolecules;
     this.tray.group.visible = s.mode === 'atom' || this.buildingMolecules;
+    this.tray.items.visible = s.mode !== 'reactions'; // reactions: no new atoms (the bin stays, to show it refuses)
+    this.room.group.visible = s.mode === 'scale' && s.scaleSub === 'myroom';
+    if (this.room.group.visible && !this.presenting) this.room.useDemoRoom(DESKTOP_LAB_POS);
     const trayKind = s.mode === 'atom' ? 'atom' : 'molecule';
     if (this.tray.group.visible && trayKind !== this.trayKind) {
       this.trayKind = trayKind;
@@ -274,16 +369,29 @@ class App {
         : TRAY_ATOMS.map((sym) => ({ kind: sym, label: `${bySymbol(sym).name} ${sym}`, color: bySymbol(sym).color, radius: sym === 'H' ? 0.022 : 0.03 })), trayKind === 'atom' ? this.atomBuilder : this.builder);
     }
     if (this.builder.style !== s.molStyle) this.builder.setStyle(s.molStyle);
-    this.explainPanel.mesh.visible = !!s.explain && s.mode !== 'scale';
+    this.explainPanel.mesh.visible = !!s.explain && (s.mode !== 'scale' || s.scaleSub === 'myroom');
     this.scale.group.visible = s.mode === 'scale';
     if (s.mode === 'atom') this.atom.set({ ...s.atom, view: s.atomView });
     if (s.mode === 'molecules' && crystal) this.molecule.set(s.molecule, s.molStyle);
     if (s.mode === 'scale') {
       const Z = Math.max(1, s.atom.p);
       const A = s.atom.p ? s.atom.p + s.atom.n : 1;
-      this.scale.set({ sub: s.scaleSub, preset: s.comparePreset, objectId: s.nucleusObject, Z, A });
+      this.scale.set({ sub: s.scaleSub === 'myroom' ? 'none' : s.scaleSub, preset: s.comparePreset, objectId: s.nucleusObject, Z, A });
+      this.aimAtomEdgeThroughWindow();
     }
     for (const p of this.panels) p.redraw();
+  }
+
+  /** Turn the "nucleus in the room" scene so its edge-of-the-atom beacon is out through your real window. */
+  aimAtomEdgeThroughWindow() {
+    const win = this.room.window;
+    this.scale.room.rotation.y = 0;
+    this.windowAimed = false;
+    if (!win || this.state.scaleSub !== 'room') return;
+    const local = this.lab.worldToLocal(win.centre.clone());
+    if (Math.hypot(local.x, local.z) < 0.3) return;
+    this.scale.room.rotation.y = Math.atan2(-local.x, -local.z);
+    this.windowAimed = true;
   }
 
   // ───────────── WebXR ─────────────
@@ -322,7 +430,7 @@ class App {
   async startSession(type) {
     try {
       const session = await navigator.xr.requestSession(type, {
-        optionalFeatures: ['local-floor', 'hand-tracking', 'hit-test'],
+        optionalFeatures: ['local-floor', 'hand-tracking', 'hit-test', 'plane-detection'],
       });
       let refType = 'local-floor';
       try {
@@ -346,6 +454,7 @@ class App {
     document.body.classList.add('in-xr');
     this.needsPlacement = true;
     this.framesSinceStart = 0;
+    this.room.clear(); // drop the example room: the headset's real room data takes over
 
     if (isAR && session.requestHitTestSource) {
       session.requestReferenceSpace('viewer')
@@ -362,6 +471,7 @@ class App {
 
   onSessionEnd() {
     this.presenting = false;
+    this.room.clear();
     this.hitTestSource = null;
     this.reticle.visible = false;
     this.state.placing = false;
@@ -416,6 +526,7 @@ class App {
         this.needsPlacement = false;
       }
       this.updateHitTest(frame);
+      this.room.update(frame, this.renderer.xr.getReferenceSpace());
     } else {
       this.controls.update();
     }
@@ -424,7 +535,17 @@ class App {
       if (this.state.mode === 'molecules') this.molecule.animate(dt);
     }
     this.interaction.update();
-    if (this.buildingMolecules) this.builder.animate();
+    if (this.buildingMolecules) this.builder.animate(dt);
+    this.effects.update(dt);
+    if (this.state.mode === 'scale' && this.state.scaleSub === 'room' && !this.windowAimed && this.room.window) {
+      this.aimAtomEdgeThroughWindow();
+      this.refresh();
+    }
+    if (this.room.group.visible) {
+      const cam = new THREE.Vector3();
+      (this.presenting ? this.renderer.xr.getCamera() : this.camera).getWorldPosition(cam);
+      this.room.face(cam);
+    }
     if (this.state.mode === 'scale') this.scale.animate(dt);
     this.renderer.render(this.scene, this.camera);
   }

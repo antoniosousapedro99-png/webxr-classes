@@ -1,5 +1,6 @@
 import { getElement, CATEGORY_NAMES, VDW_RADII, IONIC_RADII } from '../data/elements.js';
 import { MOLECULES, moleculeExtentA } from '../data/molecules.js';
+import { REACTIONS } from '../data/reactions.js';
 import { describeAtom, atomToNucleusRatio, nucleusRadiusFm } from '../data/atomInfo.js';
 import { COMPARE_PRESETS, NUCLEUS_OBJECTS } from '../models/ScaleExplorer.js';
 import { formatLength, compareLength, formatNumber } from '../util/format.js';
@@ -20,6 +21,15 @@ export function questionsFor(state) {
       { id: 'reactivity', label: 'Will it react?' },
       { id: 'atomSize', label: 'How big is it really?' },
       { id: 'fact', label: 'Fun fact' },
+    ];
+  } else if (state.mode === 'reactions') {
+    qs = [
+      { id: 'conserve', label: 'Why can’t I bin atoms?' },
+      { id: 'exo', label: 'Exo- or endothermic?' },
+      { id: 'spark', label: 'Why does it need a spark?' },
+      { id: 'heat', label: 'Where does the heat come from?' },
+      { id: 'polarity', label: 'What are the blue dots?' },
+      { id: 'rxFact', label: 'Real-world use' },
     ];
   } else if (state.mode === 'molecules' && state.workbench === 'custom') {
     qs = [
@@ -106,6 +116,18 @@ export function answerFor(id, state) {
       return 'Try: water (2 H + O), ammonia (3 H + N), methane (4 H + C), carbon dioxide (C + 2 O with double bonds), ethanol (2 C, 6 H, 1 O), hydrogen peroxide (2 H + 2 O) or hydrogen cyanide (H, C, N with a triple bond).';
     case 'breaking':
       return 'Breaking a bond always takes energy, because you are pulling shared electrons away from both nuclei. Making bonds gives energy out. In a chemical reaction, if more energy is released making new bonds than was used breaking old ones, the reaction gets hot (exothermic).';
+    case 'conserve':
+      return 'Chemical reactions only rearrange atoms: bonds break and new bonds form, but every atom you started with is still there at the end. That is why equations must balance — count the atoms on each side!';
+    case 'exo':
+      return 'Breaking bonds always takes energy in; making bonds always gives energy out. If making the new bonds gives out MORE than breaking the old ones took in, the reaction is exothermic and gets hot. If less, it is endothermic and gets cold.';
+    case 'spark':
+      return 'To start, some bonds must break first — and that costs energy (the activation energy). A spark or flame provides it. Once started, the energy released keeps breaking more bonds, so the reaction carries on by itself.';
+    case 'heat':
+      return 'The energy released by making bonds makes the new molecules move and vibrate faster — that faster motion IS heat. That is why the products were shaking after your reaction.';
+    case 'polarity':
+      return 'Each blue dot is a pair of shared electrons. Atoms that are more electronegative (O, N, Cl) pull the pair closer, so the dot sits nearer to them: that end of the bond is slightly negative (δ−), the other slightly positive (δ+).';
+    case 'rxFact':
+      return REACTIONS[state.reaction].fact;
     case 'models':
       return 'Both are models! Ball-and-stick (same-size balls) shows clearly which atoms are bonded and the angles between them. Space-filling uses each atom’s real relative size, so it shows the molecule’s true shape and how crowded it is. Switch between them to compare.';
     case 'molSize': {
@@ -155,6 +177,9 @@ export function sceneContext(state) {
     const i = describeAtom(state.atom);
     return `Student is building an atom: ${state.atom.p} protons, ${state.atom.n} neutrons, ${state.atom.e} electrons` +
       (i.element ? ` (${i.isotopeName}, charge ${i.chargeStr}, shells ${i.shells.join(',')}).` : '.');
+  }
+  if (state.mode === 'reactions') {
+    return `Student is performing the reaction ${REACTIONS[state.reaction].equation} by breaking and making bonds by hand.`;
   }
   if (state.mode === 'molecules') {
     const m = MOLECULES[state.molecule];

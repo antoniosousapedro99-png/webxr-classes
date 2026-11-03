@@ -1,12 +1,12 @@
 // Chemistry rules used by the hands-on molecule builder.
 
-/** Atoms students can take from the tray, with how they bond. */
+/** Atoms students can take from the tray, with how they bond. chi = electronegativity (Pauling). */
 export const BUILD_ATOMS = {
-  H: { valence: 1, outer: 1, covalentR: 0.31, role: 'It can only make one bond, so it caps the ends of molecules.' },
-  C: { valence: 4, outer: 4, covalentR: 0.76, role: 'Four bonds let it build chains and rings — the backbone of all living things.' },
-  N: { valence: 3, outer: 5, covalentR: 0.71, role: 'It keeps one lone pair of electrons, which pushes its bonds into a pyramid.' },
-  O: { valence: 2, outer: 6, covalentR: 0.66, role: 'It keeps two lone pairs of electrons — they bend molecules like water.' },
-  Cl: { valence: 1, outer: 7, covalentR: 1.02, role: 'It is one electron short of a full shell and pulls shared electrons strongly towards itself.' },
+  H: { chi: 2.2, valence: 1, outer: 1, covalentR: 0.31, role: 'It can only make one bond, so it caps the ends of molecules.' },
+  C: { chi: 2.55, valence: 4, outer: 4, covalentR: 0.76, role: 'Four bonds let it build chains and rings — the backbone of all living things.' },
+  N: { chi: 3.04, valence: 3, outer: 5, covalentR: 0.71, role: 'It keeps one lone pair of electrons, which pushes its bonds into a pyramid.' },
+  O: { chi: 3.44, valence: 2, outer: 6, covalentR: 0.66, role: 'It keeps two lone pairs of electrons — they bend molecules like water.' },
+  Cl: { chi: 3.16, valence: 1, outer: 7, covalentR: 1.02, role: 'It is one electron short of a full shell and pulls shared electrons strongly towards itself.' },
 };
 
 export const TRAY_ATOMS = ['H', 'C', 'N', 'O', 'Cl'];

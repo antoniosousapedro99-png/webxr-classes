@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { bySymbol, VDW_RADII } from '../data/elements.js';
-import { BUILD_ATOMS, bondLength, idealAngle, formulaOf, formulaKey, KNOWN } from '../data/bonding.js';
+import { BUILD_ATOMS, bondLength, bondEnergy, idealAngle, formulaOf, formulaKey, KNOWN } from '../data/bonding.js';
+import { sound } from '../util/sound.js';
 import * as X from '../chemist/explain.js';
 
 // Hands-on, editable ball-and-stick molecules.
@@ -14,9 +15,12 @@ import * as X from '../chemist/explain.js';
 const S = 0.1; // metres per ångström (magnified one billion times)
 const BALL_R = { H: 0.022, default: 0.032 };
 const BOND_R = 0.0065;
-const BREAK_STRETCH = 1.9; // break when stretched to 1.9× its length
 const SNAP = 1.45; // bond on release when closer than 1.45× the bond length
 const UP = new THREE.Vector3(0, 1, 0);
+const E = (a, b, order) => (order ? bondEnergy(a, b, order) ?? 350 * order : 0);
+
+/** Stronger bonds have to be pulled further before they snap (H–H ≈ 2.1×, N≡N ≈ 2.9× their length). */
+const breakStretch = (bond) => 1.5 + E(bond.a.sym, bond.b.sym, bond.order) / 700;
 
 function ringTexture() {
   const c = document.createElement('canvas');
@@ -49,12 +53,19 @@ export class MoleculeBuilder {
     this.held = new Set(); // every atom currently held (single or whole-molecule)
     this.components = [];
     this.completeIds = new Set();
+    this.rules = { tray: true, bin: true }; // reactions turn both off: atoms can't be created or destroyed
+    this.energy = { in: 0, out: 0 }; // kJ/mol taken in breaking bonds / given out making bonds
+    this.heat = 0; // after a reaction the products vibrate
+    this.showElectrons = true;
+    this.lastPulse = 0;
 
     this.sphere = new THREE.SphereGeometry(1, 32, 20);
     this.cylinder = new THREE.CylinderGeometry(1, 1, 1, 12);
     this.mats = new Map();
     this.bondMat = new THREE.MeshStandardMaterial({ color: 0xd8dbe8, roughness: 0.5 });
     this.strainMat = new THREE.MeshStandardMaterial({ color: 0xff8a5c, emissive: 0x802000, roughness: 0.5 });
+    this.pairGeo = new THREE.SphereGeometry(0.0055, 12, 8);
+    this.pairMat = new THREE.MeshStandardMaterial({ color: 0x4cc9ff, emissive: 0x1a8fd0, emissiveIntensity: 1.2 });
     this.haloMat = new THREE.SpriteMaterial({ map: ringTexture(), transparent: true, depthWrite: false, toneMapped: false });
 
     // Preview of a bond about to form (or not) when an atom is held near another.
@@ -109,18 +120,25 @@ export class MoleculeBuilder {
 
   makeBondMeshes(bond) {
     for (const m of bond.meshes) this.content.remove(m);
+    for (const m of bond.pairs ?? []) this.content.remove(m);
     bond.meshes = [];
+    bond.pairs = [];
     for (let i = 0; i < bond.order; i++) {
       const m = new THREE.Mesh(this.cylinder, this.bondMat);
       m.userData = { handler: this, bond, tapOnly: true }; // tapped with a ray/click, never grabbed by reach
       m.visible = this.style !== 'space';
       this.content.add(m);
       bond.meshes.push(m);
+      // Each shared pair of electrons, drawn where it sits: closer to the atom that pulls harder.
+      const pair = new THREE.Mesh(this.pairGeo, this.pairMat);
+      this.content.add(pair);
+      bond.pairs.push(pair);
     }
   }
 
   removeBond(bond) {
     for (const m of bond.meshes) this.content.remove(m);
+    for (const m of bond.pairs) this.content.remove(m);
     this.bonds = this.bonds.filter((b) => b !== bond);
   }
 
@@ -155,14 +173,25 @@ export class MoleculeBuilder {
 
   /** Load a ready-made molecule from molecules.js onto the workbench. */
   load(def) {
+    this.loadSet([[def, new THREE.Vector3()]]);
+  }
+
+  /** Load several molecules, each at an offset (metres). */
+  loadSet(list) {
     this.clear();
+    this.energy = { in: 0, out: 0 };
+    this.heat = 0;
+    for (const [def, offset] of list) this.addMolecule(def, offset);
+    this.analyze();
+    for (const comp of this.components) comp.justCompleted = false;
+  }
+
+  addMolecule(def, offset) {
     const c = new THREE.Vector3();
     def.atoms.forEach(([, x, y, z]) => c.add(new THREE.Vector3(x, y, z)));
     c.divideScalar(def.atoms.length);
-    const made = def.atoms.map(([sym, x, y, z]) => this.addAtom(sym, new THREE.Vector3(x, y, z).sub(c).multiplyScalar(S)));
+    const made = def.atoms.map(([sym, x, y, z]) => this.addAtom(sym, new THREE.Vector3(x, y, z).sub(c).multiplyScalar(S).add(offset)));
     for (const [i, j, order] of def.bonds) this.addBond(made[i], made[j], order);
-    this.analyze();
-    for (const comp of this.components) comp.justCompleted = false;
   }
 
   setStyle(style) {
@@ -252,17 +281,34 @@ export class MoleculeBuilder {
     this.single.add(atom);
     this.held.add(atom);
     const tray = this.app.tray;
+    let broke = false; // keep the "bond broken" explanation if nothing new happens on release
     return {
       move: (world) => {
         atom.pos.copy(this.content.worldToLocal(world.clone()));
         // Stretch too far and the bond snaps.
+        let strain = 0;
         for (const b of this.bondsOf(atom)) {
-          if (b.a.pos.distanceTo(b.b.pos) > this.restLength(b) * BREAK_STRETCH) {
+          const stretch = b.a.pos.distanceTo(b.b.pos) / this.restLength(b);
+          const limit = breakStretch(b);
+          if (stretch > limit) {
             const [p, q] = b.a === atom ? [b.a, b.b] : [b.b, b.a];
             this.removeBond(b);
-            this.app.interaction.pulse(0.8, 60);
+            broke = true;
+            this.energy.in += E(p.sym, q.sym, b.order);
+            this.app.interaction.pulse(1, 80);
+            sound.snap();
             this.changed(X.bondBroken(p.sym, q.sym, b.order));
+          } else {
+            // How hard the bond is pulling back, scaled by how strong it is.
+            const s = Math.max(0, (stretch - 1) / (limit - 1));
+            strain = Math.max(strain, s * Math.min(1, E(b.a.sym, b.b.sym, b.order) / 600));
           }
+        }
+        // Feel the bond resisting: buzz harder the more you stretch a stronger bond.
+        const now = performance.now();
+        if (strain > 0.05 && now - this.lastPulse > 45) {
+          this.lastPulse = now;
+          this.app.interaction.pulse(0.1 + 0.9 * strain, 40);
         }
         this.findCandidate(atom);
         tray.highlightBin(tray.binContains(world));
@@ -273,15 +319,23 @@ export class MoleculeBuilder {
         tray.highlightBin(false);
         const cand = this.candidate;
         this.candidate = null;
-        if (tray.binContains(world)) {
+        if (tray.binContains(world) && !this.rules.bin) {
+          sound.refuse();
+          this.app.explain(X.cannotDestroy(atom.sym));
+          atom.pos.add(new THREE.Vector3(0, 0.15, -0.1)); // bounce it back out of the bin
+        } else if (tray.binContains(world)) {
           this.removeAtom(atom);
+          sound.thud();
           this.changed(X.atomRemoved(atom.sym));
         } else if (cand) {
           if (this.free(atom) > 0 && this.free(cand) > 0) {
             this.addBond(atom, cand, 1);
+            this.energy.out += E(atom.sym, cand.sym, 1);
             this.app.interaction.pulse(0.5, 40);
+            sound.bond();
             this.changed(X.bondFormed(atom.sym, cand.sym));
-          } else {
+          } else if (!broke) {
+            sound.refuse();
             this.app.explain(X.bondFull(this.free(atom) > 0 ? cand.sym : atom.sym));
           }
         } else {
@@ -305,7 +359,11 @@ export class MoleculeBuilder {
       release: (world) => {
         atoms.forEach((a) => this.held.delete(a));
         tray.highlightBin(false);
-        if (tray.binContains(world)) {
+        if (tray.binContains(world) && !this.rules.bin) {
+          sound.refuse();
+          atoms.forEach((a) => a.pos.add(new THREE.Vector3(0, 0.15, -0.1)));
+          this.app.explain(X.cannotDestroy(null));
+        } else if (tray.binContains(world)) {
           const formula = formulaOf(atoms.reduce((c, a) => ({ ...c, [a.sym]: (c[a.sym] || 0) + 1 }), {}));
           atoms.forEach((a) => this.removeAtom(a));
           this.changed({ title: `${formula} removed`, text: 'The whole molecule went in the bin.' });
@@ -320,15 +378,20 @@ export class MoleculeBuilder {
     if (!bond) return;
     const { a, b } = bond;
     if (bond.order < 3 && this.free(a) > 0 && this.free(b) > 0) {
+      this.energy.out += E(a.sym, b.sym, bond.order + 1) - E(a.sym, b.sym, bond.order);
+      sound.bond();
       bond.order += 1;
       this.makeBondMeshes(bond);
       this.changed(X.bondOrderChanged(a.sym, b.sym, bond.order, false));
     } else if (bond.order > 1) {
+      this.energy.in += E(a.sym, b.sym, bond.order) - E(a.sym, b.sym, 1);
+      sound.click();
       bond.order = 1;
       this.makeBondMeshes(bond);
       this.changed(X.bondOrderChanged(a.sym, b.sym, 1, false));
     } else {
-      this.app.explain(X.bondOrderChanged(a.sym, b.sym, 1, true));
+      const info = X.bondTapped(a.sym, b.sym, 1);
+      this.app.explain({ title: info.title, text: `${info.text} (To make it double, both atoms need a spare bonding site.)` });
     }
   }
 
@@ -370,6 +433,16 @@ export class MoleculeBuilder {
       p.pos.addScaledVector(c, wp);
       q.pos.addScaledVector(c, -wq);
     };
+
+    // Heat = faster-moving atoms: jiggle everything after a reaction.
+    if (this.heat > 0.01) {
+      for (const a of this.atoms) {
+        if (this.held.has(a)) continue;
+        a.pos.x += (Math.random() - 0.5) * this.heat * 0.012;
+        a.pos.y += (Math.random() - 0.5) * this.heat * 0.012;
+        a.pos.z += (Math.random() - 0.5) * this.heat * 0.012;
+      }
+    }
 
     for (let it = 0; it < 6; it++) {
       // Bond lengths (bonds of a hand-held atom are allowed to stretch, so you can pull it off).
@@ -426,14 +499,20 @@ export class MoleculeBuilder {
       dir.normalize();
       const ref = Math.abs(dir.y) < 0.9 ? UP : new THREE.Vector3(1, 0, 0);
       const side = new THREE.Vector3().crossVectors(dir, ref).normalize();
-      const strained = len > this.restLength(b) * 1.25;
+      const strained = len > this.restLength(b) * 1.15;
       const r = b.order > 1 ? BOND_R * 0.75 : BOND_R;
+      // Shared electrons sit closer to the more electronegative atom.
+      const dChi = BUILD_ATOMS[b.b.sym].chi - BUILD_ATOMS[b.a.sym].chi;
+      const t = 0.5 + Math.max(-0.3, Math.min(0.3, dChi * 0.22));
       b.meshes.forEach((m, i) => {
         const offset = (i - (b.order - 1) / 2) * 0.014;
         m.position.copy(pa).add(pb).multiplyScalar(0.5).addScaledVector(side, offset);
         m.quaternion.setFromUnitVectors(UP, dir);
         m.scale.set(r, len, r);
         m.material = strained ? this.strainMat : this.bondMat;
+        const pair = b.pairs[i];
+        pair.visible = this.showElectrons && this.style !== 'space';
+        pair.position.copy(pa).lerp(pb, t).addScaledVector(side, offset);
       });
     }
     // Bond preview while holding an atom near another.
@@ -452,7 +531,8 @@ export class MoleculeBuilder {
     }
   }
 
-  animate() {
+  animate(dt = 0.016) {
+    this.heat = Math.max(0, this.heat - dt * 0.25);
     this.relax();
     this.draw();
   }

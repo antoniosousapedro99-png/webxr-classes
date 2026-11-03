@@ -49,7 +49,7 @@ export class ScaleExplorer {
     this.compare.visible = sub === 'compare';
     this.room.visible = sub === 'room';
     if (sub === 'compare') this.buildCompare(COMPARE_PRESETS[preset]);
-    else this.buildRoom(NUCLEUS_OBJECTS[objectId], getElement(Z), A);
+    else if (sub === 'room') this.buildRoom(NUCLEUS_OBJECTS[objectId], getElement(Z), A);
   }
 
   buildCompare(preset) {

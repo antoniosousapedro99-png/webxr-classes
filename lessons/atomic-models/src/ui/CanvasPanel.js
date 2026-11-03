@@ -227,6 +227,30 @@ class PanelDrawer {
     this.y += Math.ceil(specs.length / cols) * (height + gap);
   }
 
+  /** Horizontal bar with a label and value, e.g. for energy. */
+  bar(label, value, max, color) {
+    const { ctx } = this;
+    ctx.font = font(24, 600);
+    ctx.fillStyle = THEME.dim;
+    ctx.textBaseline = 'top';
+    ctx.fillText(label, this.pad, this.y);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = THEME.text;
+    ctx.fillText(`${Math.round(value)} kJ`, this.W - this.pad, this.y);
+    ctx.textAlign = 'left';
+    this.y += 32;
+    roundRect(ctx, this.pad, this.y, this.contentWidth, 22, 11);
+    ctx.fillStyle = THEME.btnDisabled;
+    ctx.fill();
+    const w = Math.max(0, Math.min(1, value / max)) * this.contentWidth;
+    if (w > 4) {
+      roundRect(ctx, this.pad, this.y, w, 22, 11);
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+    this.y += 36;
+  }
+
   /** "Protons   [−]  6  [+]" */
   stepper(label, value, { id, onMinus, onPlus, color = THEME.text, size = 34 }) {
     const { ctx } = this;
