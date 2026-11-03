@@ -6,6 +6,7 @@ Mixed reality lessons built with [WebXR](https://immersiveweb.dev/) and [three.j
 | --- | --- | --- |
 | **Atom Scale Lab** | Chemistry | [`lessons/atomic-models/`](lessons/atomic-models/) |
 | **PC Builder Lab** | Computer Science | [`lessons/pc-builder/`](lessons/pc-builder/) |
+| **Cell Explorer** | Biology | [`lessons/cell-explorer/`](lessons/cell-explorer/) |
 
 ## Atom Scale Lab
 
@@ -98,6 +99,23 @@ Students build a working computer from real, life-size parts on their table, Leg
 - **Taking out the motherboard:** brings everything attached to it.
 - **Safety:** reaching inside a running PC switches it off first, with a safety note.
 
+## Cell Explorer
+
+Accurate 3D models of an **animal cell**, a **plant cell** and a **bacterium**, magnified thousands of times and cut open like a textbook cross-section. Organelles are in realistic proportions; the only exception is ribosomes, which are drawn enlarged so they can be seen, and the app says so.
+
+### Lesson objectives → features
+
+| Objective | What students do |
+| --- | --- |
+| Recognise and name key components of cell structures | **Explore:** point at any part to see its name, or switch on **Names**. **Label it:** drag floating name tags onto the right parts. Right answers stick; wrong ones come back with a hint ("look for the stack of curved yellow sacs"). |
+| Describe the purpose of key components | Tap a part for its purpose, real size and a city analogy (nucleus = city hall, mitochondria = power stations, Golgi = post office…). **Pull an organelle out** of the cell and it moves to a specimen stand, enlarged and turning. |
+| Explain how components work together to support cellular processes | **"What if it was missing?"** knocks an organelle out and the cell's processes fail live, with visible effects: no mitochondria stops transport and greys the cell; no Golgi stops vesicle delivery; no vacuole makes the plant cell shrink from its wall (plasmolysis); no flagellum stops the bacterium moving. **Follow a process** animates protein synthesis and secretion, respiration, photosynthesis, turgor and gene sharing between organelles step by step. |
+
+Also included:
+- **Compare sizes:** every cell at the same 10,000× magnification, with a scale bar and the GCSE magnification formula.
+- **Ask the biologist:** offline Q&A, plus an optional AI endpoint (`biologistEndpoint` in `lessons/cell-explorer/config.js`, same contract as the chemistry lesson).
+- **Seated mode and lab lock:** in every lesson's shared toolbar, used here.
+
 ## Running it
 
 WebXR only works on **HTTPS** (or `localhost`).
@@ -136,6 +154,7 @@ shared/                            used by every lesson
   LessonApp.js                     three.js + WebXR setup, lab + panels, placement, render loop
   ui/                              canvas panels, labels, mouse/touch/controller/hand input
   util/sound.js                    synthesised sound effects
+  fx/Flows.js                      animated flows between points (used for processes)
 lessons/pc-builder/
   src/data/parts.js, rules.js      the parts catalogue and compatibility rules
   src/model/                       life-size part models, the case + slots, tray, power-on + tour

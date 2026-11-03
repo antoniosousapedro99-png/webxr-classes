@@ -24,6 +24,8 @@ export class LessonApp {
       explain: null, // { title, text } shown on the floating card
       placing: false,
       speak: false,
+      seated: false, // seated students: lab placed closer and lower
+      locked: false, // lab can't be moved by grabbing it
     };
     this.presenting = false;
     this.hitTestSource = null;
@@ -149,6 +151,27 @@ export class LessonApp {
     if (!this.state.speak && 'speechSynthesis' in window) speechSynthesis.cancel();
   }
 
+  toggleSeated() {
+    this.state.seated = !this.state.seated;
+    if (this.presenting) this.needsPlacement = true;
+  }
+
+  toggleLocked() {
+    this.state.locked = !this.state.locked;
+    if (this.state.locked) this.state.placing = false;
+  }
+
+  /** Standard buttons for the bottom of a control panel: move the lab, seated mode, lock, voice. */
+  generalButtons() {
+    const s = this.state;
+    const b = [{ id: 'recenter', label: this.presenting ? 'Bring lab to me' : 'Reset view', onClick: () => this.recenter() }];
+    if (this.hitTestSource) b.push({ id: 'place', label: s.placing ? 'Tap to drop here' : 'Place on surface', active: s.placing, disabled: s.locked, onClick: () => this.togglePlacing() });
+    b.push({ id: 'seated', label: s.seated ? 'Seated: on' : 'Seated: off', active: s.seated, onClick: () => this.toggleSeated() });
+    b.push({ id: 'lock', label: s.locked ? 'Lab locked' : 'Lab unlocked', active: s.locked, onClick: () => this.toggleLocked() });
+    b.push({ id: 'speak', label: s.speak ? 'Voice: on' : 'Voice: off', active: s.speak, onClick: () => this.toggleSpeak(), disabled: !('speechSynthesis' in window) });
+    return b;
+  }
+
   togglePlacing() {
     this.state.placing = !this.state.placing;
   }
@@ -262,7 +285,7 @@ export class LessonApp {
     this.refresh();
   }
 
-  /** Put the lab ~85 cm in front of the user, just below eye height, facing them. */
+  /** Put the lab in front of the user, just below eye height, facing them (closer and lower when seated). */
   placeInFrontOfUser() {
     const cam = this.renderer.xr.getCamera();
     const pos = new THREE.Vector3();
@@ -272,8 +295,8 @@ export class LessonApp {
     dir.y = 0;
     if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1);
     dir.normalize();
-    this.lab.position.copy(pos).addScaledVector(dir, 0.85);
-    this.lab.position.y = pos.y - 0.15;
+    this.lab.position.copy(pos).addScaledVector(dir, this.state.seated ? 0.68 : 0.85);
+    this.lab.position.y = pos.y - (this.state.seated ? 0.22 : 0.15);
     this.lab.rotation.set(0, Math.atan2(-dir.x, -dir.z), 0);
   }
 

@@ -60,21 +60,28 @@ export class Interaction {
       : { object: hit.object, point: hit.point, distance: hit.distance };
   }
 
-  /** Nearest grabbable within reach of a world point (for grabbing with your hand). */
+  /**
+   * The grabbable your hand is reaching for. Of everything within reach, pick the one whose centre is
+   * closest relative to its size — so a small part inside the bounds of a big, hollow one
+   * (a mitochondrion beside curved ER sheets) still wins.
+   */
   nearest(point) {
     let best = null;
-    let bestD = NEAR;
-    const p = new THREE.Vector3();
+    let bestScore = Infinity;
+    const c = new THREE.Vector3();
     const s = new THREE.Vector3();
     for (const o of this.targets) {
       if (o.userData.tapOnly) continue;
-      o.getWorldPosition(p);
-      o.getWorldScale(s);
       if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
-      const d = p.distanceTo(point) - o.geometry.boundingSphere.radius * Math.max(s.x, s.y, s.z);
-      if (d < bestD) {
+      o.getWorldScale(s);
+      const r = o.geometry.boundingSphere.radius * Math.max(s.x, s.y, s.z);
+      c.copy(o.geometry.boundingSphere.center).applyMatrix4(o.matrixWorld);
+      const d = c.distanceTo(point);
+      if (d - r > NEAR) continue; // out of reach
+      const score = d / Math.max(r, 0.01);
+      if (score < bestScore) {
         best = o;
-        bestD = d;
+        bestScore = score;
       }
     }
     return best;
@@ -303,6 +310,10 @@ export class Interaction {
 
   grabLab(c) {
     if (this.labGrabber) return;
+    if (this.app.state.locked) {
+      this.pulse(0.2, 20, c); // locked: the lab stays put
+      return;
+    }
     this.labGrabber = c;
     c.attach(this.app.lab);
   }
