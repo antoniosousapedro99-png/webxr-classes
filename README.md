@@ -7,6 +7,7 @@ Mixed reality lessons built with [WebXR](https://immersiveweb.dev/) and [three.j
 | **Atom Scale Lab** | Chemistry | [`lessons/atomic-models/`](lessons/atomic-models/) |
 | **PC Builder Lab** | Computer Science | [`lessons/pc-builder/`](lessons/pc-builder/) |
 | **Cell Explorer** | Biology | [`lessons/cell-explorer/`](lessons/cell-explorer/) |
+| **Reef Dive** | Biology (IB) | [`lessons/reef-dive/`](lessons/reef-dive/) |
 
 ## Shared sessions (work alongside colleagues)
 
@@ -137,6 +138,24 @@ Also included:
 - **Compare sizes:** every cell at the same 10,000× magnification, with a scale bar and the GCSE magnification formula.
 - **Ask the biologist:** offline Q&A, plus an optional AI endpoint (`biologistEndpoint` in `lessons/cell-explorer/config.js`, same contract as the chemistry lesson).
 - **Seated mode and lab lock:** in every lesson's shared toolbar, used here.
+
+## Reef Dive
+
+The classroom becomes the sea floor. Through passthrough, a tint dome makes the real room and your classmates look underwater. Sun shafts slant down, light ripples across the real floor, marine snow drifts past, bubbles rise from your hands, and far-off animals fade into blue haze, all with muffled ocean sound. A coral reef rises from the floor in the middle of the room, with a seagrass meadow and plankton clouds. Sixteen species live there at **real size**, including a 1.6 m reef shark, a turtle, barracuda, a parrotfish school, clownfish in their anemone, cleaner wrasse, jellyfish, an octopus, crabs, urchins and sea cucumbers. They swim around the room and steer around people.
+
+**One shared ocean.** In a same-room session (pre-selected for this lesson), the person who started the session (usually the teacher) runs the reef and streams it to everyone. All headsets see the same animals in the same real places. There are no avatars: you see your real classmates through the water.
+
+### Lesson objectives → activities
+
+| Objective | Activity |
+| --- | --- |
+| Identify marine organisms and their characteristics | **Dive & discover:** pinch any creature (including plankton and the reef itself) to photograph it into your own logbook. Its ID card shows the scientific name, group, trophic level, role, real size and a key adaptation. **Sort it:** classify each species with a dichotomous key (vertebrate? lungs? cartilage? nematocysts?). |
+| Understand the roles of species in their ecosystems | **Food web:** pinch a food, then its eater. Correct links appear as glowing threads for everyone, with energy flowing from food to eater and the 10% rule explained. The teacher can **remove a species** and everyone watches the next two years unfold, including trophic cascades (remove the shark and barracuda and octopus surge). |
+| Analyse how environmental factors affect marine life | **Reef lab:** the teacher sets temperature, pH, nutrients and turbidity. Every student records a prediction, then they run a year together. Coral bleaches white and dies, algae take over (phase shift), the water turns green in a bloom and murky with sediment, and oxygen crashes in eutrophication. A live chart tracks coral, algae, fish and oxygen, and each prediction is checked. |
+
+The reef runs on a transparent monthly model in `src/model/Ecosystem.js`, using real mechanisms: a bleaching threshold around 29.5 °C, carbonate loss at low pH, nutrient-driven blooms and hypoxia, light limitation, competition for space between coral and algae, grazing, and predator–prey links.
+
+**3D models:** every animal is built procedurally, so nothing needs downloading. To use realistic CC0 models instead, drop `.glb` files into `lessons/reef-dive/models/` and list them in `manifest.json` (see the README there).
 
 ## Running it
 

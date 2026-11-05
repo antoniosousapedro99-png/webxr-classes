@@ -54,6 +54,11 @@
       <h2>Cell Explorer</h2>
       <p>Investigate animal, plant and bacterial cells thousands of times bigger than life — name every part, pull organelles out to examine them, and see what happens to the cell when one goes missing.</p>
     </button>
+    <button class="card" data-lesson="reef-dive" data-same-room="1">
+      <span class="tag">Biology · IB</span>
+      <h2>Reef Dive</h2>
+      <p>The classroom becomes the sea floor: identify marine life swimming around the room at real size, build the reef’s food web together, and test how temperature, pH, nutrients and light change the reef.</p>
+    </button>
   </main>
 
   <dialog id="start">
@@ -88,17 +93,19 @@
         lesson = card.dataset.lesson;
         document.getElementById('lesson-title').textContent = card.querySelector('h2').textContent;
         document.getElementById('error').textContent = '';
+        document.getElementById('same-room').checked = card.dataset.sameRoom === '1'; // Reef Dive is designed for one shared room
         dialog.showModal();
       });
     }
-    const go = (session) => {
+    const go = (session, host = false) => {
       const url = new URL(`lessons/${lesson}/`, location.href);
       if (session) url.searchParams.set('session', session);
       if (session && document.getElementById('same-room').checked) url.searchParams.set('room', 'same');
+      if (session && host) url.searchParams.set('host', '1'); // the starter runs any shared world
       location.href = url.toString();
     };
     document.getElementById('solo').onclick = () => go(null);
-    document.getElementById('create').onclick = () => go(newSessionCode());
+    document.getElementById('create').onclick = () => go(newSessionCode(), true);
     document.getElementById('join').onsubmit = (e) => {
       e.preventDefault();
       const code = document.getElementById('code').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');

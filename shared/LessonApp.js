@@ -301,6 +301,7 @@ export class LessonApp {
     const url = new URL(location.href);
     if (session) {
       url.searchParams.set('session', session.code);
+      url.searchParams.delete('host'); // the shared link makes others join, not host
       box.innerHTML = `<p><strong>Shared session <span class="code">${session.code}</span></strong> · ${session.sameRoom ? 'same room' : 'different rooms'}<br>Colleagues join from the lessons page with this code, or with this link.${session.sameRoom ? ' In the headset, everyone presses “Line up with the room” and touches the same two points.' : ''}</p>
         <div class="buttons"><button class="secondary" id="copy-link">Copy link</button><button class="secondary" id="leave-session">Leave session</button></div>`;
       box.querySelector('#copy-link').onclick = (e) => {
@@ -320,6 +321,7 @@ export class LessonApp {
       };
       box.querySelector('#start-session').onclick = () => {
         url.searchParams.set('session', newSessionCode());
+        url.searchParams.set('host', '1');
         sameRoom();
         location.href = url.toString();
       };

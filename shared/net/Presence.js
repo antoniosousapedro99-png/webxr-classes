@@ -20,7 +20,7 @@ const POSE_HZ = 15;
 export function sessionFromURL() {
   const p = new URLSearchParams(location.search);
   const code = p.get('session');
-  return code ? { code: code.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8), net: p.get('net') || 'p2p', sameRoom: p.get('room') === 'same' } : null;
+  return code ? { code: code.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8), net: p.get('net') || 'p2p', sameRoom: p.get('room') === 'same', host: p.get('host') === '1' } : null;
 }
 
 export function myName() {
@@ -35,8 +35,9 @@ const hashColor = (id) => COLORS[[...id].reduce((a, c) => (a * 31 + c.charCodeAt
 const q3 = (v) => Math.round(v * 1000) / 1000;
 
 export class Presence {
-  constructor(app, { lessonId, code, net, sameRoom = false }) {
+  constructor(app, { lessonId, code, net, sameRoom = false, host = false }) {
     this.app = app;
+    this.host = host; // started the session: runs the shared world (if the lesson has one)
     this.code = code;
     this.sameRoom = sameRoom;
     this.roomToWorld = null; // set once this headset has lined up with the room
@@ -63,15 +64,25 @@ export class Presence {
     this.helloCh = t.channel('hello');
     this.poseCh = t.channel('pose');
     this.stateCh = t.channel('state');
+    // A lesson with ONE shared world (e.g. the reef): the host runs it and broadcasts it ('world');
+    // everyone else asks the host to change things ('ask').
+    this.worldCh = t.channel('world');
+    this.askCh = t.channel('ask');
+    this.worldCh.onMessage((d, id) => this.app.onWorld?.(d, id));
+    this.askCh.onMessage((d, id) => {
+      if (this.isHost) this.app.onAsk?.(d, id);
+    });
     t.onPeerJoin((id) => {
       this.ensure(id);
-      this.helloCh.send({ name: this.name }, id);
+      this.helloCh.send({ name: this.name, host: this.host }, id);
+      if (this.isHost) setTimeout(() => this.app.onPeerJoinedWorld?.(id), 300);
       this.sendState(true, id);
       this.app.refresh();
     });
     t.onPeerLeave((id) => this.remove(id));
     this.helloCh.onMessage((d, id) => {
       const p = this.ensure(id);
+      p.host = !!d.host;
       p.name = String(d.name ?? 'Guest').slice(0, 24);
       p.tag.removeFromParent();
       p.tag.userData.dispose?.();
@@ -226,6 +237,27 @@ export class Presence {
     return { h: [...pos.toArray(), q.x, q.y, q.z, q.w].map(q3), hands, held: app.netHolding ?? null, lab };
   }
 
+  /** Who runs the shared world: whoever started the session, or (if they left) the first by id. */
+  get hostId() {
+    if (!this.selfId) return null;
+    const all = [{ id: this.selfId, host: this.host }, ...[...this.peers.values()].map((p) => ({ id: p.id, host: p.host }))];
+    const flagged = all.filter((x) => x.host).map((x) => x.id).sort();
+    return flagged[0] ?? all.map((x) => x.id).sort()[0];
+  }
+
+  get isHost() {
+    return !this.selfId || this.hostId === this.selfId;
+  }
+
+  sendWorld(data, to) {
+    this.worldCh?.send(data, to);
+  }
+
+  ask(data) {
+    const h = this.hostId;
+    if (h && h !== this.selfId) this.askCh?.send(data, h);
+  }
+
   sendState(force = false, to) {
     if (!this.stateCh || !this.app.netState) return;
     const s = this.app.netState();
@@ -266,8 +298,9 @@ export class Presence {
         p.root.rotation.set(0, p.seat.yaw, 0);
       }
       p.wasReal = real;
-      for (const c of p.head.children) c.visible = !real;
-      p.body.visible = !real;
+      const body = !real && this.app.showAvatars !== false; // a lesson can hide avatars (you see the real people)
+      for (const c of p.head.children) c.visible = body;
+      p.body.visible = body;
       const [x, y, z, qx, qy, qz, qw] = pose.h;
       p.head.position.lerp(new THREE.Vector3(x, y, z), k);
       p.head.quaternion.slerp(new THREE.Quaternion(qx, qy, qz, qw), k);
@@ -279,7 +312,7 @@ export class Presence {
       pose.hands.forEach((h, i) => {
         const hand = p.hands[i];
         hand.visible = !!h;
-        hand.children[0].visible = !real; // the hand ball (the real hand is visible in the same room)
+        hand.children[0].visible = body; // the hand ball (the real hand is visible in the same room)
         if (h) hand.position.lerp(new THREE.Vector3(...h), hand.visible ? k : 1);
       });
       // what they're holding, shown in the hand that holds it (or by their head on a screen)
