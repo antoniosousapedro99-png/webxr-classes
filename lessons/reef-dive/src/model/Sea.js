@@ -90,7 +90,10 @@ export class Sea {
         const p = rockPoint(3, Math.PI / 2 + rand(-0.5, 0.5), rand(0.5, 1.0));
         return p.add(rockNormal(3, p).multiplyScalar(rand(0.12, 0.2)));
       }
-      case 'clownfish': return this.reef.anemonePos.clone().add(new THREE.Vector3(rand(-0.09, 0.09), rand(0.06, 0.16), rand(-0.09, 0.09)));
+      case 'clownfish': { // darting in and out around the tops of the anemone's tentacles
+        const up = rockNormal(0, this.reef.anemonePos);
+        return this.reef.anemonePos.clone().addScaledVector(up, rand(0.2, 0.32)).add(new THREE.Vector3(rand(-0.13, 0.13), rand(-0.03, 0.05), rand(-0.13, 0.13)));
+      }
       case 'jelly': return ring(0.6, 2.0, 1.7, 2.35); // drifting overhead in the clearing
       case 'octopus': return rockPoint(5, rand(0, Math.PI * 2), rand(0.3, 1.2));
       case 'crab': return pushOutOfRock(ring(0.8, 1.9, 0, 0), margin('crab')).setY(0);

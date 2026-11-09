@@ -8,7 +8,7 @@ import { Ecosystem, BASE_ENV } from './model/Ecosystem.js';
 import { Reef } from './model/Reef.js';
 import { Sea } from './model/Sea.js';
 import { Water, OceanSound, addBlend } from './model/Water.js';
-import { loadModelOverrides } from './model/bodies.js';
+import { loadModelOverrides, makeBody } from './model/bodies.js';
 import { drawControls, drawInfo, drawCard } from './ui/panels.js';
 
 // Reef Dive: the classroom becomes the sea floor. One shared reef and its animals fill the room; in a
@@ -77,6 +77,7 @@ class App extends LessonApp {
     // Swap in any dropped-in 3D models (see models/manifest.json).
     const overrides = await loadModelOverrides(new URL('../models/', import.meta.url));
     this.reef.useCoralModels(overrides.coral?.pieces);
+    if (overrides.anemone?.scene) this.reef.useAnemoneModel(makeBody('anemone', overrides, SPECIES.anemone.length));
     if (Object.keys(overrides).length) {
       this.sea.overrides = overrides;
       for (const id of [...this.sea.agents.keys()]) this.sea.despawn(id);

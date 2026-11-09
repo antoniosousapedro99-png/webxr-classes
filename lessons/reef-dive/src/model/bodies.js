@@ -624,6 +624,17 @@ const MOTION = {
     p.x += tail * h.x * 0.15 * sin(uPhase * 0.35 - depth * 4.0);
     p.z += tail * h.z * 0.15 * cos(uPhase * 0.3 - depth * 3.0 + 1.0);`,
 
+  // anemone: tentacles sway in the current — the higher up, the more they move; the base stays put
+  sway: `
+    vec3 c = (uMin + uMax) * 0.5;
+    vec3 h = (uMax - uMin) * 0.5;
+    float up = clamp((p.y - uMin.y) / (uMax.y - uMin.y), 0.0, 1.0);
+    float bend = smoothstep(0.25, 1.0, up);
+    bend *= bend;
+    float R = max(h.x, h.z);
+    p.x += bend * R * 0.16 * sin(uPhase + p.z / R * 2.5);
+    p.z += bend * R * 0.12 * cos(uPhase * 0.8 + p.x / R * 2.0 + 1.3);`,
+
   // sea cucumber: waves of contraction run from tail to head, with a slow side-to-side sway
   crawl: `
     vec3 c = (uMin + uMax) * 0.5;
@@ -684,7 +695,7 @@ export function makeBody(id, overrides, length) {
     });
   }
   // strokes per second (radians): set per model with "beat", e.g. slow for the shark, fast for small fish
-  const beat = o.beat ?? { fish: 9, flippers: 2.4, arms: 2.0, legs: 7, crawl: 1.6, pulse: 4 }[o.motion] ?? 2;
+  const beat = o.beat ?? { fish: 9, flippers: 2.4, arms: 2.0, legs: 7, crawl: 1.6, pulse: 4, sway: 1.4 }[o.motion] ?? 2;
   let last = null;
   g.userData.animate = (t, speed = 1) => {
     const dt = last === null ? 0 : Math.min(0.1, Math.max(0, t - last));

@@ -220,13 +220,20 @@ export class Reef {
     });
     this.rock = this.rocks[0];
 
+    // the anemone (home of the clownfish) gets a clear patch on the inner face of the outcrop straight ahead
+    this.anemonePos = rockPoint(0, Math.PI / 2, 0.85);
+
     // coral colonies over the outcrops (more on the sides facing the clearing, where people look)
     this.colonies = [];
     for (let i = 0; i < 70; i++) {
       const k = i % ROCKS.length;
-      const theta = r() < 0.65 ? Math.PI / 2 + (r() - 0.5) * 2.4 : r() * Math.PI * 2;
-      const phi = Math.pow(r(), 0.8) * 1.3;
-      const pos = rockPoint(k, theta, phi);
+      let pos;
+      for (let tries = 0; tries < 20; tries++) {
+        const theta = r() < 0.65 ? Math.PI / 2 + (r() - 0.5) * 2.4 : r() * Math.PI * 2;
+        const phi = Math.pow(r(), 0.8) * 1.3;
+        pos = rockPoint(k, theta, phi);
+        if (pos.distanceTo(this.anemonePos) > 0.32) break; // keep corals off the anemone
+      }
       const color = CORAL_COLORS[Math.floor(r() * CORAL_COLORS.length)];
       const kind = r();
       const c = kind < 0.3 ? staghorn(r, color) : kind < 0.5 ? brain(color) : kind < 0.65 ? table(color) : kind < 0.85 ? fingers(r, color) : seaFan(r, color);
@@ -282,9 +289,7 @@ export class Reef {
     this.group.add(this.grass);
     this.grassAnchor = new THREE.Vector3(patches[0][0], 0.2, patches[0][1]);
 
-    // anemone (home of the clownfish) on the inner face of the outcrop straight ahead
     this.anemone = anemone();
-    this.anemonePos = rockPoint(0, Math.PI / 2, 0.85);
     this.anemone.position.copy(this.anemonePos);
     this.anemone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), rockNormal(0, this.anemonePos));
     this.tag(this.anemone, 'anemone');
@@ -316,6 +321,15 @@ export class Reef {
       this.tag(c, 'coral');
     }
     if (this.lastState) this.show(this.lastState);
+  }
+
+  /** Swap the drawn anemone for the 3D model (same place on the reef, still tappable and still sways). */
+  useAnemoneModel(body) {
+    if (!body) return;
+    for (const child of [...this.anemone.children]) this.anemone.remove(child);
+    this.anemone.add(body);
+    this.anemone.userData.animate = (t) => body.userData.animate?.(t, 1);
+    this.tag(this.anemone, 'anemone');
   }
 
   tag(obj, species) {

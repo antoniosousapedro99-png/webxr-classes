@@ -4,6 +4,8 @@
   "turtle": { "file": "turtle.glb", "motion": "flippers" },
   "parrotfish": { "file": "parrotfish.glb", "motion": "fish" },
   "wrasse": { "file": "wrasse.glb", "motion": "fish", "beat": 14 },
+  "clownfish": { "file": "clownfish.glb", "motion": "fish", "beat": 15 },
+  "anemone": { "file": "anemone.glb", "motion": "sway", "floor": true },
   "jelly": { "file": "jelly.glb", "motion": "pulse", "beat": 4 },
   "octopus": { "file": "octopus.glb", "motion": "arms", "floor": true },
   "crab": { "file": "crab.glb", "motion": "legs", "floor": true },

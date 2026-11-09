@@ -6,7 +6,7 @@ to the shape the lesson draws itself, so the lesson always works. Credits and li
 ## manifest.json
 
 Keys are species ids from `src/data/species.js` (shark, barracuda, turtle, parrotfish, wrasse, clownfish, jelly,
-octopus, crab, cucumber, urchin), plus `coral` for the reef's coral colonies. A value can be just a file name, or:
+octopus, crab, cucumber, urchin, anemone), plus `coral` for the reef’s coral colonies. A value can be just a file name, or:
 
 ```json
 {
@@ -18,7 +18,7 @@ octopus, crab, cucumber, urchin), plus `coral` for the reef's coral colonies. A 
 ```
 
 - `motion`: a cheap swim done on the graphics card: `fish` (body wave to the tail), `flippers` (turtle),
-  `arms` (octopus), `legs` (crab), `crawl` (sea cucumber), `pulse` (jellyfish). `beat` sets its speed
+  `arms` (octopus), `legs` (crab), `crawl` (sea cucumber), `pulse` (jellyfish), `sway` (anemone tentacles). `beat` sets its speed
   (radians per second, e.g. 4 for the shark, 14 for the small wrasse).
 - `animation`: instead, play the model's own animation clip whose name contains this text (`animSpeed` scales it;
   `lockRoot` lists bones whose movement is dropped, so the clip cannot carry the animal away from where the lesson steers it).
