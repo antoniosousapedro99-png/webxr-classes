@@ -510,12 +510,16 @@ export async function loadModelOverrides(base) {
       if (opts.files) {
         // a set of interchangeable pieces (e.g. coral colonies); "split" files hold several pieces each
         const pieces = [];
+        pieces.groups = []; // pieces by file, so each kind of coral is picked as often as the others
         for (const file of opts.files) {
           const gltf = await load(file);
+          const group = [];
           if (opts.split?.includes(file)) {
             gltf.scene.updateMatrixWorld(true);
-            gltf.scene.traverse((o) => { if (o.isMesh) pieces.push(piece(o)); });
-          } else pieces.push(piece(gltf.scene));
+            gltf.scene.traverse((o) => { if (o.isMesh) group.push(piece(o)); });
+          } else group.push(piece(gltf.scene));
+          pieces.push(...group);
+          pieces.groups.push(group);
         }
         out[id] = { ...opts, pieces };
         return;
@@ -548,7 +552,8 @@ function piece(src) {
 
 /** A copy of a coral piece (shared geometry, its own materials so it can bleach independently). */
 export function makeCoralPiece(pieces, r) {
-  const src = pieces[Math.floor(r() * pieces.length)];
+  const pool = pieces.groups?.length ? pieces.groups[Math.floor(r() * pieces.groups.length)] : pieces;
+  const src = pool[Math.floor(r() * pool.length)];
   const g = src.clone(true);
   const uniforms = { uTint: { value: new THREE.Color(1, 1, 1) }, uMix: { value: 0 } };
   g.traverse((o) => {
