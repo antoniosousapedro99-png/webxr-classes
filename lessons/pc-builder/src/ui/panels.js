@@ -43,6 +43,7 @@ export function drawControls(ui, app) {
   const general = [{ id: 'recenter', label: app.presenting ? 'Bring lab to me' : 'Reset view', onClick: () => app.recenter() }];
   if (app.hitTestSource) general.push({ id: 'place', label: s.placing ? 'Tap to drop here' : 'Place on a surface', active: s.placing, onClick: () => app.togglePlacing() });
   general.push({ id: 'speak', label: s.speak ? 'Voice: on' : 'Voice: off', active: s.speak, onClick: () => app.toggleSpeak(), disabled: !('speechSynthesis' in window) });
+  general.push(app.lessonsButton());
   ui.buttons(general, { cols: Math.min(general.length, 3), height: 56, size: 24 });
 }
 
@@ -96,7 +97,7 @@ export function drawCard(ui, app) {
     ui.text(step.text, { size: 25, width: ui.contentWidth - 10 });
     const y = ui.H - 76;
     ui.button({ id: 'tour-back', label: '◀ Back', disabled: s.tourStep === 0, onClick: () => app.tourGo(-1) }, ui.pad, y, 160, 52, 24);
-    ui.button({ id: 'tour-next', label: s.tourStep === TOUR.length - 1 ? 'Finish' : 'Next ▶', onClick: () => app.tourGo(1) }, ui.W - ui.pad - 160, y, 160, 52, 24);
+    ui.button({ id: 'tour-next', label: s.tourStep === TOUR.length - 1 ? 'Finish' : 'Next ▶', onClick: () => app.tourGo(1) }, ui.right - 160, y, 160, 52, 24);
     return;
   }
   if (s.power !== 'off') {
@@ -135,5 +136,5 @@ export function drawCard(ui, app) {
   ctx.font = font(size);
   while (size > 19 && ui.wrap(e.text, ui.contentWidth).length * size * 1.3 > ui.H - top - 20) ctx.font = font(--size);
   ui.text(e.text, { size, lineHeight: 1.3 });
-  ui.button({ id: 'explain-close', label: '×', onClick: () => app.set({ explain: null }) }, ui.W - 96, 24, 64, 56, 40);
+  ui.button({ id: 'explain-close', label: '×', onClick: () => app.set({ explain: null }) }, ui.right - 56, 24, 64, 56, 40);
 }

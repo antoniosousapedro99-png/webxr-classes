@@ -190,7 +190,36 @@ export class LessonApp {
     b.push({ id: 'seated', label: s.seated ? 'Seated: on' : 'Seated: off', active: s.seated, onClick: () => this.toggleSeated() });
     b.push({ id: 'lock', label: s.locked ? 'Lab locked' : 'Lab unlocked', active: s.locked, onClick: () => this.toggleLocked() });
     b.push({ id: 'speak', label: s.speak ? 'Voice: on' : 'Voice: off', active: s.speak, onClick: () => this.toggleSpeak(), disabled: !('speechSynthesis' in window) });
+    b.push(this.lessonsButton());
     return b;
+  }
+
+  /** "← Lessons": back to the lessons page. Press twice (within 3 s) so nobody leaves by accident. */
+  lessonsButton() {
+    const armed = this.leaveArmed && performance.now() - this.leaveArmed < 3000;
+    return { id: 'lessons', label: armed ? 'Tap again to leave' : '← Lessons', active: armed, color: '#3a2f55', onClick: () => this.backToLessons() };
+  }
+
+  backToLessons() {
+    const armed = this.leaveArmed && performance.now() - this.leaveArmed < 3000;
+    if (!armed) {
+      this.leaveArmed = performance.now();
+      setTimeout(() => this.refresh(), 3100); // the button goes back to "← Lessons"
+      return;
+    }
+    const url = this.lessonsURL();
+    const go = () => { location.href = url; };
+    const session = this.renderer.xr.getSession();
+    if (session) session.end().then(go, go); // leave the headset view first, then the page
+    else go();
+  }
+
+  /** The lessons page (keeps a shared session's name so people don't retype it). */
+  lessonsURL() {
+    const url = new URL('../../', location.href);
+    const name = new URLSearchParams(location.search).get('name');
+    if (name) url.searchParams.set('name', name);
+    return url.toString();
   }
 
   togglePlacing() {
@@ -296,6 +325,12 @@ export class LessonApp {
   initSessionUI(session) {
     const overlay = document.getElementById('overlay');
     if (!overlay) return;
+    const back = document.createElement('a');
+    back.href = this.lessonsURL();
+    back.className = 'back-link';
+    back.textContent = '← All lessons';
+    back.style.cssText = 'display:inline-block;margin:0 0 10px;color:#9aa8ff;font-size:14px;text-decoration:none';
+    overlay.prepend(back);
     const box = document.createElement('div');
     box.className = 'session-box';
     const url = new URL(location.href);

@@ -20,6 +20,8 @@ export const THEME = {
 const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 export const font = (size, weight = 400) => `${weight} ${size}px ${FONT}`;
 
+const SCROLLBAR_W = 58; // width of the scroll buttons (canvas px)
+
 export function roundRect(ctx, x, y, w, h, r) {
   r = Math.min(r, w / 2, h / 2);
   ctx.beginPath();
@@ -49,6 +51,9 @@ export class CanvasPanel {
     this.buttons = [];
     this.hoverId = null;
     this.builder = null;
+    // Scrolling: when the content is taller than the panel, it scrolls (scrollbar with ▲ ▼ on the right).
+    this.scroll = 0;
+    this.maxScroll = 0;
   }
 
   setBuilder(fn) {
@@ -56,24 +61,103 @@ export class CanvasPanel {
     this.redraw();
   }
 
+  get scrollable() {
+    return this.maxScroll > 0;
+  }
+
+  /** Scroll by `px` canvas pixels (positive = down). Returns true if it moved. */
+  scrollBy(px) {
+    const was = this.scroll;
+    this.scroll = Math.max(0, Math.min(this.maxScroll, this.scroll + px));
+    if (this.scroll === was) return false;
+    this.redraw();
+    return true;
+  }
+
   redraw() {
     const { ctx, canvas } = this;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    roundRect(ctx, 4, 4, canvas.width - 8, canvas.height - 8, 36);
+    const W = canvas.width;
+    const H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+    roundRect(ctx, 4, 4, W - 8, H - 8, 36);
     ctx.fillStyle = THEME.bg;
     ctx.fill();
     ctx.lineWidth = 4;
     ctx.strokeStyle = THEME.border;
     ctx.stroke();
     this.buttons = [];
-    if (this.builder) this.builder(new PanelDrawer(this));
+    if (!this.builder) {
+      this.texture.needsUpdate = true;
+      return;
+    }
+    // draw the content shifted up by the scroll amount, clipped to the panel
+    ctx.save();
+    roundRect(ctx, 6, 6, W - 12, H - 12, 34);
+    ctx.clip();
+    ctx.translate(0, -this.scroll);
+    const ui = new PanelDrawer(this);
+    if (this.maxScroll > 0) ui.scrollbarRoom = SCROLLBAR_W; // keep content clear of the scrollbar
+    this.builder(ui);
+    ctx.restore();
+    // how tall was it? (content below the panel's bottom edge needs scrolling)
+    const contentH = ui.y + 24;
+    const max = Math.max(0, Math.round(contentH - H));
+    const needsBar = max > 0;
+    if (needsBar !== this.maxScroll > 0 || Math.min(this.scroll, max) !== this.scroll) {
+      // first time it overflows (content is re-laid out narrower), or it got shorter: draw again
+      this.maxScroll = max;
+      this.scroll = Math.min(this.scroll, max);
+      this.redraw();
+      return;
+    }
+    this.maxScroll = max;
+    if (needsBar) this.drawScrollbar(contentH);
     this.texture.needsUpdate = true;
+  }
+
+  drawScrollbar(contentH) {
+    const { ctx } = this;
+    const W = this.canvas.width;
+    const H = this.canvas.height;
+    const x = W - SCROLLBAR_W - 14;
+    const btn = SCROLLBAR_W;
+    // soft fade where content continues above / below
+    const fade = (y0, y1) => {
+      const g = ctx.createLinearGradient(0, y0, 0, y1);
+      g.addColorStop(0, 'rgba(14,18,32,0)');
+      g.addColorStop(1, 'rgba(14,18,32,0.95)');
+      ctx.fillStyle = g;
+      ctx.fillRect(8, Math.min(y0, y1), x - 16, Math.abs(y1 - y0));
+    };
+    if (this.scroll < this.maxScroll) fade(H - 90, H - 8);
+    if (this.scroll > 0) fade(90, 8);
+    // track and thumb
+    const top = 18 + btn + 10;
+    const bottom = H - 18 - btn - 10;
+    roundRect(ctx, x + btn / 2 - 6, top, 12, bottom - top, 6);
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fill();
+    const thumbH = Math.max(50, ((bottom - top) * H) / contentH);
+    const thumbY = top + ((bottom - top - thumbH) * this.scroll) / this.maxScroll;
+    roundRect(ctx, x + btn / 2 - 6, thumbY, 12, thumbH, 6);
+    ctx.fillStyle = THEME.accent;
+    ctx.fill();
+    // ▲ ▼ buttons (work with every kind of input)
+    const page = H * 0.6;
+    const drawer = new PanelDrawer(this);
+    drawer.fixed = true;
+    drawer.button({ id: 'scroll-up', label: '▲', disabled: this.scroll <= 0, onClick: () => this.scrollBy(-page) }, x, 18, btn, btn, 30);
+    drawer.button({ id: 'scroll-down', label: '▼', disabled: this.scroll >= this.maxScroll, onClick: () => this.scrollBy(page) }, x, H - 18 - btn, btn, btn, 30);
   }
 
   buttonAt(uv) {
     const x = uv.x * this.canvas.width;
     const y = (1 - uv.y) * this.canvas.height;
-    return this.buttons.find((b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) || null;
+    // the scroll buttons stay put; everything else moves with the scroll
+    const fixed = this.buttons.find((b) => b.fixed && x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h);
+    if (fixed) return fixed;
+    const cy = y + this.scroll;
+    return this.buttons.find((b) => !b.fixed && x >= b.x && x <= b.x + b.w && cy >= b.y && cy <= b.y + b.h) || null;
   }
 
   setHover(id) {
@@ -101,10 +185,17 @@ class PanelDrawer {
     this.pad = 40;
     this.y = 40;
     this.auto = 0;
+    this.scrollbarRoom = 0; // set while the panel scrolls
+    this.fixed = false; // buttons that do not scroll (the scrollbar's own)
   }
 
   get contentWidth() {
-    return this.W - this.pad * 2;
+    return this.W - this.pad * 2 - this.scrollbarRoom;
+  }
+
+  /** x of the right edge of the content. */
+  get right() {
+    return this.W - this.pad - this.scrollbarRoom;
   }
 
   gap(px = 16) {
@@ -160,7 +251,7 @@ class PanelDrawer {
     ctx.font = font(size, 700);
     ctx.fillStyle = color;
     ctx.textAlign = 'right';
-    ctx.fillText(String(value), this.W - this.pad, this.y);
+    ctx.fillText(String(value), this.right, this.y);
     ctx.textAlign = 'left';
     this.y += size * 1.4;
   }
@@ -212,7 +303,7 @@ class PanelDrawer {
     ctx.fillText(label, x + w / 2, y + h / 2 + 1);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    this.panel.buttons.push({ id, x, y, w, h, onClick, disabled });
+    this.panel.buttons.push({ id, x, y, w, h, onClick, disabled, fixed: this.fixed });
   }
 
   /** A grid of buttons, `cols` per row (defaults to all in one row). */
@@ -235,7 +326,7 @@ class PanelDrawer {
     ctx.fillText(label, this.pad, this.y);
     ctx.textAlign = 'right';
     ctx.fillStyle = THEME.text;
-    ctx.fillText(`${Math.round(value)} ${unit}`, this.W - this.pad, this.y);
+    ctx.fillText(`${Math.round(value)} ${unit}`, this.right, this.y);
     ctx.textAlign = 'left';
     this.y += 32;
     roundRect(ctx, this.pad, this.y, this.contentWidth, 22, 11);
@@ -263,7 +354,7 @@ class PanelDrawer {
     ctx.textBaseline = 'middle';
     ctx.fillText(label, this.pad + 46, this.y + h / 2);
     const bw = 110;
-    const right = this.W - this.pad;
+    const right = this.right;
     this.button({ id: `${id}-plus`, label: '+', onClick: onPlus }, right - bw, this.y, bw, h, 46);
     ctx.font = font(44, 700);
     ctx.textAlign = 'center';

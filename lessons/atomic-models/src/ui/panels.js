@@ -41,6 +41,7 @@ export function drawControls(ui, app) {
     general.push({ id: 'table', label: 'Put lab on my table', onClick: () => app.placeOnTable() });
   }
   general.push({ id: 'speak', label: s.speak ? 'Voice: on' : 'Voice: off', active: s.speak, onClick: () => app.toggleSpeak(), disabled: !('speechSynthesis' in window) });
+  general.push(app.lessonsButton());
   ui.buttons(general, { cols: Math.min(general.length, 2), height: 64, size: 26 });
   ui.text(app.presenting
     ? 'Point and pinch / pull the trigger to press. Squeeze the grip to grab and move the whole lab.'
@@ -261,7 +262,7 @@ export function drawExplain(ui, app) {
     ctx.font = `400 ${size}px system-ui`;
   }
   ui.text(e.text, { size, lineHeight: 1.3 });
-  ui.button({ id: 'explain-close', label: '×', onClick: () => app.set({ explain: null }) }, ui.W - 96, 24, 64, 56, 40);
+  ui.button({ id: 'explain-close', label: '×', onClick: () => app.set({ explain: null }) }, ui.right - 56, 24, 64, 56, 40);
 }
 
 // ───────────────────────── Reactions ─────────────────────────

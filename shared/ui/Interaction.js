@@ -13,6 +13,7 @@ import { makeLabel } from './labels.js';
 
 const NEAR = 0.035; // reach distance (m) for grabbing directly with a hand or controller
 const TAP_MS = 350;
+const DRAG_PX = 24; // canvas pixels a pinch / press must move on a panel before it scrolls instead of clicking
 
 export class Interaction {
   constructor(app) {
@@ -36,6 +37,9 @@ export class Interaction {
     dom.addEventListener('pointermove', (ev) => this.onPointerMove(ev));
     dom.addEventListener('pointerup', (ev) => this.onPointerUp(ev));
     dom.addEventListener('pointerleave', () => { this.mouseInside = false; });
+    // Mouse wheel over a panel scrolls it (instead of zooming the view).
+    dom.addEventListener('wheel', (ev) => this.onWheel(ev), { capture: true, passive: false });
+    this.lastUpdate = performance.now();
 
     for (let i = 0; i < 2; i++) this.setupController(i);
   }
@@ -184,6 +188,7 @@ export class Interaction {
     this.mouse = { x: ev.clientX, y: ev.clientY, t: performance.now(), hit };
     if (!hit) return;
     app.controls.enabled = false;
+    if (hit.panel?.scrollable) this.mouse.drag = { panel: hit.panel, v0: hit.uv.y, scroll0: hit.panel.scroll };
     if (hit.object) {
       const mode = ev.shiftKey ? 'group' : 'single';
       if (this.startGrab('mouse', hit.object, mode)) {
@@ -200,6 +205,11 @@ export class Interaction {
   onPointerMove(ev) {
     this.setPointer(ev);
     this.mouseInside = ev.pointerType === 'mouse';
+    const d = this.mouse?.drag;
+    if (d && Math.hypot(ev.clientX - this.mouse.x, ev.clientY - this.mouse.y) > 8) {
+      this.raycaster.setFromCamera(this.pointer, this.app.camera);
+      this.dragScroll(d);
+    }
     const g = this.active.get('mouse');
     if (g) {
       this.raycaster.setFromCamera(this.pointer, this.app.camera);
@@ -229,6 +239,27 @@ export class Interaction {
       down.hit.object.userData.handler.tap(down.hit.object);
       app.refresh();
     }
+  }
+
+  onWheel(ev) {
+    if (this.app.renderer.xr.isPresenting) return;
+    this.setPointer(ev);
+    const hit = this.castFromScreen();
+    if (!hit?.panel?.scrollable) return;
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    hit.panel.scrollBy(ev.deltaY * (ev.deltaMode === 1 ? 40 : 1));
+  }
+
+  /** Drag-scrolling: the content follows the pointer / ray (raycaster already aimed). */
+  dragScroll(d) {
+    const hit = this.raycaster.intersectObject(d.panel.mesh, false)[0];
+    if (!hit) return;
+    const dy = (hit.uv.y - d.v0) * d.panel.canvas.height;
+    if (!d.moving && Math.abs(dy) < DRAG_PX) return;
+    d.moving = true;
+    const target = Math.max(0, Math.min(d.panel.maxScroll, d.scroll0 + dy));
+    if (target !== d.panel.scroll) d.panel.scrollBy(target - d.panel.scroll);
   }
 
   // ───────────── XR controllers & hands ─────────────
@@ -263,6 +294,7 @@ export class Interaction {
       if (this.app.state.placing || this.calibratingClick(c)) return;
       const hit = this.pick(c);
       c.userData.pending = hit ? { ...hit, t: performance.now() } : null;
+      c.userData.drag = hit?.panel?.scrollable ? { panel: hit.panel, v0: hit.uv.y, scroll0: hit.panel.scroll } : null;
       if (hit?.object && !this.startGrab(c, hit.object, 'single')) {
         // not grabbable (e.g. a bond): it may still be tapped on release
       }
@@ -279,7 +311,9 @@ export class Interaction {
         this.app.confirmPlacement();
         return;
       }
-      if (c.userData.pending?.panel) {
+      const dragged = c.userData.drag?.moving;
+      c.userData.drag = null;
+      if (c.userData.pending?.panel && !dragged) {
         const hit = this.castFromController(c);
         if (hit?.panel) this.press(hit, c);
       }
@@ -287,6 +321,7 @@ export class Interaction {
     c.addEventListener('selectend', () => {
       const pending = c.userData.pending;
       c.userData.pending = null;
+      c.userData.drag = null;
       if (this.active.has(c)) {
         this.endGrab(c);
       } else if (pending?.object?.userData.handler.tap && performance.now() - pending.t < TAP_MS * 3) {
@@ -352,11 +387,21 @@ export class Interaction {
       session.move(handle.getWorldPosition(new THREE.Vector3()));
     }
 
+    const now = performance.now();
+    const dt = Math.min(0.1, (now - this.lastUpdate) / 1000);
+    this.lastUpdate = now;
     const hovers = new Map();
     let hoverObject = null;
     if (this.app.renderer.xr.isPresenting) {
       for (const c of this.controllers) {
         const { line, dot, mode } = c.userData;
+        if (c.userData.drag) {
+          // pinch / trigger held on a panel and moved: scroll it
+          this.tmp.identity().extractRotation(c.matrixWorld);
+          this.raycaster.ray.origin.setFromMatrixPosition(c.matrixWorld);
+          this.raycaster.ray.direction.set(0, 0, -1).applyMatrix4(this.tmp);
+          this.dragScroll(c.userData.drag);
+        }
         if (mode !== 'tracked-pointer') {
           dot.visible = false;
           continue;
@@ -368,6 +413,10 @@ export class Interaction {
         dot.visible = !!hit && !hit.direct;
         if (hit?.point) dot.position.copy(hit.point);
         if (hit?.panel) {
+          // thumbstick up / down while pointing at a panel scrolls it
+          const axes = c.userData.inputSource?.gamepad?.axes;
+          const stick = axes ? (Math.abs(axes[3] ?? 0) > Math.abs(axes[1] ?? 0) ? axes[3] : axes[1]) ?? 0 : 0;
+          if (hit.panel.scrollable && Math.abs(stick) > 0.2) hit.panel.scrollBy(stick * dt * 1400);
           const b = hit.panel.buttonAt(hit.uv);
           if (b) hovers.set(hit.panel, b.id);
         } else if (hit?.object) hoverObject = hit.object;

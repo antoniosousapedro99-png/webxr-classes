@@ -9,6 +9,8 @@ Mixed reality lessons built with [WebXR](https://immersiveweb.dev/) and [three.j
 | **Cell Explorer** | Biology | [`lessons/cell-explorer/`](lessons/cell-explorer/) |
 | **Reef Dive** | Biology (IB) | [`lessons/reef-dive/`](lessons/reef-dive/) |
 
+**Getting around:** every lesson has a **← Lessons** button in its control panel (press it twice, so nobody leaves by accident) and an *All lessons* link on its start screen. Panels that hold more than fits get a scrollbar: use its ▲ ▼ buttons, the thumbstick while pointing at the panel, or pinch / pull the trigger on the panel and drag (mouse wheel or drag on a computer).
+
 ## Shared sessions (work alongside colleagues)
 
 Every lesson can be opened **solo** or in a **shared session**:

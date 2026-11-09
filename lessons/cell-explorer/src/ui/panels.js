@@ -100,7 +100,7 @@ export function drawCard(ui, app) {
     ui.text(step.text, { size: 23, width: ui.contentWidth - 10 });
     const y = ui.H - 70;
     ui.button({ id: 'tour-back', label: '◀ Back', disabled: s.tourStep === 0, onClick: () => app.tourTo(s.tourStep - 1) }, ui.pad, y, 150, 48, 23);
-    ui.button({ id: 'tour-next', label: s.tourStep === steps.length - 1 ? 'Start again' : 'Next ▶', onClick: () => app.tourTo((s.tourStep + 1) % steps.length) }, ui.W - ui.pad - 150, y, 150, 48, 23);
+    ui.button({ id: 'tour-next', label: s.tourStep === steps.length - 1 ? 'Start again' : 'Next ▶', onClick: () => app.tourTo((s.tourStep + 1) % steps.length) }, ui.right - 150, y, 150, 48, 23);
     return;
   }
   const e = s.explain;
@@ -114,5 +114,5 @@ export function drawCard(ui, app) {
   ctx.font = font(size);
   while (size > 18 && ui.wrap(e.text, ui.contentWidth).length * size * 1.3 > ui.H - top - 18) ctx.font = font(--size);
   ui.text(e.text, { size, lineHeight: 1.3 });
-  ui.button({ id: 'explain-close', label: '×', onClick: () => app.set({ explain: null }) }, ui.W - 96, 24, 64, 56, 40);
+  ui.button({ id: 'explain-close', label: '×', onClick: () => app.set({ explain: null }) }, ui.right - 56, 24, 64, 56, 40);
 }

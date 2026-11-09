@@ -193,5 +193,5 @@ export function drawCard(ui, app) {
   ctx.font = font(size);
   while (size > 18 && ui.wrap(e.text, ui.contentWidth).length * size * 1.3 > ui.H - top - 18) ctx.font = font(--size);
   ui.text(e.text, { size, lineHeight: 1.3 });
-  ui.button({ id: 'explain-close', label: '×', onClick: () => app.set({ explain: null }) }, ui.W - 96, 24, 64, 56, 40);
+  ui.button({ id: 'explain-close', label: '×', onClick: () => app.set({ explain: null }) }, ui.right - 56, 24, 64, 56, 40);
 }
