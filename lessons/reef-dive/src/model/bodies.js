@@ -541,32 +541,100 @@ export function makeCoralPiece(pieces, r) {
   return g;
 }
 
-// Swimming / crawling motion for models without their own animation, done in the vertex shader so it
-// costs nothing on the CPU. Coordinates are the model's own (nose +z, back +y), set up by the optimiser.
+// Swimming / crawling motion for models without a usable animation, done in the vertex shader so it costs
+// nothing on the CPU. Coordinates are the model's own (nose +z, back +y), set up by the optimiser.
+// uMin / uMax: the model's bounding box; uPhase: the stroke phase (radians), advanced every frame.
 const MOTION = {
-  // body wave that grows towards the tail
+  // carangiform swimming: a sideways wave that travels to the tail and grows towards it
   fish: `
-    float u = clamp((uB.w - transformed.z) / (uB.w - uB.z), 0.0, 1.0);
-    transformed.x += sin(uPhase - u * 4.5) * (uB.w - uB.z) * (0.012 + 0.09 * u * u);`,
-  // front and back flippers beat up and down
+    float len = uMax.z - uMin.z;
+    float u = clamp((uMax.z - p.z) / len, 0.0, 1.0); // 0 at the nose, 1 at the tail tip
+    p.x += sin(uPhase - u * 4.5) * len * (0.012 + 0.09 * u * u);`,
+
+  // sea turtle: front flippers sweep up and down like wings (and a little back), rear flippers paddle
   flippers: `
-    float half_ = max(abs(uB.x), abs(uB.y));
-    float reach = max(0.0, abs(transformed.x) - half_ * 0.36);
-    float front = step(0.0, transformed.z);
-    transformed.y += reach * (front * 0.55 + (1.0 - front) * 0.25) * sin(uPhase + (1.0 - front) * 1.6);`,
-  // arms ripple outwards from the head
+    vec3 c = (uMin + uMax) * 0.5;
+    vec3 h = (uMax - uMin) * 0.5;
+    float side = sign(p.x - c.x);
+    float hinge = h.x * 0.40;
+    float dx = abs(p.x - c.x) - hinge;
+    float w = smoothstep(0.0, h.x * 0.12, dx);
+    float front = smoothstep(c.z - h.z * 0.1, c.z + h.z * 0.1, p.z);
+    float ang = w * mix(0.32 * sin(uPhase + 1.9), 0.80 * sin(uPhase), front);
+    float dy = p.y - c.y;
+    float nx = dx * cos(ang) - dy * sin(ang);
+    float ny = dx * sin(ang) + dy * cos(ang);
+    p.x = c.x + side * (hinge + mix(dx, nx, w));
+    p.y = c.y + mix(dy, ny, w);
+    p.z -= w * front * max(dx, 0.0) * 0.30 * cos(uPhase);`,
+
+  // octopus: arms curl from side to side in travelling waves and lift off the rock; the mantle breathes
   arms: `
-    float r = length(transformed.xz) / max(uB.y, uB.w);
-    transformed.y += max(0.0, r - 0.25) * max(uB.y, uB.w) * 0.12 * sin(uPhase - r * 7.0 + atan(transformed.x, transformed.z) * 2.0);`,
-  // legs out to the sides step in turn
+    vec3 c = (uMin + uMax) * 0.5;
+    vec3 h = (uMax - uMin) * 0.5;
+    float R = max(h.x, h.z);
+    vec2 d = p.xz - c.xz;
+    float r = length(d) / R;
+    float a = atan(d.x, d.y);
+    float w = smoothstep(0.15, 0.45, r);
+    float curl = w * r * 0.55 * sin(uPhase - r * 6.0 + a * 3.0);
+    d = mat2(cos(curl), -sin(curl), sin(curl), cos(curl)) * d;
+    p.xz = c.xz + d;
+    p.y += w * R * 0.10 * (0.6 + 0.4 * sin(uPhase * 1.3 - r * 8.0 + a * 2.0)) * r;
+    float body = 1.0 - smoothstep(0.1, 0.35, r);
+    p.xz = c.xz + (p.xz - c.xz) * (1.0 + body * 0.07 * sin(uPhase * 0.8));`,
+
+  // crab walking sideways: the legs on each side lift and swing in a wave, the two sides out of step
   legs: `
-    float side = transformed.z / uB.w;
-    float lift = max(0.0, abs(side) - 0.35) * step(transformed.y, uB.y * 0.12 + 0.0001);
-    transformed.y += lift * uB.w * 0.18 * max(0.0, sin(uPhase + sign(side) * 3.14159 + transformed.x * 6.0 / uB.x));`,
-  // waves of contraction run along the body
+    vec3 c = (uMin + uMax) * 0.5;
+    vec3 h = (uMax - uMin) * 0.5;
+    float side = sign(p.z - c.z);
+    float hinge = h.z * 0.36;
+    float dz = abs(p.z - c.z) - hinge;
+    float claws = smoothstep(-0.75, -0.5, (p.x - c.x) / h.x); // the claws (front, -x) don't walk
+    float w = smoothstep(0.0, h.z * 0.1, dz) * claws;
+    float lp = uPhase + (p.x - c.x) / h.x * 3.5 + (side > 0.0 ? 0.0 : 3.14159);
+    float ang = w * 0.45 * max(0.0, sin(lp));
+    float hy = uMin.y + (uMax.y - uMin.y) * 0.55;
+    float dy = p.y - hy;
+    float nz = dz * cos(ang) - dy * sin(ang);
+    float ny = dz * sin(ang) + dy * cos(ang);
+    p.z = c.z + side * (hinge + mix(dz, nz, w));
+    p.y = hy + mix(dy, ny, w);
+    p.x += w * max(dz, 0.0) * 0.35 * cos(lp);
+    float pinch = (1.0 - claws) * 0.06 * sin(uPhase * 0.5); // claws open and close slowly
+    p.z = c.z + (p.z - c.z) * (1.0 - pinch);`,
+
+  // jellyfish: the bell squeezes in (and its rim curls down) then relaxes; tentacles and oral arms trail and sway
+  pulse: `
+    vec3 c = (uMin + uMax) * 0.5;
+    vec3 h = (uMax - uMin) * 0.5;
+    float H = uMax.y - uMin.y;
+    float depth = (uMax.y - p.y) / H; // 0 at the top of the bell, 1 at the tentacle tips
+    float s = sin(uPhase);
+    float squeeze = max(0.0, s) * 0.9 + min(0.0, s) * 0.35; // quick power stroke, slower recovery
+    float bell = 1.0 - smoothstep(0.22, 0.4, depth);
+    float rim = smoothstep(0.0, 0.25, depth);
+    p.xz = c.xz + (p.xz - c.xz) * (1.0 - 0.16 * squeeze * bell * (0.3 + rim));
+    p.y -= bell * rim * squeeze * H * 0.05;
+    p.y += bell * (1.0 - rim) * squeeze * H * 0.03;
+    float tail = smoothstep(0.3, 0.9, depth);
+    float lag = uPhase - 1.2 - depth * 3.0;
+    p.xz = c.xz + (p.xz - c.xz) * (1.0 - tail * 0.12 * sin(lag));
+    p.x += tail * h.x * 0.15 * sin(uPhase * 0.35 - depth * 4.0);
+    p.z += tail * h.z * 0.15 * cos(uPhase * 0.3 - depth * 3.0 + 1.0);`,
+
+  // sea cucumber: waves of contraction run from tail to head, with a slow side-to-side sway
   crawl: `
-    float w = 1.0 + 0.07 * sin(transformed.z / uB.w * 6.0 - uPhase);
-    transformed.xy *= vec2(w, w);`,
+    vec3 c = (uMin + uMax) * 0.5;
+    vec3 h = (uMax - uMin) * 0.5;
+    float u = (p.z - c.z) / h.z;
+    float k = u * 6.28318 - uPhase;
+    p.z += h.z * 0.07 * sin(k);
+    float bulge = 1.0 + 0.12 * cos(k);
+    p.x = c.x + (p.x - c.x) * bulge;
+    p.y = uMin.y + (p.y - uMin.y) * bulge;
+    p.x += h.z * 0.06 * sin(uPhase * 0.4 + u * 1.5);`,
 };
 
 /** A model for a species: a .glb from the manifest if there is one, otherwise the built-in shape. */
@@ -582,9 +650,9 @@ export function makeBody(id, overrides, length) {
   m.position.set(-c.x * s, -(o.floor ? o.box.min.y : c.y) * s, -c.z * s);
   g.add(m);
 
-  // its own animation (e.g. the shark's swim), played at a random point so a group doesn't move in step
+  // its own animation (e.g. the jellyfish's pulse), played at a random point so a group doesn't move in step
   let mixer = null;
-  const clip = o.animation && (o.clips.find((a) => a.name.includes(o.animation)) ?? o.clips[0]);
+  const clip = o.animation && animationClip(o);
   if (clip) {
     mixer = new THREE.AnimationMixer(m);
     const action = mixer.clipAction(clip).play();
@@ -595,34 +663,52 @@ export function makeBody(id, overrides, length) {
   const phase = { value: Math.random() * 10 };
   const code = !clip && MOTION[o.motion];
   if (code) {
-    const bounds = { value: new THREE.Vector4(o.box.min.x, o.box.max.x, o.box.min.z, o.box.max.z) };
-    if (o.motion === 'flippers' || o.motion === 'arms') bounds.value.set(size.x / 2, size.x / 2, size.z / 2, size.z / 2);
-    if (o.motion === 'legs') bounds.value.set(size.x / 2, o.box.min.y + size.y, size.z / 2, size.z / 2);
-    if (o.motion === 'crawl') bounds.value.set(0, 0, 0, size.z / 2);
+    m.updateMatrixWorld(true);
+    const toModel = m.matrixWorld.clone().invert();
     m.traverse((x) => {
       if (!x.isMesh) return;
+      // the model's box in this mesh's own coordinates (compressed meshes store quantised positions
+      // and undo it with a node scale/offset, so mesh space is not model space)
+      const meshToModel = toModel.clone().multiply(x.matrixWorld);
+      const local = o.box.clone().applyMatrix4(meshToModel.invert());
+      const uMin = { value: local.min };
+      const uMax = { value: local.max };
       x.material = x.material.clone();
       x.material.onBeforeCompile = (sh) => {
-        sh.uniforms.uPhase = phase;
-        sh.uniforms.uB = bounds;
+        Object.assign(sh.uniforms, { uPhase: phase, uMin, uMax });
         sh.vertexShader = sh.vertexShader
-          .replace('#include <common>', '#include <common>\nuniform float uPhase;\nuniform vec4 uB;')
-          .replace('#include <begin_vertex>', `#include <begin_vertex>\n${code}`);
+          .replace('#include <common>', '#include <common>\nuniform float uPhase;\nuniform vec3 uMin;\nuniform vec3 uMax;')
+          .replace('#include <begin_vertex>', `#include <begin_vertex>\n{ vec3 p = transformed;${code}\n  transformed = p; }`);
       };
       x.material.customProgramCacheKey = () => `motion-${o.motion}`;
     });
   }
-  const beat = { fish: 9, flippers: 2.2, arms: 1.6, legs: 9, crawl: 1.2 }[o.motion] ?? 2;
+  // strokes per second (radians): set per model with "beat", e.g. slow for the shark, fast for small fish
+  const beat = o.beat ?? { fish: 9, flippers: 2.4, arms: 2.0, legs: 7, crawl: 1.6, pulse: 4 }[o.motion] ?? 2;
   let last = null;
   g.userData.animate = (t, speed = 1) => {
     const dt = last === null ? 0 : Math.min(0.1, Math.max(0, t - last));
     last = t;
-    if (mixer) mixer.update(dt * (o.animSpeed ?? 1) * (0.6 + speed * 0.4));
-    phase.value += dt * beat * (0.5 + speed * 0.5);
+    if (mixer) mixer.update(dt * (o.animSpeed ?? 1));
+    phase.value += dt * beat * (0.55 + Math.min(speed, 2) * 0.45);
     if (o.motion === 'fish') m.rotation.y = Math.sin(phase.value) * 0.04; // the head sways a little too
+    if (o.motion === 'flippers') m.position.y = -c.y * s + Math.sin(phase.value - 0.6) * length * 0.025; // each stroke lifts the body
+    if (o.motion === 'legs') m.position.y = -o.box.min.y * s + Math.abs(Math.sin(phase.value)) * length * 0.015;
     if (!clip && !code) m.rotation.y = Math.sin(t * 0.3) * 0.05;
   };
   return g;
+}
+
+/** The model's clip, minus any tracks that move the whole body ("lockRoot"): the lesson steers the animal itself. */
+function animationClip(o) {
+  if (o._clip !== undefined) return o._clip;
+  let clip = o.clips.find((a) => a.name.includes(o.animation)) ?? o.clips[0] ?? null;
+  if (clip && o.lockRoot) {
+    clip = clip.clone();
+    clip.tracks = clip.tracks.filter((tr) => !o.lockRoot.some((n) => tr.name === `${n}.position` || tr.name === `${n}.quaternion`));
+  }
+  o._clip = clip;
+  return clip;
 }
 
 let skeletonClone = null; // set once loadModelOverrides has loaded SkeletonUtils

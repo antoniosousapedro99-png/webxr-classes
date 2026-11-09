@@ -35,7 +35,7 @@ export const SPECIES = {
   },
   parrotfish: {
     name: 'Parrotfish', sci: 'Scarus spp.', group: 'bony fish', trophic: 2, role: 'Herbivore — keystone grazer',
-    length: 0.4, move: 'school', count: 6, eats: ['algae', 'coral'],
+    length: 0.4, move: 'school', count: 3, eats: ['algae', 'coral'],
     about: 'Scrapes algae off dead coral with a beak of fused teeth, keeping space clear for new coral to settle. It grinds limestone as it feeds — one parrotfish can produce hundreds of kilograms of white sand a year.',
     adapt: 'Fused beak-like teeth and grinding pharyngeal jaws; some sleep in a mucus cocoon that hides their scent from predators.',
   },

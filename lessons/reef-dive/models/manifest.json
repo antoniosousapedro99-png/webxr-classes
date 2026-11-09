@@ -1,10 +1,10 @@
 {
-  "shark": { "file": "shark.glb", "animation": "swimming", "animSpeed": 0.6 },
+  "shark": { "file": "shark.glb", "motion": "fish", "beat": 4 },
   "barracuda": { "file": "barracuda.glb", "motion": "fish" },
   "turtle": { "file": "turtle.glb", "motion": "flippers" },
   "parrotfish": { "file": "parrotfish.glb", "motion": "fish" },
-  "wrasse": { "file": "wrasse.glb", "motion": "fish" },
-  "jelly": { "file": "jelly.glb", "animation": "Loop", "animSpeed": 1.6 },
+  "wrasse": { "file": "wrasse.glb", "motion": "fish", "beat": 14 },
+  "jelly": { "file": "jelly.glb", "motion": "pulse", "beat": 4 },
   "octopus": { "file": "octopus.glb", "motion": "arms", "floor": true },
   "crab": { "file": "crab.glb", "motion": "legs", "floor": true },
   "cucumber": { "file": "cucumber.glb", "motion": "crawl", "floor": true },

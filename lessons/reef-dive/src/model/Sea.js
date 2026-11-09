@@ -74,7 +74,7 @@ export class Sea {
       case 'turtle': return ring(1.1, 2.4, 0.5, 1.6);
       case 'parrotfish': {
         const t = this.schoolTarget.parrotfish;
-        if (!t || Math.random() < 0.3) this.schoolTarget.parrotfish = pushOutOfRock(ring(0.7, 1.1, 0.25, 0.9));
+        if (!t || Math.random() < 0.3) this.schoolTarget.parrotfish = pushOutOfRock(ring(1.3, 2.0, 0.3, 1.0)); // out from the reef so it stays easy to see
         return this.schoolTarget.parrotfish.clone().add(new THREE.Vector3(rand(-0.15, 0.15), rand(-0.08, 0.08), rand(-0.15, 0.15)));
       }
       case 'wrasse': return pushOutOfRock(rockPoint(5.2, 0.7).multiplyScalar(1.15).add(new THREE.Vector3(rand(-0.1, 0.1), rand(-0.05, 0.08), rand(-0.1, 0.1))));

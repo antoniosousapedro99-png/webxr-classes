@@ -10,16 +10,19 @@ octopus, crab, cucumber, urchin), plus `coral` for the reef's coral colonies. A 
 
 ```json
 {
-  "shark": { "file": "shark.glb", "animation": "swimming", "animSpeed": 0.6 },
+  "shark": { "file": "shark.glb", "motion": "fish", "beat": 4 },
   "parrotfish": { "file": "parrotfish.glb", "motion": "fish" },
   "crab": { "file": "crab.glb", "motion": "legs", "floor": true },
   "coral": { "files": ["coral-branch.glb", "coral-soft.glb"], "split": ["coral-soft.glb"] }
 }
 ```
 
-- `animation`: play the model's own animation clip whose name contains this text (`animSpeed` scales it).
-- `motion`: for models without an animation, a cheap swim done on the graphics card:
-  `fish` (body wave to the tail), `flippers` (turtle), `arms` (octopus), `legs` (crab), `crawl` (sea cucumber).
+- `motion`: a cheap swim done on the graphics card: `fish` (body wave to the tail), `flippers` (turtle),
+  `arms` (octopus), `legs` (crab), `crawl` (sea cucumber), `pulse` (jellyfish). `beat` sets its speed
+  (radians per second, e.g. 4 for the shark, 14 for the small wrasse).
+- `animation`: instead, play the model's own animation clip whose name contains this text (`animSpeed` scales it;
+  `lockRoot` lists bones whose movement is dropped, so the clip cannot carry the animal away from where the lesson steers it).
+  Most downloaded clips move the whole body around, so `motion` usually looks better.
 - `floor`: the model's bottom sits on the floor or rock (otherwise it is centred).
 - `coral.files`: interchangeable coral colonies; files listed in `split` hold several separate corals.
   Coral models fade to white when they bleach and to grey-brown when they die.
@@ -27,6 +30,7 @@ octopus, crab, cucumber, urchin), plus `coral` for the reef's coral colonies. A 
 ## Preparing a new model
 
 Each model is scaled to the species' real length. It must point its **nose along +z** with its **back along +y**.
+The motions bend the model by position, so it should be one rigid mesh in that pose (a rigged model can be frozen in its rest pose).
 For Quest 3, keep a fish under about 5,000 triangles (bigger animals up to about 16,000), with textures of
 512–1024 px. Compress with [glTF-Transform](https://gltf-transform.dev/) (meshopt + WebP), for example:
 
