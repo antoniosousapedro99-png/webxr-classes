@@ -33,7 +33,7 @@ function diveControls(ui, app) {
   const sort = s.sort;
   if (!sort) {
     const sp = s.selected;
-    ui.text(sp ? `Use the key to classify the ${SPECIES[sp].name.toLowerCase()}.` : 'Photograph a species first, then classify it with the key.', { size: 22, color: THEME.dim });
+    if (!sp) ui.text('Photograph a species first, then classify it with the key.', { size: 22, color: THEME.dim });
     ui.buttons([{ id: 'sort', label: sp ? `Sort the ${SPECIES[sp].name.toLowerCase()}` : 'Sort it', disabled: !sp, onClick: () => app.startSort() }], { height: 54, size: 22 });
     if (s.sorted.size) ui.text(`Sorted correctly: ${s.sorted.size}`, { size: 22, color: '#7ee2a8' });
     return;
@@ -51,7 +51,7 @@ function webControls(ui, app) {
   const found = app.web.length;
   ui.text(`Links found: ${found} of ${LINKS.length}`, { size: 27, weight: 700, color: found === LINKS.length ? '#7ee2a8' : THEME.text });
   ui.text(s.pick
-    ? `Now point at what EATS the ${SPECIES[s.pick].name.toLowerCase()}.`
+    ? `Food: ${SPECIES[s.pick].name} (glowing gold). Now pinch what eats it.`
     : 'Pinch a living thing, then pinch something that eats it. A glowing thread shows energy flowing from food to eater.', { size: 23, color: s.pick ? '#ffd166' : THEME.dim });
   if (s.pick) ui.buttons([{ id: 'unpick', label: 'Cancel', onClick: () => app.set({ pick: null }) }], { height: 50, size: 22 });
   ui.buttons([{ id: 'flow', label: s.flow ? 'Energy flow: on' : 'Energy flow: off', active: s.flow, onClick: () => app.set({ flow: !s.flow }) }], { height: 52, size: 22 });

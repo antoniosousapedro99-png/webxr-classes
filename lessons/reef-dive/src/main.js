@@ -7,7 +7,7 @@ import { SPECIES, ORDER, LINKS, KEY, ANSWERS } from './data/species.js';
 import { Ecosystem, BASE_ENV } from './model/Ecosystem.js';
 import { Reef } from './model/Reef.js';
 import { Sea } from './model/Sea.js';
-import { Water, OceanSound } from './model/Water.js';
+import { Water, OceanSound, addBlend } from './model/Water.js';
 import { loadModelOverrides } from './model/bodies.js';
 import { drawControls, drawInfo, drawCard } from './ui/panels.js';
 
@@ -16,6 +16,8 @@ import { drawControls, drawInfo, drawCard } from './ui/panels.js';
 
 const LIMITS = { temp: [24, 33], ph: [7.6, 8.3], nutrients: [0, 1], turbidity: [0, 1] };
 const RUN_MONTH_S = 0.9; // seconds per simulated month while running
+const GLOW_SELECTED = new THREE.Color(0x8af6ff); // the species you photographed / selected
+const GLOW_PICKED = new THREE.Color(0xffc93c); // food-web: the food you picked, waiting for its eater
 
 class App extends LessonApp {
   constructor() {
@@ -36,7 +38,7 @@ class App extends LessonApp {
       bio: { qid: null, answer: null },
       explain: {
         title: 'Welcome to the reef',
-        text: 'You are standing on the sea floor. Look around — and at your classmates. Every creature is shown at its real size (plankton are enlarged). Point at anything and pinch to photograph it for your logbook.',
+        text: 'You are standing in a clearing on the sea floor, ringed by a coral reef. Look around — and at your classmates. Every creature is shown at its real size (plankton are enlarged).',
       },
     };
     this.initLesson();
@@ -282,7 +284,13 @@ class App extends LessonApp {
     this.interaction.pulse(0.4, 30);
     this.flash();
     const d = SPECIES[sp];
-    this.explain({ title: `${isNew ? 'New: ' : ''}${d.name}`, text: `${d.role}. ${d.about}` });
+    this.explain({
+      // the species name is the ID card's title on the right, so the card here only says what happened
+      title: isNew ? 'New species photographed!' : 'Already in your logbook',
+      text: isNew
+        ? `Its ID card is on the right, and every one of this species is glowing.${s.sorted.has(sp) ? '' : ' Next: classify it with “Sort it”.'}`
+        : 'Every one of this species is glowing, so you can spot them all.',
+    });
   }
 
   /** A quick camera-flash on the water tint. */
@@ -322,7 +330,7 @@ class App extends LessonApp {
     if (!s.pick) {
       s.pick = sp;
       sound.click();
-      this.explain({ title: `${SPECIES[sp].name} selected`, text: `Now pinch something that eats the ${SPECIES[sp].name.toLowerCase()}. (Producers and plankton count too.)` });
+      this.explain({ title: `What eats the ${SPECIES[sp].name.toLowerCase()}?`, text: `Trophic level ${SPECIES[sp].trophic}: ${SPECIES[sp].role.toLowerCase()}. Look for an animal at a higher level. It glows gold until you choose.` });
       return;
     }
     const food = s.pick;
@@ -360,8 +368,8 @@ class App extends LessonApp {
   setMode(mode) {
     this.set({ mode, pick: null, sort: null, result: null, bio: { qid: null, answer: null } });
     const intro = {
-      dive: ['Dive & discover', 'Point at a creature and pinch to photograph it and see its ID card. Then use “Sort it” to classify it with a key.'],
-      web: ['Build the food web — together', 'Pinch a living thing, then pinch something that eats it. Correct links glow for everyone, with energy flowing from food to eater.'],
+      dive: ['Dive & discover', 'Identify the reef’s organisms: every photo opens an ID card with its scientific name, group and role. Can you find all ' + ORDER.length + ' species?'],
+      web: ['Build the food web — together', 'Every link anyone finds is shared with the whole class. Follow the energy from the producers up to the reef shark, and see how little of it reaches the top.'],
       lab: ['Reef lab', this.canControl ? 'Change the conditions, ask everyone to predict, then run a year and watch the reef respond.' : `${this.hostName} controls the conditions. Predict what will happen to the coral, then watch.`],
     }[mode];
     this.state.explain = { title: intro[0], text: intro[1] };
@@ -440,6 +448,7 @@ class App extends LessonApp {
     }
     this.reef.update(dt);
     this.water.update(dt);
+    this.updateGlow(dt);
     this.updateThreads(dt);
     for (const t of this.nameTags.children) {
       const p = this.sea.anchor(t.userData.sp);
@@ -452,6 +461,71 @@ class App extends LessonApp {
       this.refresh();
     }
     this.wasRunning = this.running;
+  }
+
+  /** Selected species glow (pulsing cyan); in the food web, the food you picked glows gold until you choose its eater. */
+  updateGlow(dt) {
+    const want = new Map();
+    if (this.state.selected) want.set(this.state.selected, GLOW_SELECTED);
+    if (this.state.pick) want.set(this.state.pick, GLOW_PICKED);
+    const key = [...want].map(([sp, c]) => sp + c.getHexString()).join(',');
+    this.glowClock = (this.glowClock ?? 0) + dt;
+    if (key !== this.glowKey || this.glowClock > 1) {
+      // (re)collect the glowing materials: the selection changed, or animals were born / removed
+      this.glowClock = 0;
+      this.glowKey = key;
+      for (const [m, g] of this.glowMats ?? []) m.emissive.copy(g.base);
+      if (this.glowPlankton) this.glowPlankton.pts.material.uniforms.uOpacity.value = this.glowPlankton.base;
+      this.glowMats = new Map();
+      this.glowPlankton = null;
+      const add = (o, color) => o.traverse((x) => {
+        if (!(x.isMesh || x.isInstancedMesh)) return;
+        for (const m of [x.material].flat()) if (m.emissive && !this.glowMats.has(m)) this.glowMats.set(m, { base: m.emissive.clone(), color });
+      });
+      for (const [sp, color] of want) {
+        for (const a of this.sea.agents.values()) if (a.sp === sp) add(a.body, color);
+        this.reef.group.traverse((x) => { if (x.userData.species === sp && (x.isMesh || x.isInstancedMesh)) add(x, color); });
+        const pts = sp === 'phyto' ? this.reef.phyto : sp === 'zoo' ? this.reef.zoo : null;
+        if (pts) this.glowPlankton = { pts, base: pts.material.uniforms.uOpacity.value };
+      }
+    }
+    const k = 0.75 + 0.3 * Math.sin(performance.now() / 1000 * 5);
+    const c = new THREE.Color();
+    for (const [m, g] of this.glowMats) m.emissive.copy(g.base).add(c.copy(g.color).multiplyScalar(k * 0.75));
+    // a soft halo of light around each glowing animal, so it stands out against the blue from across the room
+    this.halos ??= [];
+    let n = 0;
+    for (const a of this.sea.agents.values()) {
+      const color = want.get(a.sp);
+      if (!color) continue;
+      const h = (this.halos[n++] ??= this.makeHalo());
+      h.visible = true;
+      h.position.copy(a.body.position);
+      h.material.color.copy(color);
+      h.material.opacity = 0.35 + 0.25 * k;
+      h.scale.setScalar(Math.max(0.12, SPECIES[a.sp].length * 1.7) * (0.95 + 0.08 * k));
+    }
+    for (let i = n; i < this.halos.length; i++) this.halos[i].visible = false;
+    if (this.glowPlankton) this.glowPlankton.pts.material.uniforms.uOpacity.value = Math.min(1, this.glowPlankton.base * (1.3 + k));
+  }
+
+  makeHalo() {
+    if (!this.haloTex) {
+      const c = document.createElement('canvas');
+      c.width = c.height = 128;
+      const g = c.getContext('2d');
+      const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+      grad.addColorStop(0, 'rgba(255,255,255,0.9)');
+      grad.addColorStop(0.35, 'rgba(255,255,255,0.45)');
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = grad;
+      g.fillRect(0, 0, 128, 128);
+      this.haloTex = new THREE.CanvasTexture(c);
+    }
+    const s = new THREE.Sprite(addBlend(new THREE.SpriteMaterial({ map: this.haloTex, transparent: true, depthWrite: false, fog: false })));
+    s.renderOrder = 4;
+    this.ocean.add(s);
+    return s;
   }
 
   /** Everyone's head position in ocean coordinates (you, and classmates in the session). */
