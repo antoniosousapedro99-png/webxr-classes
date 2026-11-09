@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { LessonApp } from '../../../shared/LessonApp.js';
 import { Walker } from './Walker.js';
 import { EXHIBITS, ORDER, START } from './data/exhibits.js';
@@ -49,9 +50,15 @@ class App extends LessonApp {
   async loadHall() {
     const hint = document.getElementById('hint');
     const btn = document.getElementById('btn-ar');
-    if (hint) hint.textContent = 'Loading the hall (about 13 MB)…';
-    const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(new URL('../models/hall.glb', import.meta.url).toString());
+    if (hint) hint.textContent = 'Loading the hall (about 18 MB)…';
+    // the 8K textures are GPU-compressed (KTX2), so they stay small in the headset's memory
+    const ktx2 = new KTX2Loader().setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/basis/').detectSupport(this.renderer);
+    const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).setKTX2Loader(ktx2).loadAsync(new URL('../models/hall.glb', import.meta.url).toString());
+    ktx2.dispose();
     this.hall = gltf.scene;
+    // keep floors and walls sharp when seen at a glancing angle
+    const aniso = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
+    this.hall.traverse((o) => { if (o.isMesh && o.material.map) { o.material.map.anisotropy = aniso; o.material.map.needsUpdate = true; } });
     this.scene.add(this.hall);
     this.walker = new Walker(this, this.hall);
     this.walker.teleportDesk(START.pos, START.look, false);
