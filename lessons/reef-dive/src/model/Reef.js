@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { anemone, makeCoralPiece } from './bodies.js';
+import { softPoints, pointAttributes } from './Water.js';
 
 // The shared reef in the middle of the room: a coral bommie rising from the floor to about table height,
 // a seagrass meadow beside it, and clouds of plankton in the water. It shows the ecosystem's state:
@@ -136,8 +137,11 @@ export class Reef {
       const n = 1 + 0.08 * Math.sin(v.x * 9) * Math.cos(v.z * 8) + 0.05 * Math.sin(v.y * 13 + v.x * 5);
       v.multiplyScalar(n);
       p.setXYZ(i, v.x * ROCK.rx, Math.max(-0.05, v.y * ROCK.ry), v.z * ROCK.rz);
-      const shade = 0.42 + 0.12 * Math.sin(v.x * 20 + v.z * 17);
-      col.set([shade * 1.05, shade, shade * 0.88], i * 3);
+      // dark reef rock, mottled with patches of pink coralline algae and green turf
+      const shade = 0.17 + 0.05 * Math.sin(v.x * 20 + v.z * 17) + 0.03 * Math.sin(v.y * 31 + v.x * 7);
+      const pink = Math.max(0, Math.sin(v.x * 7 + v.y * 5) * Math.sin(v.z * 6 - v.y * 3)) * 0.5;
+      const green = Math.max(0, Math.sin(v.x * 4 - v.z * 9 + 1.3)) * 0.3;
+      col.set([shade * (1.05 + pink * 0.9), shade * (0.95 + green * 0.6), shade * (0.85 + pink * 0.5)], i * 3);
     }
     rockGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     rockGeo.computeVertexNormals();
@@ -200,8 +204,8 @@ export class Reef {
     this.group.add(this.anemone);
 
     // plankton clouds (shown hugely enlarged)
-    this.phyto = this.cloud(900, 0x7dff9a, 0.012, r, 'phyto');
-    this.zoo = this.cloud(500, 0xfff1d6, 0.016, r, 'zoo');
+    this.phyto = this.cloud(900, 0x8dffb0, [0.004, 0.013], r, 'phyto');
+    this.zoo = this.cloud(500, 0xfff1d6, [0.005, 0.017], r, 'zoo');
     this.time = 0;
     this.show({ pop: { coral: 0.6, algae: 0.15, seagrass: 1, phyto: 1, zoo: 1, anemone: 1 }, bleach: 0, removed: [] });
   }
@@ -242,7 +246,9 @@ export class Reef {
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    const pts = new THREE.Points(geo, new THREE.PointsMaterial({ color, size, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending }));
+    pointAttributes(geo, n, size[0], size[1]);
+    // soft glowing specks (enlarged plankton) that twinkle as they turn in the light
+    const pts = new THREE.Points(geo, softPoints({ color, opacity: 0.85, glow: true, twinkle: 0.55 }));
     pts.userData.base = base;
     this.group.add(pts);
     // invisible "handles" so a pinch/click on a cloud can identify it
@@ -321,6 +327,7 @@ export class Reef {
     });
     this.grass.instanceMatrix.needsUpdate = true;
     for (const cl of [this.phyto, this.zoo]) {
+      cl.material.uniforms.uTime.value = t;
       const p = cl.geometry.attributes.position;
       const base = cl.userData.base;
       const jitter = cl === this.zoo ? 0.03 : 0.01;

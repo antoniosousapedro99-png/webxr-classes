@@ -287,10 +287,7 @@ class App extends LessonApp {
 
   /** A quick camera-flash on the water tint. */
   flash() {
-    const u = this.water.dome.material.uniforms.uAlpha;
-    const was = u.value;
-    u.value = 0.05;
-    setTimeout(() => { u.value = was; }, 90);
+    this.water.flash();
   }
 
   // ── sort it (dichotomous key) ──
@@ -368,6 +365,13 @@ class App extends LessonApp {
       lab: ['Reef lab', this.canControl ? 'Change the conditions, ask everyone to predict, then run a year and watch the reef respond.' : `${this.hostName} controls the conditions. Predict what will happen to the coral, then watch.`],
     }[mode];
     this.state.explain = { title: intro[0], text: intro[1] };
+  }
+
+  /** How strongly the water tints the real room (your own view only). */
+  cycleWater() {
+    const lv = this.water.cycleLevel();
+    sound.click();
+    this.explain({ title: `Water: ${lv.label.toLowerCase()}`, text: { light: 'Clear, shallow water: you can see the room well.', medium: 'Open water: the room fades into the blue.', deep: 'Deeper water: the room is only just visible, so the reef stands out.' }[lv.id] });
   }
 
   toggleNames() {

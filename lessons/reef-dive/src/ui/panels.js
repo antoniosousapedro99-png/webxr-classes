@@ -24,7 +24,10 @@ function diveControls(ui, app) {
   ui.text(app.presenting
     ? 'Point at any creature and pinch (or pull the trigger) to photograph it and open its ID card. Plankton clouds and the reef itself count too!'
     : 'Click any creature to photograph it and open its ID card. Plankton clouds and the reef itself count too!', { size: 22, color: THEME.dim });
-  ui.buttons([{ id: 'names', label: s.names ? 'Names: on' : 'Names: off', active: s.names, onClick: () => app.toggleNames() }], { height: 52, size: 22 });
+  ui.buttons([
+    { id: 'names', label: s.names ? 'Names: on' : 'Names: off', active: s.names, onClick: () => app.toggleNames() },
+    { id: 'water', label: `Water: ${app.water.levelInfo.label.toLowerCase()}`, onClick: () => app.cycleWater() },
+  ], { height: 52, size: 22 });
 
   ui.heading('Sort it (classification key)');
   const sort = s.sort;
