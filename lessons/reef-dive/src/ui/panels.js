@@ -1,7 +1,7 @@
-import { SPECIES, ORDER, LINKS, KEY, QUESTIONS } from '../data/species.js';
+import { SPECIES, ORDER, KEY, QUESTIONS } from '../data/species.js';
 import { THEME, font } from '../../../../shared/ui/CanvasPanel.js';
 
-const MODES = [['dive', 'Dive & discover'], ['web', 'Food web'], ['lab', 'Reef lab']];
+const MODES = [['dive', 'Identify'], ['lab', 'Reef lab']];
 const pct = (v) => `${Math.round(v * 100)}%`;
 
 // ───────────────────────── Left: controls ─────────────────────────
@@ -12,7 +12,6 @@ export function drawControls(ui, app) {
   ui.buttons(MODES.map(([id, label]) => ({ id: `mode-${id}`, label, active: s.mode === id, onClick: () => app.setMode(id) })), { height: 64, size: 25, gap: 10 });
   ui.gap(4);
   if (s.mode === 'dive') diveControls(ui, app);
-  else if (s.mode === 'web') webControls(ui, app);
   else labControls(ui, app);
   ui.divider();
   ui.buttons(app.generalButtons(), { cols: 3, height: 52, size: 21, gap: 8 });
@@ -46,25 +45,6 @@ function diveControls(ui, app) {
   ], { height: 56, size: 24 });
 }
 
-function webControls(ui, app) {
-  const s = app.state;
-  const found = app.web.length;
-  ui.text(`Links found: ${found} of ${LINKS.length}`, { size: 27, weight: 700, color: found === LINKS.length ? '#7ee2a8' : THEME.text });
-  ui.text(s.pick
-    ? `Food: ${SPECIES[s.pick].name} (glowing gold). Now pinch what eats it.`
-    : 'Pinch a living thing, then pinch something that eats it. A glowing thread shows energy flowing from food to eater.', { size: 23, color: s.pick ? '#ffd166' : THEME.dim });
-  if (s.pick) ui.buttons([{ id: 'unpick', label: 'Cancel', onClick: () => app.set({ pick: null }) }], { height: 50, size: 22 });
-  ui.buttons([{ id: 'flow', label: s.flow ? 'Energy flow: on' : 'Energy flow: off', active: s.flow, onClick: () => app.set({ flow: !s.flow }) }], { height: 52, size: 22 });
-  ui.heading('What if it was missing?');
-  const sp = s.selected;
-  if (!app.canControl) ui.text(`Only ${app.hostName} can remove species, because the reef is shared. Watch what happens when they do!`, { size: 22, color: THEME.dim });
-  else if (!sp) ui.text('Select a species (pinch it) to remove it and watch the effect ripple through the food web.', { size: 22, color: THEME.dim });
-  else {
-    const gone = app.eco.removed.has(sp);
-    ui.buttons([{ id: 'remove', label: gone ? `Bring back the ${SPECIES[sp].name.toLowerCase()}` : `Remove the ${SPECIES[sp].name.toLowerCase()}`, active: gone, disabled: app.running, onClick: () => (gone ? app.restoreSpecies(sp) : app.removeSpecies(sp)) }], { height: 56, size: 22 });
-  }
-}
-
 function labControls(ui, app) {
   const s = app.state;
   const env = app.eco.env;
@@ -96,7 +76,7 @@ export function drawInfo(ui, app) {
   else if (s.selected) speciesCard(ui, app, s.selected);
   else {
     ui.title('Coral reef', { size: 38 });
-    ui.text('Tropical coral reefs cover under 1% of the ocean floor but are home to about a quarter of all marine species. Everything you see swims at its real size — explore, then try the food web and the reef lab.', { size: 23 });
+    ui.text('Tropical coral reefs cover under 1% of the ocean floor but are home to about a quarter of all marine species. Everything you see is at its real size: identify it, then test the reef in the reef lab.', { size: 23 });
   }
   ui.divider();
   ui.heading('Ask the marine biologist');
@@ -112,16 +92,8 @@ function speciesCard(ui, app, sp) {
   ui.text(`${d.sci} · ${d.group}`, { size: 21, color: THEME.dim });
   ui.kv('Trophic level', `${d.trophic} · ${d.role}`, { size: 21 });
   ui.kv('Real size', d.length < 0.01 ? `${d.length * 1e6 >= 1000 ? (d.length * 1000).toFixed(0) + ' mm' : Math.round(d.length * 1e6) + ' µm'} (shown enlarged)` : `${d.length < 1 ? Math.round(d.length * 100) + ' cm' : d.length + ' m'}`, { size: 21 });
-  if (app.state.mode === 'web') {
-    const eats = app.web.filter(([, b]) => b === sp).map(([a]) => SPECIES[a].name);
-    const eatenBy = app.web.filter(([a]) => a === sp).map(([, b]) => SPECIES[b].name);
-    ui.text(`Eats: ${eats.length ? eats.join(', ') : '— (find the links)'}`, { size: 22 });
-    ui.text(`Eaten by: ${eatenBy.length ? eatenBy.join(', ') : '— (find the links)'}`, { size: 22 });
-    ui.kv('Population now', app.eco.removed.has(sp) ? 'removed' : pct(Math.min(2.5, app.eco.pop[sp])), { size: 22, color: app.eco.removed.has(sp) ? '#ff6b6b' : THEME.text });
-  } else {
-    ui.text(d.about, { size: 21 });
-    ui.text(`Adaptation: ${d.adapt}`, { size: 21, color: '#ffd166' });
-  }
+  ui.text(d.about, { size: 21 });
+  ui.text(`Adaptation: ${d.adapt}`, { size: 21, color: '#ffd166' });
 }
 
 function labInfo(ui, app) {

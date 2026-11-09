@@ -3,7 +3,7 @@ import { LessonApp } from '../../../shared/LessonApp.js';
 import { CanvasPanel } from '../../../shared/ui/CanvasPanel.js';
 import { makeLabel } from '../../../shared/ui/labels.js';
 import { sound } from '../../../shared/util/sound.js';
-import { SPECIES, ORDER, LINKS, KEY, ANSWERS } from './data/species.js';
+import { SPECIES, ORDER, KEY, ANSWERS } from './data/species.js';
 import { Ecosystem, BASE_ENV } from './model/Ecosystem.js';
 import { Reef } from './model/Reef.js';
 import { Sea } from './model/Sea.js';
@@ -17,7 +17,6 @@ import { drawControls, drawInfo, drawCard } from './ui/panels.js';
 const LIMITS = { temp: [24, 33], ph: [7.6, 8.3], nutrients: [0, 1], turbidity: [0, 1] };
 const RUN_MONTH_S = 0.9; // seconds per simulated month while running
 const GLOW_SELECTED = new THREE.Color(0x8af6ff); // the species you photographed / selected
-const GLOW_PICKED = new THREE.Color(0xffc93c); // food-web: the food you picked, waiting for its eater
 
 class App extends LessonApp {
   constructor() {
@@ -31,8 +30,6 @@ class App extends LessonApp {
       sorted: new Set(),
       sort: null,
       names: false,
-      pick: null,
-      flow: true,
       prediction: null,
       result: null,
       bio: { qid: null, answer: null },
@@ -62,15 +59,12 @@ class App extends LessonApp {
     this.ocean = new THREE.Group();
     this.scene.add(this.ocean);
     this.eco = new Ecosystem();
-    this.web = []; // food-web links found by the group: [food, eater, who]
     this.reef = new Reef(this);
     this.ocean.add(this.reef.group);
     this.water = new Water(this, this.ocean);
     this.sound = new OceanSound();
     this.sea = new Sea(this.ocean, this.reef, {}, this);
     this.sea.setPopulations(this.eco.pop, []);
-    this.threads = new THREE.Group();
-    this.ocean.add(this.threads);
     this.nameTags = new THREE.Group();
     this.ocean.add(this.nameTags);
     this.placeOcean();
@@ -133,7 +127,7 @@ class App extends LessonApp {
   }
 
   ecoMessage() {
-    return { k: 'eco', eco: this.eco.snapshot(), web: this.web, running: !!this.running, start: this.runStart ?? null };
+    return { k: 'eco', eco: this.eco.snapshot(), running: !!this.running, start: this.runStart ?? null };
   }
 
   broadcastEco(to) {
@@ -158,17 +152,11 @@ class App extends LessonApp {
       }
     } else if (d.k === 'eco') {
       this.eco.load(d.eco);
-      this.web = d.web;
       this.running = d.running;
       if (d.start != null) this.runStart = d.start;
       this.showEco();
       this.refresh();
     }
-  }
-
-  /** Requests from others (host only). */
-  onAsk(d, from) {
-    if (d.k === 'link') this.addLink(d.a, d.b, d.by);
   }
 
   // ───────────── the ecosystem ─────────────
@@ -244,21 +232,6 @@ class App extends LessonApp {
     this.explain({ title: 'Reef reset', text: 'A healthy reef: about 60% live coral, little algae, clear water at 27 °C and pH 8.1.' });
   }
 
-  removeSpecies(sp) {
-    if (!this.canControl || this.running) return;
-    this.eco.remove(sp);
-    this.sea.setPopulations(this.eco.pop, [...this.eco.removed]);
-    sound.refuse();
-    this.explain({ title: `${SPECIES[sp].name} removed`, text: 'Watch the next two years unfold. Which populations rise, which fall — and why? Think about who ate it, and what it ate.' });
-    this.simulate(24, () => this.explain({ title: `Two years without the ${SPECIES[sp].name.toLowerCase()}`, text: cascadeText(this.eco, sp) }));
-  }
-
-  restoreSpecies(sp) {
-    if (!this.canControl || this.running) return;
-    this.eco.restore(sp);
-    this.simulate(12, () => this.explain({ title: `${SPECIES[sp].name} back`, text: 'The populations move back towards balance — though recovery takes time, and some changes (like dead coral overgrown with algae) can take years to reverse.' }));
-  }
-
   // ───────────── tapping creatures ─────────────
 
   describe(o) {
@@ -270,8 +243,7 @@ class App extends LessonApp {
     const sp = o.userData.species;
     if (!sp) return;
     this.sound.start();
-    if (this.state.mode === 'web') this.webTap(sp);
-    else this.photograph(sp);
+    this.photograph(sp);
   }
 
   photograph(sp) {
@@ -323,53 +295,12 @@ class App extends LessonApp {
     }
   }
 
-  // ── food web ──
-  webTap(sp) {
-    const s = this.state;
-    s.selected = sp;
-    if (!s.pick) {
-      s.pick = sp;
-      sound.click();
-      this.explain({ title: `What eats the ${SPECIES[sp].name.toLowerCase()}?`, text: `Trophic level ${SPECIES[sp].trophic}: ${SPECIES[sp].role.toLowerCase()}. Look for an animal at a higher level. It glows gold until you choose.` });
-      return;
-    }
-    const food = s.pick;
-    s.pick = null;
-    if (food === sp) return;
-    const right = LINKS.some(([a, b]) => a === food && b === sp);
-    const reversed = LINKS.some(([a, b]) => a === sp && b === food);
-    if (right) {
-      if (this.web.some(([a, b]) => a === food && b === sp)) {
-        this.explain({ title: 'Already found', text: `${SPECIES[sp].name} eats ${SPECIES[food].name.toLowerCase()} — that link is already on the web.` });
-      } else if (this.isHost) this.addLink(food, sp, this.presence?.name ?? 'You');
-      else this.presence.ask({ k: 'link', a: food, b: sp, by: this.presence.name });
-      sound.bond();
-      this.explain({ title: `${SPECIES[food].name} → ${SPECIES[sp].name}`, text: `Energy flows from the ${SPECIES[food].name.toLowerCase()} to the ${SPECIES[sp].name.toLowerCase()} (trophic level ${SPECIES[food].trophic} → ${SPECIES[sp].trophic}). Only about 10% of the energy passes on; most is lost as heat from respiration.` });
-    } else if (reversed) {
-      sound.refuse();
-      this.explain({ title: 'Other way round!', text: `Arrows in a food web show energy flow: from the food to the eater. Pinch the ${SPECIES[sp].name.toLowerCase()} first, then the ${SPECIES[food].name.toLowerCase()}.` });
-    } else {
-      sound.refuse();
-      const eats = SPECIES[sp].eats.map((e) => SPECIES[e].name.toLowerCase());
-      this.explain({ title: `The ${SPECIES[sp].name.toLowerCase()} doesn’t eat ${SPECIES[food].name.toLowerCase()}`, text: eats.length ? `Think about its diet: what is its trophic level (${SPECIES[sp].trophic}) and its role (${SPECIES[sp].role.toLowerCase()})?` : `${SPECIES[sp].name} is a producer or detritivore — it doesn’t eat other living things on this reef.` });
-    }
-  }
-
-  addLink(a, b, by) {
-    if (this.web.some(([x, y]) => x === a && y === b)) return;
-    if (!LINKS.some(([x, y]) => x === a && y === b)) return;
-    this.web.push([a, b, by]);
-    this.broadcastEco();
-    this.refresh();
-  }
-
   // ───────────── UI actions ─────────────
 
   setMode(mode) {
-    this.set({ mode, pick: null, sort: null, result: null, bio: { qid: null, answer: null } });
+    this.set({ mode, sort: null, result: null, bio: { qid: null, answer: null } });
     const intro = {
-      dive: ['Dive & discover', 'Identify the reef’s organisms: every photo opens an ID card with its scientific name, group and role. Can you find all ' + ORDER.length + ' species?'],
-      web: ['Build the food web — together', 'Every link anyone finds is shared with the whole class. Follow the energy from the producers up to the reef shark, and see how little of it reaches the top.'],
+      dive: ['Identify', 'Identify the reef’s organisms: every photo opens an ID card with its scientific name, group and role. Can you find all ' + ORDER.length + ' species?'],
       lab: ['Reef lab', this.canControl ? 'Change the conditions, ask everyone to predict, then run a year and watch the reef respond.' : `${this.hostName} controls the conditions. Predict what will happen to the coral, then watch.`],
     }[mode];
     this.state.explain = { title: intro[0], text: intro[1] };
@@ -449,7 +380,6 @@ class App extends LessonApp {
     this.reef.update(dt);
     this.water.update(dt);
     this.updateGlow(dt);
-    this.updateThreads(dt);
     for (const t of this.nameTags.children) {
       const p = this.sea.anchor(t.userData.sp);
       t.visible = !!p;
@@ -463,11 +393,10 @@ class App extends LessonApp {
     this.wasRunning = this.running;
   }
 
-  /** Selected species glow (pulsing cyan); in the food web, the food you picked glows gold until you choose its eater. */
+  /** The selected species glows (pulsing cyan, with a soft halo around each animal). */
   updateGlow(dt) {
     const want = new Map();
     if (this.state.selected) want.set(this.state.selected, GLOW_SELECTED);
-    if (this.state.pick) want.set(this.state.pick, GLOW_PICKED);
     const key = [...want].map(([sp, c]) => sp + c.getHexString()).join(',');
     this.glowClock = (this.glowClock ?? 0) + dt;
     if (key !== this.glowKey || this.glowClock > 1) {
@@ -536,38 +465,6 @@ class App extends LessonApp {
     }
     return heads;
   }
-
-  /** Food-web threads: lines from food to eater with energy dots flowing along them. */
-  updateThreads(dt) {
-    const show = this.state.mode === 'web';
-    this.threads.visible = show;
-    if (!show) return;
-    this.threadT = (this.threadT ?? 0) + dt;
-    while (this.threads.children.length < this.web.length) {
-      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), new THREE.LineBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.7, fog: false }));
-      const dots = new THREE.InstancedMesh(new THREE.SphereGeometry(0.012, 8, 6), new THREE.MeshBasicMaterial({ color: 0xfff2a8, toneMapped: false, fog: false }), 6);
-      line.add(dots);
-      line.userData.dots = dots;
-      this.threads.add(line);
-    }
-    const m = new THREE.Object3D();
-    this.threads.children.forEach((line, i) => {
-      const link = this.web[i];
-      const a = link && this.sea.anchor(link[0]);
-      const b = link && this.sea.anchor(link[1]);
-      line.visible = !!(a && b);
-      if (!line.visible) return;
-      line.geometry.setFromPoints([a, b]);
-      const dots = line.userData.dots;
-      dots.visible = this.state.flow;
-      for (let k = 0; k < 6; k++) {
-        m.position.copy(a).lerp(b, ((this.threadT * 0.35 + k / 6) % 1));
-        m.updateMatrix();
-        dots.setMatrixAt(k, m.matrix);
-      }
-      dots.instanceMatrix.needsUpdate = true;
-    });
-  }
 }
 
 // ── explanations ───────────────────────────────────────
@@ -604,17 +501,6 @@ function explainYear(eco) {
   if (e.turbidity > 0.3) why.push('Less light reached the zooxanthellae and seagrass, so photosynthesis and growth fell.');
   if (eco.pop.algae > 0.35) why.push('Algae are winning the competition for space — a phase shift away from a coral-dominated reef.');
   return why.length ? why.join(' ') : 'With normal conditions, coral, algae and grazers stay in balance.';
-}
-
-function cascadeText(eco, sp) {
-  const rows = ORDER.filter((x) => x !== sp && !eco.removed.has(x) && !['coral', 'algae'].includes(x))
-    .map((x) => [x, eco.pop[x]])
-    .filter(([, v]) => Math.abs(v - 1) > 0.15)
-    .sort((a, b) => Math.abs(b[1] - 1) - Math.abs(a[1] - 1))
-    .slice(0, 4)
-    .map(([x, v]) => `${SPECIES[x].name} ${v > 1 ? '▲' : '▼'} ${Math.round(v * 100)}%`);
-  const coral = `Coral cover ${Math.round(eco.pop.coral * 100)}%, algae ${Math.round(eco.pop.algae * 100)}%.`;
-  return `${rows.length ? rows.join(' · ') + '. ' : 'Little changed — this species has few strong links. '}${coral} Trace the links: which changes are direct (predator or prey) and which are indirect (a trophic cascade)?`;
 }
 
 window.app = new App();
