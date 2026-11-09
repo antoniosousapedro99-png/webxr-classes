@@ -117,5 +117,6 @@
     };
     document.getElementById('cancel').onclick = () => dialog.close();
   </script>
+<script>navigator.serviceWorker?.register('sw.js').catch(() => {}); // always the latest version (see sw.js)</script>
 </body>
 </html>

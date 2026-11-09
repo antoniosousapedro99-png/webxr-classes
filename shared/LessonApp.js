@@ -45,6 +45,8 @@ export class LessonApp {
 
   /** Call at the end of the lesson's constructor. */
   start() {
+    // always load the latest version of the site after an update (see sw.js)
+    navigator.serviceWorker?.register(new URL('../../sw.js', location.href)).catch(() => {});
     this.interaction = new Interaction(this);
     this.lessonId = (location.pathname.match(/lessons\/([^/]+)/) || [])[1] || 'lesson';
     const session = sessionFromURL();
