@@ -206,7 +206,7 @@ export class Water {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(0.35 + Math.random() * 0.45, 3.4),
         addBlend(new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.4, side: THREE.DoubleSide, fog: false })));
       const a = (i / 9) * Math.PI * 2 + Math.random();
-      const r = 0.6 + Math.random() * 2.0;
+      const r = 0.8 + Math.random() * 2.8;
       m.position.set(Math.cos(a) * r, 1.7, Math.sin(a) * r);
       m.rotation.z = 0.22;
       m.userData.phase = Math.random() * 10;
@@ -218,7 +218,7 @@ export class Water {
   makeSeabed() {
     // A sandy sea floor laid over the real floor around the reef: rippled sand with dancing caustic light,
     // strong near the reef and fading out towards the room's edges.
-    this.seabed = new THREE.Mesh(new THREE.CircleGeometry(4.5, 96).rotateX(-Math.PI / 2), overBlend(new THREE.ShaderMaterial({
+    this.seabed = new THREE.Mesh(new THREE.CircleGeometry(5.5, 96).rotateX(-Math.PI / 2), overBlend(new THREE.ShaderMaterial({
       uniforms: { uTime: { value: 0 }, uStrength: { value: 0.55 }, uAlpha: { value: 0.75 }, uTint: { value: DEEP.clone() } },
       vertexShader: 'varying vec2 vP; void main(){ vP = position.xz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
       fragmentShader: `uniform float uTime; uniform float uStrength; uniform float uAlpha; uniform vec3 uTint; varying vec2 vP;
@@ -236,7 +236,7 @@ export class Water {
           sand *= 0.9 + 0.2 * g;
           sand = mix(sand * vec3(0.55, 0.75, 0.8), uTint * 2.0, 0.45); // seen through water: blue-green and darker
           vec3 col = sand + vec3(0.7, 0.95, 1.0) * caustic(vP * 2.2) * uStrength;
-          float a = uAlpha * (1.0 - smoothstep(1.4, 4.5, r));
+          float a = uAlpha * (1.0 - smoothstep(3.4, 5.5, r));
           gl_FragColor = vec4(col, a);
           #include <colorspace_fragment>
         }`,
@@ -279,7 +279,7 @@ export class Water {
     this.bubbleData = Array.from({ length: n }, () => ({ life: 0, p: new THREE.Vector3(), r: 0.005, seed: Math.random() * 10 }));
     this.app.scene.add(this.bubbles);
     this.lastHands = [];
-    this.vents = [new THREE.Vector3(0.35, 0.6, 0.2), new THREE.Vector3(-0.5, 0.4, -0.25)];
+    this.vents = this.app.reef?.vents ?? [new THREE.Vector3(0.35, 0.6, 0.2)];
   }
 
   spawnBubble(worldPos, size = 0.004 + Math.random() * 0.006) {

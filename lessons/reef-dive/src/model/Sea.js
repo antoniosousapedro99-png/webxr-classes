@@ -1,14 +1,17 @@
 import * as THREE from 'three';
 import { SPECIES, ORDER } from '../data/species.js';
 import { makeBody } from './bodies.js';
-import { rockPoint, pushOutOfRock } from './Reef.js';
+import { ROCKS, rockPoint, rockNormal, nearestRock, pushOutOfRock, onRock } from './Reef.js';
 
-// The animals swimming around the room, in "ocean" coordinates (origin = the reef, on the floor).
+// The animals swimming around the room, in "ocean" coordinates (origin = the middle of the clearing, on the floor).
 // One device (the host, or you when solo) simulates them; in a shared session it streams their positions,
 // and everyone else just shows them — so all headsets see the same fish in the same places.
 
 export const MOBILE = ['shark', 'barracuda', 'turtle', 'parrotfish', 'wrasse', 'clownfish', 'jelly', 'octopus', 'crab', 'cucumber', 'urchin'];
-const BOUND = 2.7; // how far from the reef animals roam (m)
+const BOUND = 4.8; // how far from the middle of the clearing animals roam (m)
+
+/** How far an animal keeps from the reef rock: half its length, plus room for the corals growing on it. */
+const margin = (sp) => (sp === 'wrasse' || sp === 'crab' || sp === 'cucumber' ? 0.06 : 0.14 + SPECIES[sp].length / 2);
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const ring = (r0, r1, y0, y1) => {
@@ -63,29 +66,49 @@ export class Sea {
   }
 
   startPos(sp) {
-    if (sp === 'shark') return ring(1.9, 1.9, 1.2, 1.3); // starts on its patrol circle
+    if (sp === 'shark') return ring(4.15, 4.15, 1.2, 1.3); // starts on its patrol circle, outside the reef
     return this.newTarget({ sp });
   }
 
+  /** Where an animal heads next. Big animals cruise outside the reef ring; small ones live on and inside it. */
   newTarget(a) {
     switch (a.sp) {
       case 'shark': return null; // circles
-      case 'barracuda': return ring(1.3, 2.5, 0.9, 1.8);
-      case 'turtle': return ring(1.1, 2.4, 0.5, 1.6);
+      case 'barracuda': return this.outside(a, 3.7, 4.6, 0.8, 1.8);
+      case 'turtle': return this.outside(a, 3.6, 4.4, 0.6, 1.7);
       case 'parrotfish': {
-        const t = this.schoolTarget.parrotfish;
-        if (!t || Math.random() < 0.3) this.schoolTarget.parrotfish = pushOutOfRock(ring(1.3, 2.0, 0.3, 1.0)); // out from the reef so it stays easy to see
-        return this.schoolTarget.parrotfish.clone().add(new THREE.Vector3(rand(-0.15, 0.15), rand(-0.08, 0.08), rand(-0.15, 0.15)));
+        // the school grazes its way round the reef, outcrop by outcrop
+        const st = this.schoolTarget;
+        if (!st.p || Math.random() < 0.3) {
+          st.k = st.k === undefined ? Math.floor(Math.random() * ROCKS.length) : (st.k + (Math.random() < 0.5 ? 1 : ROCKS.length - 1)) % ROCKS.length;
+          const p = rockPoint(st.k, rand(0, Math.PI * 2), rand(0.4, 1.1));
+          st.p = p.add(rockNormal(st.k, p).multiplyScalar(0.45));
+        }
+        return pushOutOfRock(st.p.clone().add(new THREE.Vector3(rand(-0.15, 0.15), rand(-0.08, 0.08), rand(-0.15, 0.15))), margin('parrotfish'));
       }
-      case 'wrasse': return pushOutOfRock(rockPoint(5.2, 0.7).multiplyScalar(1.15).add(new THREE.Vector3(rand(-0.1, 0.1), rand(-0.05, 0.08), rand(-0.1, 0.1))));
+      case 'wrasse': { // a cleaning station on the inner face of one outcrop
+        const p = rockPoint(3, Math.PI / 2 + rand(-0.5, 0.5), rand(0.5, 1.0));
+        return p.add(rockNormal(3, p).multiplyScalar(rand(0.12, 0.2)));
+      }
       case 'clownfish': return this.reef.anemonePos.clone().add(new THREE.Vector3(rand(-0.09, 0.09), rand(0.06, 0.16), rand(-0.09, 0.09)));
-      case 'jelly': return ring(0.9, 2.4, 0.8, 2.2);
-      case 'octopus': return rockPoint(rand(0, Math.PI * 2), rand(0.3, 1.2));
-      case 'crab': return ring(0.85, 1.05, 0, 0);
-      case 'cucumber': return ring(1.0, 1.6, 0, 0);
-      case 'urchin': return rockPoint(rand(0, Math.PI * 2), rand(1.25, 1.45)).multiplyScalar(1.02);
+      case 'jelly': return ring(0.6, 2.0, 1.7, 2.35); // drifting overhead in the clearing
+      case 'octopus': return rockPoint(5, rand(0, Math.PI * 2), rand(0.3, 1.2));
+      case 'crab': return pushOutOfRock(ring(0.8, 1.9, 0, 0), margin('crab')).setY(0);
+      case 'cucumber': return pushOutOfRock(ring(0.9, 1.9, 0, 0), margin('cucumber')).setY(0);
+      case 'urchin': { // on the lower flanks of the outcrops
+        const k = Math.floor(Math.random() * ROCKS.length);
+        return rockPoint(k, rand(0, Math.PI * 2), rand(1.1, 1.38));
+      }
       default: return ring(1, 2, 0.5, 1.5);
     }
+  }
+
+  /** A point outside the reef ring, a little further round from where the animal is (so it never cuts across). */
+  outside(a, r0, r1, y0, y1) {
+    const from = a.pos ? Math.atan2(a.pos.z, a.pos.x) : Math.random() * Math.PI * 2;
+    const ang = from + (a.dir ?? 1) * rand(0.35, 1.0);
+    const r = rand(r0, r1);
+    return new THREE.Vector3(Math.cos(ang) * r, rand(y0, y1), Math.sin(ang) * r);
   }
 
   // ───────────── simulation (host / solo) ─────────────
@@ -96,13 +119,15 @@ export class Sea {
     this.heads = heads;
     const t = this.time;
     for (const a of this.agents.values()) {
-      const s = { shark: 0.45, barracuda: 0.16, turtle: 0.2, parrotfish: 0.22, wrasse: 0.1, clownfish: 0.06, jelly: 0.05, octopus: 0.04, crab: 0.05, cucumber: 0.008, urchin: 0 }[a.sp] * energy;
+      const s = { shark: 0.45, barracuda: 0.2, turtle: 0.2, parrotfish: 0.22, wrasse: 0.1, clownfish: 0.06, jelly: 0.05, octopus: 0.04, crab: 0.05, cucumber: 0.008, urchin: 0 }[a.sp] * energy;
       if (a.sp === 'shark') {
-        a.angle = (a.angle ?? Math.random() * 6) + (dt * s) / 1.9;
-        const r = 1.9 + Math.sin(t * 0.13 + a.id) * 0.4;
+        // patrols a wide circle outside the reef
+        a.angle = (a.angle ?? Math.random() * 6) + (dt * s) / 4.15;
+        const r = 4.15 + Math.sin(t * 0.13 + a.id) * 0.3;
         a.pos.set(Math.cos(a.angle) * r, 1.25 + Math.sin(t * 0.3 + a.id) * 0.25, Math.sin(a.angle) * r);
         a.vel.set(-Math.sin(a.angle), 0, Math.cos(a.angle)).multiplyScalar(s);
         this.avoidPeople(a, 0.9);
+        pushOutOfRock(a.pos, 0.35); // its body lies along the circle, so a small sideways clearance is enough
         continue;
       }
       if (a.sp === 'urchin') {
@@ -110,28 +135,35 @@ export class Sea {
         continue;
       }
       if (a.sp === 'octopus') {
-        // creep over the rock surface
+        // creep over the surface of its outcrop
         a.pos.lerp(a.target, Math.min(1, dt * s * 2));
-        pushOutOfRock(a.pos).multiplyScalar(0.99);
+        onRock(5, a.pos);
         if (a.pos.distanceTo(a.target) < 0.05) a.target = this.newTarget(a);
         a.vel.copy(a.target).sub(a.pos).setLength(0.01);
         continue;
       }
+      a.dir ??= Math.random() < 0.5 ? 1 : -1; // which way round the reef the big animals travel
       const to = a.target.clone().sub(a.pos);
-      if (to.length() < 0.08 || Math.random() < dt * 0.05) {
+      if (to.length() < 0.08 || Math.random() < dt * 0.05 || (a.stuck ?? 0) > 2) {
         a.target = this.newTarget(a);
+        a.stuck = 0;
         continue;
       }
       const desired = to.setLength(s);
       if (a.sp === 'jelly') desired.y += (Math.sin(t * 2.2 + a.phase) > 0.6 ? 0.06 : -0.01); // pulse up, sink a little
       a.vel.lerp(desired, Math.min(1, dt * 1.5));
+      const before = a.pos.clone();
       a.pos.addScaledVector(a.vel, dt);
-      if (!['crab', 'cucumber'].includes(a.sp)) pushOutOfRock(a.pos);
-      else a.pos.y = 0;
+      const ground = a.sp === 'crab' || a.sp === 'cucumber';
+      if (!ground && a.sp !== 'clownfish') this.avoidPeople(a, SPECIES[a.sp].length > 0.8 ? 0.8 : 0.45);
       const h = Math.hypot(a.pos.x, a.pos.z);
       if (h > BOUND) a.pos.multiplyScalar(BOUND / h);
-      a.pos.y = Math.max(a.sp === 'crab' || a.sp === 'cucumber' ? 0 : 0.15, Math.min(2.4, a.pos.y));
-      if (!['crab', 'cucumber', 'clownfish'].includes(a.sp)) this.avoidPeople(a, SPECIES[a.sp].length > 0.8 ? 0.8 : 0.45);
+      a.pos.y = Math.max(ground ? 0 : 0.15, Math.min(2.4, a.pos.y));
+      // last of all: never inside the reef (clearance = half the animal's length plus the corals on the rock)
+      if (a.sp !== 'clownfish') pushOutOfRock(a.pos, margin(a.sp));
+      if (ground) a.pos.y = 0;
+      // slid against the reef and barely moving? pick somewhere else to go
+      a.stuck = a.pos.distanceTo(before) < s * dt * 0.25 ? (a.stuck ?? 0) + dt : 0;
     }
   }
 
@@ -189,7 +221,7 @@ export class Sea {
       a.body.position.copy(a.pos);
       if (a.sp === 'octopus' || a.sp === 'urchin') {
         // sit on the rock, facing out
-        const n = a.pos.clone().normalize();
+        const n = rockNormal(nearestRock(a.pos), a.pos);
         a.body.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
         a.body.rotateY(a.yaw);
       } else {

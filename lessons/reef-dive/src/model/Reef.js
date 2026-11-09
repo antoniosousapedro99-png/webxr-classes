@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { anemone, makeCoralPiece } from './bodies.js';
 import { softPoints, pointAttributes } from './Water.js';
 
-// The shared reef in the middle of the room: a coral bommie rising from the floor to about table height,
-// a seagrass meadow beside it, and clouds of plankton in the water. It shows the ecosystem's state:
+// The shared reef around the room: a ring of coral outcrops around an open sandy clearing where the class
+// stands, with seagrass meadows on the sand, and clouds of plankton in the water. It shows the ecosystem's state:
 // coral bleaches white or dies and is overgrown by algae; seagrass and plankton thin out or bloom.
 
 const std = (o) => new THREE.MeshStandardMaterial({ roughness: 0.75, ...o });
@@ -15,21 +15,86 @@ function rng(seed) {
   };
 }
 
-const ROCK = { rx: 0.8, ry: 0.85, rz: 0.65 }; // ellipsoid radii (m); it sits on the floor
+// ── the reef ring ──────────────────────────────────────
+// The reef surrounds everyone: a ring of coral outcrops ("bommies") about 2.4–2.8 m out, with narrow gaps between them,
+// around an open sandy clearing where the class stands. Each outcrop is an ellipsoid sitting on the floor (its
+// lower half is buried), turned so its local +z faces the middle of the clearing.
 
-/** A point on the rock surface for direction (theta around, phi down from the top). */
-export function rockPoint(theta, phi, out = new THREE.Vector3()) {
-  return out.set(Math.sin(phi) * Math.cos(theta) * ROCK.rx, Math.cos(phi) * ROCK.ry, Math.sin(phi) * Math.sin(theta) * ROCK.rz);
+export const ROCKS = (() => {
+  const r = rng(11);
+  const n = 10;
+  const rocks = [];
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + (i / n) * Math.PI * 2 + (r() - 0.5) * 0.3; // rock 0 is straight ahead (−z)
+    const d = 2.4 + r() * 0.4;
+    const c = new THREE.Vector3(Math.cos(a) * d, 0, Math.sin(a) * d);
+    const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.atan2(-c.x, -c.z)); // local +z → centre
+    rocks.push({ c, q, qi: q.clone().invert(), rx: 0.55 + r() * 0.3, ry: 0.55 + r() * 0.65, rz: 0.34 + r() * 0.2, a, d });
+  }
+  return rocks;
+})();
+
+const _v = new THREE.Vector3();
+
+/** A point on rock k's surface (theta around its axis, phi down from its top), in ocean coordinates. */
+export function rockPoint(k, theta, phi, out = new THREE.Vector3()) {
+  const R = ROCKS[k];
+  out.set(Math.sin(phi) * Math.cos(theta) * R.rx, Math.cos(phi) * R.ry, Math.sin(phi) * Math.sin(theta) * R.rz);
+  return out.applyQuaternion(R.q).add(R.c);
 }
 
-export function insideRock(p) {
-  return (p.x / (ROCK.rx + 0.08)) ** 2 + (p.y / (ROCK.ry + 0.08)) ** 2 + (p.z / (ROCK.rz + 0.08)) ** 2 < 1;
+/** The outward surface normal of rock k at (or near) point p. */
+export function rockNormal(k, p, out = new THREE.Vector3()) {
+  const R = ROCKS[k];
+  _v.copy(p).sub(R.c).applyQuaternion(R.qi);
+  return out.set(_v.x / R.rx ** 2, _v.y / R.ry ** 2, _v.z / R.rz ** 2).applyQuaternion(R.q).normalize();
 }
 
-export function pushOutOfRock(p) {
-  const k = (p.x / (ROCK.rx + 0.1)) ** 2 + (p.y / (ROCK.ry + 0.1)) ** 2 + (p.z / (ROCK.rz + 0.1)) ** 2;
-  if (k < 1) p.multiplyScalar(1 / Math.sqrt(Math.max(k, 0.01)));
+/** How deep p is inside rock k grown by `margin`: < 1 means inside. */
+function level(R, p, margin) {
+  _v.copy(p).sub(R.c).applyQuaternion(R.qi);
+  return (_v.x / (R.rx + margin)) ** 2 + (_v.y / (R.ry + margin)) ** 2 + (_v.z / (R.rz + margin)) ** 2;
+}
+
+/** The rock nearest to p (by how deep inside / close to it p is). */
+export function nearestRock(p) {
+  let best = 0;
+  let bestL = Infinity;
+  ROCKS.forEach((R, k) => {
+    const l = level(R, p, 0);
+    if (l < bestL) { bestL = l; best = k; }
+  });
+  return best;
+}
+
+/** Is p closer than `margin` to any rock? */
+export function insideRock(p, margin = 0.08) {
+  return ROCKS.some((R) => level(R, p, margin) < 1);
+}
+
+/** Move p out of every rock grown by `margin` (an animal's half-length plus the corals on the rock). */
+export function pushOutOfRock(p, margin = 0.1) {
+  for (let pass = 0; pass < 2; pass++) {
+    for (const R of ROCKS) {
+      const l = level(R, p, margin);
+      if (l >= 1) continue;
+      _v.copy(p).sub(R.c).applyQuaternion(R.qi);
+      if (_v.lengthSq() < 1e-8) _v.set(0, 0, 1);
+      _v.multiplyScalar(1 / Math.sqrt(Math.max(l, 1e-4))).applyQuaternion(R.q);
+      p.copy(R.c).add(_v);
+    }
+  }
   return p;
+}
+
+/** Put p exactly on rock k's surface (for animals that crawl over the reef). */
+export function onRock(k, p) {
+  const R = ROCKS[k];
+  _v.copy(p).sub(R.c).applyQuaternion(R.qi);
+  const l = (_v.x / R.rx) ** 2 + (_v.y / R.ry) ** 2 + (_v.z / R.rz) ** 2;
+  _v.multiplyScalar(1 / Math.sqrt(Math.max(l, 1e-4)));
+  _v.y = Math.max(0.02, _v.y);
+  return p.copy(_v.applyQuaternion(R.q).add(R.c));
 }
 
 // ── coral colonies ─────────────────────────────────────
@@ -128,38 +193,45 @@ export class Reef {
     this.handler = handler;
     const r = rng(42);
 
-    // the rock
-    const rockGeo = new THREE.IcosahedronGeometry(1, 5);
-    const p = rockGeo.attributes.position;
-    const col = new Float32Array(p.count * 3);
-    for (let i = 0; i < p.count; i++) {
-      const v = new THREE.Vector3().fromBufferAttribute(p, i);
-      const n = 1 + 0.08 * Math.sin(v.x * 9) * Math.cos(v.z * 8) + 0.05 * Math.sin(v.y * 13 + v.x * 5);
-      v.multiplyScalar(n);
-      p.setXYZ(i, v.x * ROCK.rx, Math.max(-0.05, v.y * ROCK.ry), v.z * ROCK.rz);
-      // dark reef rock, mottled with patches of pink coralline algae and green turf
-      const shade = 0.17 + 0.05 * Math.sin(v.x * 20 + v.z * 17) + 0.03 * Math.sin(v.y * 31 + v.x * 7);
-      const pink = Math.max(0, Math.sin(v.x * 7 + v.y * 5) * Math.sin(v.z * 6 - v.y * 3)) * 0.5;
-      const green = Math.max(0, Math.sin(v.x * 4 - v.z * 9 + 1.3)) * 0.3;
-      col.set([shade * (1.05 + pink * 0.9), shade * (0.95 + green * 0.6), shade * (0.85 + pink * 0.5)], i * 3);
-    }
-    rockGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    rockGeo.computeVertexNormals();
-    this.rock = new THREE.Mesh(rockGeo, std({ vertexColors: true, roughness: 0.95 }));
-    this.tag(this.rock, 'coral'); // the reef itself is built by coral
-    this.group.add(this.rock);
+    // the outcrops: lumpy reef rock, mottled with coralline algae and turf
+    this.rocks = ROCKS.map((R, k) => {
+      const geo = new THREE.IcosahedronGeometry(1, 4);
+      const p = geo.attributes.position;
+      const col = new Float32Array(p.count * 3);
+      const s = k * 1.7;
+      for (let i = 0; i < p.count; i++) {
+        const v = new THREE.Vector3().fromBufferAttribute(p, i);
+        const n = 1 + 0.1 * Math.sin(v.x * 7 + s) * Math.cos(v.z * 6 - s) + 0.06 * Math.sin(v.y * 11 + v.x * 5 + s);
+        v.multiplyScalar(n);
+        p.setXYZ(i, v.x * R.rx, Math.max(-0.05, v.y * R.ry), v.z * R.rz);
+        const shade = 0.17 + 0.05 * Math.sin(v.x * 20 + v.z * 17 + s) + 0.03 * Math.sin(v.y * 31 + v.x * 7);
+        const pink = Math.max(0, Math.sin(v.x * 7 + v.y * 5 + s) * Math.sin(v.z * 6 - v.y * 3)) * 0.5;
+        const green = Math.max(0, Math.sin(v.x * 4 - v.z * 9 + 1.3 + s)) * 0.3;
+        col.set([shade * (1.05 + pink * 0.9), shade * (0.95 + green * 0.6), shade * (0.85 + pink * 0.5)], i * 3);
+      }
+      geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      geo.computeVertexNormals();
+      const mesh = new THREE.Mesh(geo, std({ vertexColors: true, roughness: 0.95 }));
+      mesh.position.copy(R.c);
+      mesh.quaternion.copy(R.q);
+      this.tag(mesh, 'coral'); // the reef itself is built by coral
+      this.group.add(mesh);
+      return mesh;
+    });
+    this.rock = this.rocks[0];
 
-    // coral colonies over the rock
+    // coral colonies over the outcrops (more on the sides facing the clearing, where people look)
     this.colonies = [];
-    for (let i = 0; i < 44; i++) {
-      const theta = r() * Math.PI * 2;
-      const phi = Math.pow(r(), 0.8) * 1.35;
-      const pos = rockPoint(theta, phi);
+    for (let i = 0; i < 70; i++) {
+      const k = i % ROCKS.length;
+      const theta = r() < 0.65 ? Math.PI / 2 + (r() - 0.5) * 2.4 : r() * Math.PI * 2;
+      const phi = Math.pow(r(), 0.8) * 1.3;
+      const pos = rockPoint(k, theta, phi);
       const color = CORAL_COLORS[Math.floor(r() * CORAL_COLORS.length)];
       const kind = r();
       const c = kind < 0.3 ? staghorn(r, color) : kind < 0.5 ? brain(color) : kind < 0.65 ? table(color) : kind < 0.85 ? fingers(r, color) : seaFan(r, color);
-      c.position.copy(pos).multiplyScalar(0.97);
-      c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(pos.x / ROCK.rx ** 2, pos.y / ROCK.ry ** 2, pos.z / ROCK.rz ** 2).normalize());
+      c.position.copy(pos).lerp(ROCKS[k].c, 0.02);
+      c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), rockNormal(k, pos));
       if (kind >= 0.85) c.rotateY(r() * Math.PI);
       c.scale.setScalar(0.8 + r() * 0.7);
       c.userData.base = new THREE.Color(color);
@@ -170,14 +242,15 @@ export class Reef {
     }
 
     // turf algae: tufts that spread over dead coral and bare rock
-    const maxAlgae = 500;
+    const maxAlgae = 600;
     this.algae = new THREE.InstancedMesh(new THREE.ConeGeometry(0.012, 0.035, 5), std({ color: 0x5f8f2f }), maxAlgae);
     const m = new THREE.Object3D();
     this.algaeSpots = [];
     for (let i = 0; i < maxAlgae; i++) {
-      const pos = rockPoint(r() * Math.PI * 2, r() * 1.45);
+      const k = Math.floor(r() * ROCKS.length);
+      const pos = rockPoint(k, r() * Math.PI * 2, r() * 1.45);
       m.position.copy(pos);
-      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), pos.clone().normalize());
+      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), rockNormal(k, pos));
       m.scale.setScalar(0.7 + r() * 0.8);
       m.updateMatrix();
       this.algaeSpots.push(m.matrix.clone());
@@ -185,23 +258,40 @@ export class Reef {
     this.tag(this.algae, 'algae');
     this.group.add(this.algae);
 
-    // seagrass meadow on the floor beside the reef
-    const blades = 260;
+    // seagrass meadows on the sand of the clearing, and tufts at the foot of the outcrops
+    const blades = 1000;
     this.grass = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.012, 0.35).translate(0, 0.175, 0), std({ color: 0x4d9a3c, side: THREE.DoubleSide }), blades);
     this.grassBase = [];
+    // nine meadows spread round the clearing (between 0.9 and 1.7 m out), each 45–75 cm across
+    const patches = Array.from({ length: 9 }, (_, i) => {
+      const a = (i / 9) * Math.PI * 2 + 0.3 + (r() - 0.5) * 0.4;
+      const d = 0.95 + r() * 0.75;
+      return [Math.cos(a) * d, Math.sin(a) * d, 0.45 + r() * 0.3];
+    });
+    let tries = 0;
     for (let i = 0; i < blades; i++) {
-      this.grassBase.push({ x: 1.05 + r() * 0.9, z: -0.5 + r() * 1.0, a: r() * Math.PI, s: 0.6 + r() * 0.7, ph: r() * 6 });
+      const [px, pz, pr] = patches[i % patches.length];
+      const a = r() * Math.PI * 2;
+      const d = pr * Math.sqrt(r());
+      const x = px + Math.cos(a) * d;
+      const z = pz + Math.sin(a) * d;
+      if (Math.hypot(x, z) < 0.6 || insideRock(new THREE.Vector3(x, 0.05, z), 0.05)) { if (++tries < 20000) i--; continue; } // keep the middle clear
+      this.grassBase.push({ x, z, a: r() * Math.PI, s: 0.55 + r() * 0.75, ph: r() * 6 });
     }
     this.tag(this.grass, 'seagrass');
     this.group.add(this.grass);
+    this.grassAnchor = new THREE.Vector3(patches[0][0], 0.2, patches[0][1]);
 
-    // anemone (home of the clownfish) on a ledge
+    // anemone (home of the clownfish) on the inner face of the outcrop straight ahead
     this.anemone = anemone();
-    this.anemonePos = rockPoint(0.7, 0.9).multiplyScalar(0.98);
+    this.anemonePos = rockPoint(0, Math.PI / 2, 0.85);
     this.anemone.position.copy(this.anemonePos);
-    this.anemone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), this.anemonePos.clone().normalize());
+    this.anemone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), rockNormal(0, this.anemonePos));
     this.tag(this.anemone, 'anemone');
     this.group.add(this.anemone);
+
+    // bubbles rise from cracks in two outcrops
+    this.vents = [rockPoint(2, Math.PI / 2, 0.5), rockPoint(6, Math.PI / 2, 0.7)];
 
     // plankton clouds (shown hugely enlarged)
     this.phyto = this.cloud(900, 0x8dffb0, [0.004, 0.013], r, 'phyto');
@@ -217,7 +307,7 @@ export class Reef {
     for (const c of this.colonies) {
       for (const child of [...c.children]) c.remove(child);
       const model = makeCoralPiece(pieces, r);
-      model.scale.multiplyScalar(0.12 + r() * 0.14); // pieces are 1 m across: make 12–26 cm colonies
+      model.scale.multiplyScalar(0.15 + r() * 0.2); // pieces are 1 m across: make 15–35 cm colonies
       model.rotation.y = r() * Math.PI * 2;
       c.add(model);
       c.scale.setScalar(1);
@@ -239,7 +329,7 @@ export class Reef {
     const base = [];
     for (let i = 0; i < n; i++) {
       const a = r() * Math.PI * 2;
-      const rad = 0.6 + Math.pow(r(), 0.6) * 2.2;
+      const rad = 0.5 + Math.pow(r(), 0.6) * 1.5; // in the clearing, among the class
       const y = 0.2 + r() * 2.0;
       base.push([Math.cos(a) * rad, y, Math.sin(a) * rad, r() * 10]);
       pos.set(base[i].slice(0, 3), i * 3);
@@ -284,7 +374,7 @@ export class Reef {
     this.algae.count = algaeN;
     this.algaeSpots.forEach((mm, i) => this.algae.setMatrixAt(i, mm));
     this.algae.instanceMatrix.needsUpdate = true;
-    this.grassCount = Math.round(Math.min(1.3, s.pop.seagrass) * 200);
+    this.grassCount = Math.round((Math.min(1.3, s.pop.seagrass) / 1.3) * this.grassBase.length);
     this.grass.count = Math.min(this.grassBase.length, this.grassCount);
     this.phyto.geometry.setDrawRange(0, Math.round(Math.min(2.5, s.pop.phyto) / 2.5 * 900));
     this.zoo.geometry.setDrawRange(0, Math.round(Math.min(2, s.pop.zoo) / 2 * 500));
@@ -295,9 +385,9 @@ export class Reef {
 
   /** A representative position (reef-local) for a fixed species, for food-web threads. */
   anchor(species) {
-    if (species === 'coral') return rockPoint(2.5, 0.5);
-    if (species === 'algae') return rockPoint(4, 1.1);
-    if (species === 'seagrass') return new THREE.Vector3(1.5, 0.2, 0);
+    if (species === 'coral') return rockPoint(1, Math.PI / 2, 0.4);
+    if (species === 'algae') return rockPoint(7, Math.PI / 2, 1.0);
+    if (species === 'seagrass') return this.grassAnchor.clone();
     if (species === 'anemone') return this.anemonePos.clone().add(new THREE.Vector3(0, 0.1, 0));
     if (species === 'phyto') return new THREE.Vector3(-1.1, 1.5, 0.6);
     if (species === 'zoo') return new THREE.Vector3(-0.9, 1.2, -0.7);

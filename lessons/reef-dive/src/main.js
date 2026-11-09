@@ -105,10 +105,10 @@ class App extends LessonApp {
     return pr.peers.get(pr.hostId)?.name ?? 'The host';
   }
 
-  /** Put the reef on the floor about 1.7 m in front of you (host / solo). */
+  /** Put the reef ring around you, on the floor, with its front outcrop straight ahead (host / solo). */
   placeOcean() {
-    const p = this.lab.localToWorld(new THREE.Vector3(0, 0, -0.95));
-    this.ocean.position.set(p.x, 0, p.z); // on the floor (local-floor space: y = 0)
+    const p = this.viewCamera().getWorldPosition(new THREE.Vector3());
+    this.ocean.position.set(p.x, 0, p.z); // centred on you, on the floor (local-floor space: y = 0)
     this.ocean.rotation.set(0, this.lab.rotation.y, 0);
     this.oceanPlaced = true;
   }
