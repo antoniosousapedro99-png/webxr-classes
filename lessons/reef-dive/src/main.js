@@ -80,6 +80,7 @@ class App extends LessonApp {
 
     // Swap in any dropped-in 3D models (see models/manifest.json).
     const overrides = await loadModelOverrides(new URL('../models/', import.meta.url));
+    this.reef.useCoralModels(overrides.coral?.pieces);
     if (Object.keys(overrides).length) {
       this.sea.overrides = overrides;
       for (const id of [...this.sea.agents.keys()]) this.sea.despawn(id);

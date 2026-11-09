@@ -455,10 +455,10 @@ export function anemone() {
 
 export const BUILDERS = { shark, barracuda, parrotfish, clownfish, wrasse, turtle, octopus, jelly: jellyfish, crab, urchin, cucumber, anemone };
 
-// ── optional drop-in models ────────────────────────────
-// Put CC0 .glb files in lessons/reef-dive/models/ and list them in models/manifest.json, e.g.
-//   { "shark": "shark.glb", "turtle": "turtle.glb" }
-// They replace the built-in shapes (scaled to the species' real length, nose along +z).
+// ── 3D models (models/manifest.json) ───────────────────
+// .glb files in lessons/reef-dive/models/ replace the built-in shapes. Each entry in manifest.json is either
+// a file name, or { file, animation?, animSpeed?, motion?, floor? } — see models/README.md.
+// Models are scaled to the species' real length; their nose points along +z and their back along +y.
 export async function loadModelOverrides(base) {
   let manifest;
   try {
@@ -468,12 +468,36 @@ export async function loadModelOverrides(base) {
   } catch {
     return {};
   }
-  const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
-  const loader = new GLTFLoader();
+  const [{ GLTFLoader }, { MeshoptDecoder }, SkeletonUtils] = await Promise.all([
+    import('three/addons/loaders/GLTFLoader.js'),
+    import('three/addons/libs/meshopt_decoder.module.js'),
+    import('three/addons/utils/SkeletonUtils.js'),
+  ]);
+  skeletonClone = SkeletonUtils.clone;
+  const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+  const load = (file) => loader.loadAsync(new URL(file, base).toString());
   const out = {};
-  await Promise.all(Object.entries(manifest).map(async ([id, file]) => {
+  await Promise.all(Object.entries(manifest).map(async ([id, entry]) => {
+    const opts = typeof entry === 'string' ? { file: entry } : entry;
     try {
-      out[id] = (await loader.loadAsync(new URL(file, base).toString())).scene;
+      if (opts.files) {
+        // a set of interchangeable pieces (e.g. coral colonies); "split" files hold several pieces each
+        const pieces = [];
+        for (const file of opts.files) {
+          const gltf = await load(file);
+          if (opts.split?.includes(file)) {
+            gltf.scene.updateMatrixWorld(true);
+            gltf.scene.traverse((o) => { if (o.isMesh) pieces.push(piece(o)); });
+          } else pieces.push(piece(gltf.scene));
+        }
+        out[id] = { ...opts, pieces };
+        return;
+      }
+      const gltf = await load(opts.file);
+      const scene = gltf.scene;
+      scene.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(scene, true);
+      out[id] = { ...opts, scene, box, clips: gltf.animations };
     } catch (e) {
       console.warn(`Could not load model for ${id}`, e);
     }
@@ -481,15 +505,131 @@ export async function loadModelOverrides(base) {
   return out;
 }
 
-/** A model for a species: a dropped-in .glb if there is one, otherwise the built-in shape. */
+/** One coral piece, re-centred so it stands on y = 0, with its largest dimension scaled to 1. */
+function piece(src) {
+  const g = new THREE.Group();
+  const m = src.isMesh ? new THREE.Mesh(src.geometry, src.material) : src;
+  if (src.isMesh) m.applyMatrix4(src.matrixWorld);
+  g.add(m);
+  const box = new THREE.Box3().setFromObject(g, true);
+  const size = box.getSize(new THREE.Vector3());
+  const c = box.getCenter(new THREE.Vector3());
+  m.position.sub(new THREE.Vector3(c.x, box.min.y, c.z));
+  g.scale.setScalar(1 / Math.max(size.x, size.y, size.z));
+  return g;
+}
+
+/** A copy of a coral piece (shared geometry, its own materials so it can bleach independently). */
+export function makeCoralPiece(pieces, r) {
+  const src = pieces[Math.floor(r() * pieces.length)];
+  const g = src.clone(true);
+  const uniforms = { uTint: { value: new THREE.Color(1, 1, 1) }, uMix: { value: 0 } };
+  g.traverse((o) => {
+    if (!o.isMesh) return;
+    o.material = o.material.clone();
+    o.material.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, uniforms);
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\nuniform vec3 uTint;\nuniform float uMix;')
+        .replace('#include <map_fragment>', `#include <map_fragment>
+          float lum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+          diffuseColor.rgb = mix(diffuseColor.rgb, uTint * (0.55 + 0.6 * lum), uMix);`);
+    };
+    o.material.customProgramCacheKey = () => 'coral-bleach';
+  });
+  g.userData.bleach = uniforms;
+  return g;
+}
+
+// Swimming / crawling motion for models without their own animation, done in the vertex shader so it
+// costs nothing on the CPU. Coordinates are the model's own (nose +z, back +y), set up by the optimiser.
+const MOTION = {
+  // body wave that grows towards the tail
+  fish: `
+    float u = clamp((uB.w - transformed.z) / (uB.w - uB.z), 0.0, 1.0);
+    transformed.x += sin(uPhase - u * 4.5) * (uB.w - uB.z) * (0.012 + 0.09 * u * u);`,
+  // front and back flippers beat up and down
+  flippers: `
+    float half_ = max(abs(uB.x), abs(uB.y));
+    float reach = max(0.0, abs(transformed.x) - half_ * 0.36);
+    float front = step(0.0, transformed.z);
+    transformed.y += reach * (front * 0.55 + (1.0 - front) * 0.25) * sin(uPhase + (1.0 - front) * 1.6);`,
+  // arms ripple outwards from the head
+  arms: `
+    float r = length(transformed.xz) / max(uB.y, uB.w);
+    transformed.y += max(0.0, r - 0.25) * max(uB.y, uB.w) * 0.12 * sin(uPhase - r * 7.0 + atan(transformed.x, transformed.z) * 2.0);`,
+  // legs out to the sides step in turn
+  legs: `
+    float side = transformed.z / uB.w;
+    float lift = max(0.0, abs(side) - 0.35) * step(transformed.y, uB.y * 0.12 + 0.0001);
+    transformed.y += lift * uB.w * 0.18 * max(0.0, sin(uPhase + sign(side) * 3.14159 + transformed.x * 6.0 / uB.x));`,
+  // waves of contraction run along the body
+  crawl: `
+    float w = 1.0 + 0.07 * sin(transformed.z / uB.w * 6.0 - uPhase);
+    transformed.xy *= vec2(w, w);`,
+};
+
+/** A model for a species: a .glb from the manifest if there is one, otherwise the built-in shape. */
 export function makeBody(id, overrides, length) {
   const o = overrides?.[id];
-  if (!o) return BUILDERS[id]();
+  if (!o || !o.scene) return BUILDERS[id]();
   const g = new THREE.Group();
-  const m = o.clone(true);
-  const size = new THREE.Box3().setFromObject(m).getSize(new THREE.Vector3());
-  m.scale.setScalar(length / Math.max(size.x, size.y, size.z));
+  const m = cloneSkinned(o.scene);
+  const size = o.box.getSize(new THREE.Vector3());
+  const c = o.box.getCenter(new THREE.Vector3());
+  const s = length / Math.max(size.x, size.y, size.z);
+  m.scale.setScalar(s);
+  m.position.set(-c.x * s, -(o.floor ? o.box.min.y : c.y) * s, -c.z * s);
   g.add(m);
-  g.userData.animate = (t, speed = 1) => { m.rotation.y = Math.sin(t * 4 * speed) * 0.08; };
+
+  // its own animation (e.g. the shark's swim), played at a random point so a group doesn't move in step
+  let mixer = null;
+  const clip = o.animation && (o.clips.find((a) => a.name.includes(o.animation)) ?? o.clips[0]);
+  if (clip) {
+    mixer = new THREE.AnimationMixer(m);
+    const action = mixer.clipAction(clip).play();
+    action.time = Math.random() * clip.duration;
+    m.traverse((x) => { if (x.isSkinnedMesh) x.frustumCulled = false; }); // its bounds move with the bones
+  }
+  // otherwise a shader motion (fish tail beat, flippers, arms, legs, crawl)
+  const phase = { value: Math.random() * 10 };
+  const code = !clip && MOTION[o.motion];
+  if (code) {
+    const bounds = { value: new THREE.Vector4(o.box.min.x, o.box.max.x, o.box.min.z, o.box.max.z) };
+    if (o.motion === 'flippers' || o.motion === 'arms') bounds.value.set(size.x / 2, size.x / 2, size.z / 2, size.z / 2);
+    if (o.motion === 'legs') bounds.value.set(size.x / 2, o.box.min.y + size.y, size.z / 2, size.z / 2);
+    if (o.motion === 'crawl') bounds.value.set(0, 0, 0, size.z / 2);
+    m.traverse((x) => {
+      if (!x.isMesh) return;
+      x.material = x.material.clone();
+      x.material.onBeforeCompile = (sh) => {
+        sh.uniforms.uPhase = phase;
+        sh.uniforms.uB = bounds;
+        sh.vertexShader = sh.vertexShader
+          .replace('#include <common>', '#include <common>\nuniform float uPhase;\nuniform vec4 uB;')
+          .replace('#include <begin_vertex>', `#include <begin_vertex>\n${code}`);
+      };
+      x.material.customProgramCacheKey = () => `motion-${o.motion}`;
+    });
+  }
+  const beat = { fish: 9, flippers: 2.2, arms: 1.6, legs: 9, crawl: 1.2 }[o.motion] ?? 2;
+  let last = null;
+  g.userData.animate = (t, speed = 1) => {
+    const dt = last === null ? 0 : Math.min(0.1, Math.max(0, t - last));
+    last = t;
+    if (mixer) mixer.update(dt * (o.animSpeed ?? 1) * (0.6 + speed * 0.4));
+    phase.value += dt * beat * (0.5 + speed * 0.5);
+    if (o.motion === 'fish') m.rotation.y = Math.sin(phase.value) * 0.04; // the head sways a little too
+    if (!clip && !code) m.rotation.y = Math.sin(t * 0.3) * 0.05;
+  };
   return g;
+}
+
+let skeletonClone = null; // set once loadModelOverrides has loaded SkeletonUtils
+/** Clone that also works for rigged (skinned) models, which need their own copy of the skeleton. */
+function cloneSkinned(scene) {
+  let skinned = false;
+  scene.traverse((x) => { if (x.isSkinnedMesh) skinned = true; });
+  if (skinned && skeletonClone) return skeletonClone(scene);
+  return scene.clone(true);
 }

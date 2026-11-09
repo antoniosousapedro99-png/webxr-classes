@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { anemone } from './bodies.js';
+import { anemone, makeCoralPiece } from './bodies.js';
 
 // The shared reef in the middle of the room: a coral bommie rising from the floor to about table height,
 // a seagrass meadow beside it, and clouds of plankton in the water. It shows the ecosystem's state:
@@ -206,6 +206,24 @@ export class Reef {
     this.show({ pop: { coral: 0.6, algae: 0.15, seagrass: 1, phyto: 1, zoo: 1, anemone: 1 }, bleach: 0, removed: [] });
   }
 
+  /** Swap the drawn coral colonies for 3D coral models (keeps each colony's place, size and fate). */
+  useCoralModels(pieces) {
+    if (!pieces?.length) return;
+    const r = rng(7);
+    for (const c of this.colonies) {
+      for (const child of [...c.children]) c.remove(child);
+      const model = makeCoralPiece(pieces, r);
+      model.scale.multiplyScalar(0.12 + r() * 0.14); // pieces are 1 m across: make 12–26 cm colonies
+      model.rotation.y = r() * Math.PI * 2;
+      c.add(model);
+      c.scale.setScalar(1);
+      c.userData.bleach = model.userData.bleach;
+      c.userData.mats = [];
+      this.tag(c, 'coral');
+    }
+    if (this.lastState) this.show(this.lastState);
+  }
+
   tag(obj, species) {
     obj.traverse((o) => {
       if (o.isMesh || o.isInstancedMesh) Object.assign(o.userData, { handler: this.handler, species, tapOnly: true });
@@ -241,6 +259,7 @@ export class Reef {
 
   /** Show the ecosystem's state: coral alive / bleached / dead, algae cover, seagrass and plankton. */
   show(s) {
+    this.lastState = s;
     const live = s.removed.includes('coral') ? 0 : Math.min(1.4, s.pop.coral / 0.6);
     const white = new THREE.Color(0xf4f6f2);
     const dead = new THREE.Color(0x6b6a4a);
@@ -252,6 +271,8 @@ export class Reef {
       else color = c.userData.base;
       c.userData.target = color;
       c.userData.alive = rank <= live * 0.9;
+      // model corals keep their own colours while healthy, and fade to bleached white or dead grey-brown
+      c.userData.mix = color === c.userData.base ? 0 : color === white ? 0.92 : 0.85;
     }
     const algaeN = s.removed.includes('algae') ? 0 : Math.round(Math.min(1, s.pop.algae / 0.95) * this.algaeSpots.length);
     this.algae.count = algaeN;
@@ -283,6 +304,11 @@ export class Reef {
     for (const c of this.colonies) {
       if (!c.userData.target) continue;
       for (const m of c.userData.mats) m.color.lerp(c.userData.target, Math.min(1, dt * 1.5));
+      const b = c.userData.bleach;
+      if (b) {
+        if (c.userData.mix > 0) b.uTint.value.lerp(c.userData.target, Math.min(1, dt * 1.5));
+        b.uMix.value += (c.userData.mix - b.uMix.value) * Math.min(1, dt * 1.5);
+      }
     }
     this.anemone.userData.animate(t);
     const m = new THREE.Object3D();

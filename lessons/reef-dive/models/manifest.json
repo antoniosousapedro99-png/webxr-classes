@@ -1,1 +1,13 @@
-{}
+{
+  "shark": { "file": "shark.glb", "animation": "swimming", "animSpeed": 0.6 },
+  "barracuda": { "file": "barracuda.glb", "motion": "fish" },
+  "turtle": { "file": "turtle.glb", "motion": "flippers" },
+  "parrotfish": { "file": "parrotfish.glb", "motion": "fish" },
+  "wrasse": { "file": "wrasse.glb", "motion": "fish" },
+  "jelly": { "file": "jelly.glb", "animation": "Loop", "animSpeed": 1.6 },
+  "octopus": { "file": "octopus.glb", "motion": "arms", "floor": true },
+  "crab": { "file": "crab.glb", "motion": "legs", "floor": true },
+  "cucumber": { "file": "cucumber.glb", "motion": "crawl", "floor": true },
+  "urchin": { "file": "urchin.glb", "floor": true },
+  "coral": { "files": ["coral-branch.glb", "coral-fan.glb", "coral-soft.glb"], "split": ["coral-soft.glb", "coral-fan.glb"] }
+}
