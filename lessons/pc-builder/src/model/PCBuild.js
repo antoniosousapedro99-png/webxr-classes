@@ -136,7 +136,7 @@ export class PCBuild {
       m.traverse((o) => {
         if (o.isMesh) Object.assign(o.userData, { handler: this, slotId: slot.id, partId: id });
       });
-      if (PARTS[id].kind === 'aio') this.content.add(radiatorMesh(c, slot.pos));
+      if (PARTS[id].kind === 'aio') this.content.add(radiatorMesh(c, slot.pos, PARTS[id].radiator));
     }
     this.content.traverse((o) => {
       if (o.userData.spin) this.fans.push(o);

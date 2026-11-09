@@ -90,6 +90,8 @@ The lab appears in front of the student in their real room (passthrough mixed re
 
 ## PC Builder Lab
 
+**4 cases and 42 parts** (6 motherboards, 7 CPUs, 6 coolers, 6 memory sticks, 5 drives, 5 graphics cards, 7 power supplies), with plenty of look-alikes so students can make realistic mistakes. Trays with more than five parts get a second row.
+
 Students build a working computer from real, life-size parts on their table, Lego-style. They take a part from the tray, bring it to the case, and let go when the preview turns green.
 
 ### Lesson objectives → features
@@ -110,7 +112,10 @@ Students build a working computer from real, life-size parts on their table, Leg
   - cooler too tall, or a liquid cooler with no radiator mount
   - 3.5-inch drive in a 2.5-inch bay
   - NVMe drive in a SATA bay (and the other way round)
-  - full-size PSU in an SFX-only case
+  - full-size PSU in an SFX-only case, or an SFX PSU in a case with an ATX mount (needs a bracket)
+  - old DDR3 memory, or laptop memory (SO-DIMM) in a desktop board
+  - a 360 mm liquid-cooler radiator in a case with room for 240 mm only
+  - an M.2 drive in a drive bay
 - **Found when you press Power, like in real life:**
   - no PSU / motherboard / CPU
   - no cooler: overheats and shuts down
@@ -119,6 +124,9 @@ Students build a working computer from real, life-size parts on their table, Leg
   - no storage: "no bootable device"
   - PSU too weak: shuts down under load
   - cooler too small: thermal throttling
+  - big CPU on a budget motherboard (H610M, 65 W power delivery): held back
+  - M.2 SATA SSD in an NVMe-only M.2 slot: fits, but “no drive detected”
+  - Intel “F” CPU (e.g. i3-12100F) with no graphics card: black screen
 - **Live checklist:** shown on the right panel, with a power budget bar.
 - **Changing the case:** keeps every part that still fits and returns the rest to the tray.
 - **Taking out the motherboard:** brings everything attached to it.

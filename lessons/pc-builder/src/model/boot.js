@@ -15,7 +15,10 @@ export function bootScript(build) {
   const cooler = P(build.cooler);
   const gpu = P(build.gpu);
   const ram = build.ram.filter(Boolean).map(P);
-  const drives = [...build.m2, ...build.bays].filter(Boolean).map(P);
+  const board = P(build.board);
+  // an M.2 SATA SSD in an NVMe-only slot fits, but the motherboard can't see it
+  const unseen = build.m2.filter(Boolean).map(P).filter((d) => d.iface === 'm2sata' && board && !board.m2sata);
+  const drives = [...build.m2, ...build.bays].filter(Boolean).map(P).filter((d) => !unseen.includes(d));
   const stop = (text, explain) => s.push({ text, wait: 0.8, kind: 'bad', stop: true, explain });
 
   if (!psu) {
@@ -49,6 +52,7 @@ export function bootScript(build) {
     return s;
   }
   s.push({ text: gpu ? `Graphics: ${gpu.short} (PCIe x16)` : `Graphics: built into the ${cpu.short}`, wait: 0.7, screen: true });
+  if (unseen.length) s.push({ text: `M.2 slot: no drive detected (${unseen[0].short} is SATA; this slot only reads NVMe)`, wait: 0.9, kind: 'warn', explain: { title: 'Drive not detected', text: `The ${unseen[0].short} has the same M.2 shape as an NVMe drive, but talks to the computer using SATA. The M.2 slot on the ${board.short} only understands NVMe, so the drive is invisible. Use an NVMe SSD, or a board whose M.2 slot supports SATA.` } });
   if (!drives.length) {
     stop('No bootable device found. Insert boot disk and press any key.', { title: 'No storage', text: 'The BIOS looked for a drive holding an operating system and found none. RAM is wiped when the power is off, so the OS must be kept on storage. Install a drive.' });
     return s;
@@ -64,6 +68,9 @@ export function bootScript(build) {
   if (psu.watts < need) {
     stop(`Power supply overloaded (${psu.watts} W < ${need} W) — sudden shutdown!`, { title: 'Not enough power', text: `At full load the parts need about ${need} W, but the power supply can only give ${psu.watts} W, so it cut out to protect itself. Choose a bigger PSU (with about 25% to spare).` });
     return s;
+  }
+  if (board.maxCpuW && cpu.watts > board.maxCpuW) {
+    s.push({ text: `CPU power limited to ${board.maxCpuW} W by the motherboard — running slower`, wait: 1, kind: 'warn', explain: { title: 'Held back by the motherboard', text: `The ${cpu.short} wants up to ${cpu.watts} W, but the ${board.short}'s power circuits (VRMs) can only deliver ${board.maxCpuW} W. The computer works, but the CPU is held back. A big CPU needs a board with strong power delivery.` } });
   }
   if (cooler.maxW < cpu.watts) {
     s.push({ text: `CPU at 100 °C — slowing down to stay safe (thermal throttling)`, wait: 1, kind: 'warn', explain: { title: 'Running hot', text: `The ${cpu.short} makes up to ${cpu.watts} W of heat but the ${cooler.short} can only remove ${cooler.maxW} W. The CPU protects itself by slowing down, so the computer works but is slower than it should be. A bigger cooler fixes this.` } });

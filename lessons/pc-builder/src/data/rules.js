@@ -30,26 +30,34 @@ export function canInstall(partId, slot, build) {
       }
       return { ok: true };
     case 'cooler':
-      if (p.radiator && !c.radiator) return fail(`The ${c.name} has nowhere to mount the 240 mm radiator of a liquid cooler.`);
+      if (p.radiator && !c.radiator) return fail(`The ${c.name} has nowhere to mount the ${p.radiator} mm radiator of a liquid cooler.`);
+      if (p.radiator > c.radiator) return fail(`This cooler’s radiator is ${p.radiator} mm long, but the ${c.name} only has room for a ${c.radiator} mm radiator.`);
       if (p.height > c.coolerMax) return fail(`Too tall: this cooler is ${mm(p.height)} high but the ${c.name} only has ${mm(c.coolerMax)} of room — the side panel wouldn’t close.`);
       return { ok: true };
     case 'ram':
+      if (p.sodimm) {
+        return fail('This is laptop memory (SO-DIMM). It is DDR5, but only 70 mm long instead of 133 mm, with the notch in a different place, so it won’t go into a desktop memory slot.');
+      }
       if (p.type !== board.mem) {
         return fail(`This is ${p.type} memory but the motherboard takes ${board.mem}. The notch on the bottom edge is in a different place, so it physically won’t go into the slot.`);
       }
       return { ok: true };
     case 'm2':
-      if (p.iface !== 'nvme') return fail(`A ${p.short} is a SATA drive: it goes in a drive bay and connects with a cable, not into the M.2 slot.`);
+      if (p.iface === 'sata') return fail(`A ${p.short} is a SATA drive: it goes in a drive bay and connects with a cable, not into the M.2 slot.`);
       return { ok: true };
     case 'bay':
-      if (p.iface === 'nvme') return fail('An NVMe SSD plugs straight into an M.2 slot on the motherboard, not into a drive bay.');
+      if (p.size === 'm2') return fail(`The ${p.short} is a small M.2 card: it plugs straight into an M.2 slot on the motherboard, not into a drive bay.`);
       if (p.size > slot.size) return fail(`This case only has a small ${slot.size}-inch bay; a ${p.size}-inch hard drive won’t fit.`);
       return { ok: true };
     case 'pcie':
       if (p.length > c.gpuMax) return fail(`This graphics card is ${mm(p.length)} long, but the ${c.name} only fits cards up to ${mm(c.gpuMax)}.`);
       return { ok: true };
     case 'psu':
-      if (!c.psuForms.includes(p.form)) return fail(`The ${c.name} only takes a compact SFX power supply; a full-size ATX one won’t fit.`);
+      if (!c.psuForms.includes(p.form)) {
+        return fail(p.form === 'ATX'
+          ? `The ${c.name} only takes a compact SFX power supply; a full-size ATX one won’t fit.`
+          : `The ${c.name} has a full-size ATX power-supply mount: a small SFX unit would need an adapter bracket to be screwed in.`);
+      }
       return { ok: true };
     default:
       return fail('That doesn’t go there.');
@@ -80,10 +88,15 @@ export function checklist(build) {
   if (!build.board) add('todo', 'Motherboard needed — everything else plugs into it');
   if (!cpu) add('todo', 'CPU needed to run any program');
   if (cpu && !cooler) add('bad', 'No cooler: the CPU will overheat in seconds');
+  const board = build.board && PARTS[build.board];
+  if (cpu && board?.maxCpuW && cpu.watts > board.maxCpuW) add('warn', `The ${board.short} can only power CPUs up to ${board.maxCpuW} W, but the ${cpu.short} draws up to ${cpu.watts} W — it will be held back and run slower`);
+  const lost = build.m2.filter((id) => id && PARTS[id].iface === 'm2sata' && board && !board.m2sata);
+  if (lost.length) add('bad', `The M.2 slot on the ${board.short} only works with NVMe drives: the M.2 SATA SSD fits, but the computer won’t see it`);
   if (cpu && cooler && cooler.maxW < cpu.watts) add('warn', `Cooler handles ${cooler.maxW} W but the CPU makes up to ${cpu.watts} W — it will overheat and slow down`);
   if (!ram.length) add('todo', 'RAM needed — the CPU needs a workspace');
   if (ram.length === 1) add('warn', 'One RAM stick works, but two (dual channel) are faster');
   if (!drives.length) add('todo', 'Storage needed to hold the operating system');
+  else if (drives.length === lost.length) add('bad', 'No storage the computer can use: the only drive is in a slot that can’t read it');
   if (build.board && sata > PARTS[build.board].sata) add('bad', 'More SATA drives than SATA ports on the motherboard');
   if (cpu && !build.gpu && !cpu.igpu) add('bad', `${cpu.short} has no built-in graphics: add a graphics card or the screen stays black`);
   if (!psu) add('todo', 'Power supply needed');

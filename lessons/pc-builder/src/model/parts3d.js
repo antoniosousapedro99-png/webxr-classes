@@ -116,6 +116,16 @@ export function coolerMesh(id) {
     f.position.z = 0.045;
     g.add(f);
     g.add(box(0.095, 0.095, 0.012, 0x1f232b, 0, 0, 0.034));
+    g.scale.z = p.height / 0.06; // the low-profile one is flatter
+  } else if (p.kind === 'tower' && p.dual) {
+    g.add(box(0.05, 0.05, 0.01, 0xb87333, 0, 0, 0.005, { metalness: 0.8 }));
+    for (let i = 0; i < 6; i++) g.add(box(0.005, 0.005, 0.15, 0xb87333, -0.025 + i * 0.01, 0, 0.08, { metalness: 0.8 }));
+    for (const x of [-0.035, 0.035]) g.add(box(0.045, 0.135, 0.13, 0xb8bec8, x, 0, 0.1, { metalness: 0.7, roughness: 0.4 }));
+    const f = fan(0.06);
+    f.rotation.y = -Math.PI / 2;
+    f.position.set(0, 0, 0.1);
+    g.add(f);
+    g.add(box(0.012, 0.13, 0.13, 0x2a2f3a, 0, 0, 0.1));
   } else if (p.kind === 'tower') {
     g.add(box(0.045, 0.045, 0.01, 0xb87333, 0, 0, 0.005, { metalness: 0.8 })); // copper base
     for (let i = 0; i < 4; i++) g.add(box(0.005, 0.005, 0.12, 0xb87333, -0.015 + i * 0.01, 0, 0.07, { metalness: 0.8 })); // heat pipes
@@ -131,7 +141,7 @@ export function coolerMesh(id) {
     const pump = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.03, 32).rotateX(Math.PI / 2), mat(0x1f232b));
     pump.position.z = 0.017;
     g.add(pump);
-    const top = printed('LIQUID', 0.04, 0.012, { color: '#7ec8ff' });
+    const top = printed(`LIQUID ${p.radiator}`, 0.045, 0.012, { color: '#7ec8ff' });
     top.position.z = 0.0325;
     g.add(top);
   }
@@ -139,11 +149,14 @@ export function coolerMesh(id) {
 }
 
 /** The radiator + tubes of the liquid cooler, in case space (from pump at `from` to the top of the case). */
-export function radiatorMesh(c, from) {
+export function radiatorMesh(c, from, mm = 240) {
   const g = new THREE.Group();
   const y = c.h / 2 - 0.03;
-  g.add(box(0.27, 0.027, 0.12, 0x23272f, -0.02, y, 0));
-  for (const x of [-0.085, 0.045]) {
+  const len = mm / 1000 + 0.03;
+  g.add(box(len, 0.027, 0.12, 0x23272f, 0, y, 0)); // centred under the roof
+  const nFans = mm / 120;
+  for (let i = 0; i < nFans; i++) {
+    const x = (i - (nFans - 1) / 2) * 0.12;
     const f = fan(0.055);
     f.rotation.x = Math.PI / 2;
     f.position.set(x, y - 0.02, 0);
@@ -163,6 +176,13 @@ export function radiatorMesh(c, from) {
 export function ramMesh(id) {
   const p = PARTS[id];
   const g = new THREE.Group();
+  if (p.sodimm) {
+    // laptop memory: a short green board, no heat spreader
+    g.add(box(0.0012, 0.0696, 0.03, 0x1d5a2e, 0, 0, 0.015));
+    for (let i = 0; i < 4; i++) g.add(box(0.0022, 0.01, 0.01, 0x15171c, -0.0012, -0.026 + i * 0.017, 0.018));
+    g.add(box(0.0014, 0.062, 0.004, 0xd4af37, 0, 0, 0.002, { metalness: 0.9 }));
+    return g;
+  }
   g.add(box(0.0012, 0.133, 0.031, 0x1d5a2e, 0, 0, 0.0155)); // circuit board
   g.add(box(0.005, 0.133, 0.027, p.color, 0, 0, 0.0175, { metalness: 0.5 })); // heat spreader
   g.add(box(0.0052, 0.12, 0.004, 0xd4af37, 0, 0, 0.002, { metalness: 0.9 })); // gold contacts
@@ -174,18 +194,20 @@ export function ramMesh(id) {
   return g;
 }
 
+const gbLabel = (gb) => (gb >= 1000 ? `${gb / 1000}TB` : `${gb}GB`);
+
 export function storageMesh(id) {
   const p = PARTS[id];
   const g = new THREE.Group();
-  if (p.iface === 'nvme') {
-    g.add(box(0.08, 0.022, 0.0012, 0x1a1c22, 0, 0, 0.0006));
+  if (p.size === 'm2') {
+    g.add(box(0.08, 0.022, 0.0012, p.iface === 'nvme' ? 0x1a1c22 : 0x1d4a2e, 0, 0, 0.0006));
     for (const x of [-0.02, 0.005]) g.add(box(0.016, 0.013, 0.0016, 0x30343e, x, 0, 0.0014));
-    const l = printed('NVMe 1TB', 0.03, 0.009);
+    const l = printed(`${p.iface === 'nvme' ? 'NVMe' : 'SATA'} ${gbLabel(p.gb)}`, 0.03, 0.009);
     l.position.set(0.025, 0, 0.0025);
     g.add(l);
   } else if (p.size === 2.5) {
     g.add(box(0.1, 0.007, 0.07, 0x30343e, 0, 0, 0));
-    const l = printed('SSD 500GB', 0.06, 0.02);
+    const l = printed(`SSD ${gbLabel(p.gb)}`, 0.06, 0.02);
     l.rotation.x = -Math.PI / 2;
     l.position.y = 0.0036;
     g.add(l);
@@ -194,7 +216,7 @@ export function storageMesh(id) {
     const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.001, 32), mat(0xd0d4dc, { metalness: 0.9 }));
     disc.position.y = 0.0135;
     g.add(disc);
-    const l = printed('HDD 2TB', 0.05, 0.016, { color: '#2a2f3a' });
+    const l = printed(`HDD ${gbLabel(p.gb)}`, 0.05, 0.016, { color: '#2a2f3a' });
     l.rotation.x = -Math.PI / 2;
     l.position.set(0.045, 0.0136, 0.03);
     g.add(l);
