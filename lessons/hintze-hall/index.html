@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hintze Hall</title>
+  <meta name="description" content="Walk through Hintze Hall at the Natural History Museum, London, in virtual reality: climb the stairs, explore both balconies and discover the stories of Hope the blue whale, Darwin's statue and more.">
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+        "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.7.8/build/index.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="overlay">
+    <h1>Hintze Hall</h1>
+    <p>Step inside the great hall of the Natural History Museum in London. Climb the stairs to Charles Darwin, walk both balconies, stand beneath Hope the blue whale and discover the story behind every exhibit.</p>
+    <div class="buttons">
+      <button id="btn-ar" disabled>Checking for VR…</button>
+      <button id="btn-vr" class="secondary" hidden>Enter VR</button>
+    </div>
+    <p class="hint" id="hint"></p>
+    <p class="hint credits">3D scan “Hintze Hall” by artfletch (CC BY 4.0) — <a href="models/CREDITS.md" target="_blank" rel="noopener">credits</a></p>
+  </div>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

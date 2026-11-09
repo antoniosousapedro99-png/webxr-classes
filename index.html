@@ -59,6 +59,11 @@
       <h2>Reef Dive</h2>
       <p>The classroom becomes the sea floor: identify marine life swimming around the room at real size, and test how temperature, pH, nutrients and light change the reef.</p>
     </button>
+    <button class="card" data-lesson="hintze-hall" data-solo="1">
+      <span class="tag">Museum visit · VR</span>
+      <h2>Hintze Hall</h2>
+      <p>Step inside the Natural History Museum in London: climb the stairs to Charles Darwin, walk both balconies, stand beneath Hope the blue whale and discover the story behind every exhibit.</p>
+    </button>
   </main>
 
   <dialog id="start">
@@ -91,6 +96,7 @@
     for (const card of document.querySelectorAll('.card')) {
       card.addEventListener('click', () => {
         lesson = card.dataset.lesson;
+        if (card.dataset.solo) return go(null); // a solo visit: straight in
         document.getElementById('lesson-title').textContent = card.querySelector('h2').textContent;
         document.getElementById('error').textContent = '';
         document.getElementById('same-room').checked = card.dataset.sameRoom === '1'; // Reef Dive is designed for one shared room

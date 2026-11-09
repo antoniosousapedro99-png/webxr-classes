@@ -8,6 +8,7 @@ Mixed reality lessons built with [WebXR](https://immersiveweb.dev/) and [three.j
 | **PC Builder Lab** | Computer Science | [`lessons/pc-builder/`](lessons/pc-builder/) |
 | **Cell Explorer** | Biology | [`lessons/cell-explorer/`](lessons/cell-explorer/) |
 | **Reef Dive** | Biology (IB) | [`lessons/reef-dive/`](lessons/reef-dive/) |
+| **Hintze Hall** | Museum visit (VR) | [`lessons/hintze-hall/`](lessons/hintze-hall/) |
 
 **Getting around:** every lesson has a **← Lessons** button in its control panel (press it twice, so nobody leaves by accident) and an *All lessons* link on its start screen. Panels that hold more than fits get a scrollbar: use its ▲ ▼ buttons, the thumbstick while pointing at the panel, or pinch / pull the trigger on the panel and drag (mouse wheel or drag on a computer).
 
@@ -166,6 +167,19 @@ The classroom becomes the sea floor. Through passthrough, the water fades the re
 The reef runs on a transparent monthly model in `src/model/Ecosystem.js`, using real mechanisms: a bleaching threshold around 29.5 °C, carbonate loss at low pH, nutrient-driven blooms and hypoxia, light limitation, competition for space between coral and algae, grazing, and predator–prey links.
 
 **3D models:** the animals and coral colonies are realistic 3D models in `lessons/reef-dive/models/`, listed in `manifest.json`. They are optimised for Quest 3 (about 5 MB in total, compressed with meshopt and WebP). Each animal moves with a vertex-shader motion suited to it: a travelling tail wave for the fish and shark, wing-like flipper strokes for the turtle, curling arms for the octopus, sideways-stepping legs for the crab, a pulsing bell for the jellyfish and waves of contraction for the sea cucumber. Coral models still bleach white and die grey-brown in the reef lab. Any model that fails to load falls back to a shape the lesson draws itself. Sources and licences are in [`models/CREDITS.md`](lessons/reef-dive/models/CREDITS.md); how to add or replace a model is in the README there.
+
+## Hintze Hall
+
+A virtual-reality visit to the great central hall of the Natural History Museum, London, built from a 3D scan (“Hintze Hall” by artfletch, CC BY 4.0). Unlike the other lessons it is **VR, not mixed reality**: the hall replaces your room. It is a solo visit (no shared sessions).
+
+**Getting around**
+- **Headset:** left thumbstick to walk (it follows the floor up and down the stairs, and stops at walls, balustrades and balcony edges); right thumbstick to turn (snap 30° or 45°, or smooth). Point at any floor and pull the trigger or pinch to **teleport** there. The panels follow you; **B / Y** hides or shows them.
+- **Screen:** W A S D or the arrow keys to walk, drag to look, click a floor to go there, **H** hides the panels.
+- **Floors:** the ground floor, the main staircase up to Darwin’s landing, its two side flights to the **west and east first-floor balconies**, the bridge over the entrance, and the second floor with the giant sequoia. The panel’s *Floors* buttons jump straight to each.
+
+**Exhibits** (point at one, or at its ⓘ marker, for its story; the *Exhibits* buttons take you there): Hope the blue whale, the Charles Darwin statue, the giant sequoia slice, the painted ceiling, the building itself, the American mastodon, the giraffes, the Turbinaria coral, the Atlantic blue marlin and a meteorite. Facts come from the Museum’s own pages (see `lessons/hintze-hall/models/CREDITS.md`).
+
+**The model:** the 2-million-triangle scan with 8K textures is reduced to 450k triangles and 4K textures (13 MB) so it runs on a Quest 3. It is drawn unlit because its lighting is baked into the textures. Walking and teleporting use the scan itself as floor and walls, via fast raycasts ([three-mesh-bvh](https://github.com/gkjohnson/three-mesh-bvh), MIT, loaded from jsDelivr).
 
 ## Running it
 

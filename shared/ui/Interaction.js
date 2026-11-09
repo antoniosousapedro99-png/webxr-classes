@@ -316,6 +316,8 @@ export class Interaction {
       if (c.userData.pending?.panel && !dragged) {
         const hit = this.castFromController(c);
         if (hit?.panel) this.press(hit, c);
+      } else if (!c.userData.pending && !dragged) {
+        this.app.onSelectNothing?.(c); // e.g. teleport to the floor you are pointing at
       }
     });
     c.addEventListener('selectend', () => {
