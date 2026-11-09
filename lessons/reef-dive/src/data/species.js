@@ -105,6 +105,18 @@ export const SPECIES = {
     about: 'The top predator here. By eating mid-level predators and keeping prey alert, it shapes the whole food web (a top-down, or trophic cascade, effect). Reefs with healthy shark populations tend to be more resilient.',
     adapt: 'Skeleton of cartilage, five gill slits, electroreceptors (ampullae of Lorenzini) to sense prey, and countershading.',
   },
+  hammer: {
+    name: 'Great hammerhead shark', sci: 'Sphyrna mokarran', group: 'cartilaginous fish', trophic: 4.5, role: 'Apex predator',
+    length: 3.0, move: 'cruise', count: 1, eats: ['barracuda', 'octopus'],
+    about: 'A large, wide-ranging predator that visits reefs to hunt — especially stingrays, which it pins to the sand with its head. Critically endangered: its fins are highly prized, and it is often caught by accident.',
+    adapt: 'The wide “hammer” (cephalofoil) spreads its eyes and electroreceptors far apart, giving all-round vision and a wide scan for the electric fields of prey hidden in the sand.',
+  },
+  manta: {
+    name: 'Giant manta ray', sci: 'Mobula birostris', group: 'cartilaginous fish', trophic: 3.4, role: 'Filter feeder (planktivore)',
+    length: 3.0, move: 'glide', count: 1, eats: ['zoo'],
+    about: 'The largest ray in the world: adults reach 7 m from wingtip to wingtip (this one is young, 3 m). Despite its size it eats tiny zooplankton, and visits reef “cleaning stations” where wrasse pick off its parasites.',
+    adapt: 'Cephalic fins unroll to funnel plankton-rich water into its mouth, and gill rakers sieve it out. It “flies” with its huge pectoral fins, and has one of the largest brains of any fish.',
+  },
 };
 
 export const ORDER = Object.keys(SPECIES);

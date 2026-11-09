@@ -1,5 +1,7 @@
 {
   "shark": { "file": "shark.glb", "motion": "fish", "beat": 4 },
+  "hammer": { "file": "hammer.glb", "motion": "fish", "beat": 3.5 },
+  "manta": { "file": "manta.glb", "motion": "wings" },
   "barracuda": { "file": "barracuda.glb", "motion": "fish" },
   "turtle": { "file": "turtle.glb", "motion": "flippers" },
   "parrotfish": { "file": "parrotfish.glb", "motion": "fish" },

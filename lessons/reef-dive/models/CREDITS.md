@@ -2,11 +2,13 @@
 
 All models were downloaded from Sketchfab, then simplified, re-oriented (nose along +z) and compressed for Meta Quest 3
 (meshopt geometry, WebP textures) with glTF-Transform. They are used under the licences below.
-CC-BY 4.0 requires this credit to be kept with the models.
+CC-BY 4.0 requires this credit to be kept with the models. The hammerhead and manta ray are licensed for **non-commercial use only**; they are included at the project owner's request.
 
 | File | Used as | Original model | Author | Licence | Changes |
 | --- | --- | --- | --- | --- | --- |
 | `shark.glb` | Reef shark | [Realistic Shark](https://sketchfab.com/3d-models/realistic-shark-e913e5092d2341749ff66e4359b1e4a3) | [MotionStreamStudios](https://sketchfab.com/MotionStreamStudios) | [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/) | 424k → 16k triangles; frozen in its rest pose (the rig is replaced by a swim motion); removed the eyes and teeth (bound to the wrong bones in the original) |
+| `hammer.glb` | Great hammerhead shark | [Model 73A - Great Hammerhead Shark](https://sketchfab.com/3d-models/model-73a-great-hammerhead-shark-77d52f2b0e084fe7bcefbc86b920f080) | [DigitalLife3D](https://sketchfab.com/DigitalLife3D) | [CC BY-NC 4.0](http://creativecommons.org/licenses/by-nc/4.0/) — **non-commercial use only** | 14k → 9k triangles; frozen in its rest pose (swim motion added) |
+| `manta.glb` | Giant manta ray | [Manta Ray Birostris (animated)](https://sketchfab.com/3d-models/manta-ray-birostris-animated-c49e5bb3cb32477cbbf96f36a47c9f2b) | [Violaine](https://sketchfab.com/violaine) | [CC BY-NC-SA 4.0](http://creativecommons.org/licenses/by-nc-sa/4.0/) — **non-commercial use only; changes shared under the same licence** | frozen in its rest pose (wing-beat motion added); converted material |
 | `barracuda.glb` | Great barracuda | [BARRACUDA](https://sketchfab.com/3d-models/barracuda-2bbb47ba1c6e4676b97be12570984274) | [VoltVeigh](https://sketchfab.com/voltairevillela) | [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/) | textures compressed |
 | `turtle.glb` | Green sea turtle | [Sea turtle low poly](https://sketchfab.com/3d-models/sea-turtle-low-poly-c92be549c8194136914883309a13a6b5) | [C.J..Goldman](https://sketchfab.com/C.J..Goldman) | [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/) | 16k → 8k triangles; simpler materials |
 | `parrotfish.glb` | Parrotfish | [Parrotfish Curacao](https://sketchfab.com/3d-models/parrotfish-curacao-9a23653caaff4c7daccf1d1d5c3ba1ed) | [denvr.elias](https://sketchfab.com/denvr.elias) | [Sketchfab Standard](https://sketchfab.com/licenses) — used with the owner's permission | 500k → 5k triangles |

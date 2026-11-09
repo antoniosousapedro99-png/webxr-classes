@@ -7,11 +7,12 @@ import { ROCKS, rockPoint, rockNormal, nearestRock, pushOutOfRock, onRock } from
 // One device (the host, or you when solo) simulates them; in a shared session it streams their positions,
 // and everyone else just shows them — so all headsets see the same fish in the same places.
 
-export const MOBILE = ['shark', 'barracuda', 'turtle', 'parrotfish', 'wrasse', 'clownfish', 'jelly', 'octopus', 'crab', 'cucumber', 'urchin'];
-const BOUND = 4.8; // how far from the middle of the clearing animals roam (m)
+export const MOBILE = ['shark', 'hammer', 'manta', 'barracuda', 'turtle', 'parrotfish', 'wrasse', 'clownfish', 'jelly', 'octopus', 'crab', 'cucumber', 'urchin'];
+const BOUND = 5.2; // how far from the middle of the clearing animals roam (m)
 
 /** How far an animal keeps from the reef rock: half its length, plus room for the corals growing on it. */
-const margin = (sp) => (sp === 'wrasse' || sp === 'crab' || sp === 'cucumber' ? 0.06 : 0.14 + SPECIES[sp].length / 2);
+const margin = (sp) => (sp === 'wrasse' || sp === 'crab' || sp === 'cucumber' ? 0.06 : sp === 'hammer' || sp === 'manta' ? 0.5 : 0.14 + SPECIES[sp].length / 2);
+// (the 3 m hammerhead and manta swim along the outside of the ring, so their sideways clearance is what matters)
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const ring = (r0, r1, y0, y1) => {
@@ -75,6 +76,8 @@ export class Sea {
     switch (a.sp) {
       case 'shark': return null; // circles
       case 'barracuda': return this.outside(a, 3.7, 4.6, 0.8, 1.8);
+      case 'hammer': return this.outside(a, 4.3, 5.0, 0.8, 1.5);
+      case 'manta': return this.outside(a, 4.4, 5.0, 1.9, 2.3); // gliding high, above the tops of the reef
       case 'turtle': return this.outside(a, 3.6, 4.4, 0.6, 1.7);
       case 'parrotfish': {
         // the school grazes its way round the reef, outcrop by outcrop
@@ -122,7 +125,7 @@ export class Sea {
     this.heads = heads;
     const t = this.time;
     for (const a of this.agents.values()) {
-      const s = { shark: 0.45, barracuda: 0.2, turtle: 0.2, parrotfish: 0.22, wrasse: 0.1, clownfish: 0.06, jelly: 0.05, octopus: 0.04, crab: 0.05, cucumber: 0.008, urchin: 0 }[a.sp] * energy;
+      const s = { shark: 0.45, hammer: 0.5, manta: 0.32, barracuda: 0.2, turtle: 0.2, parrotfish: 0.22, wrasse: 0.1, clownfish: 0.06, jelly: 0.05, octopus: 0.04, crab: 0.05, cucumber: 0.008, urchin: 0 }[a.sp] * energy;
       if (a.sp === 'shark') {
         // patrols a wide circle outside the reef
         a.angle = (a.angle ?? Math.random() * 6) + (dt * s) / 4.15;

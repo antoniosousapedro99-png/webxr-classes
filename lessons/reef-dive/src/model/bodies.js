@@ -453,7 +453,34 @@ export function anemone() {
   return g;
 }
 
-export const BUILDERS = { shark, barracuda, parrotfish, clownfish, wrasse, turtle, octopus, jelly: jellyfish, crab, urchin, cucumber, anemone };
+/** Simple stand-ins for the hammerhead and manta (shown until / unless their 3D models load). */
+export function hammer() {
+  return fish({
+    length: 3.0, height: 0.42, width: 0.38, tail: 'shark', tailSize: 1.3, beat: 2.5,
+    pattern: (t, h) => (h > -0.15 ? C(0x8a9098) : C(0xe8ecef)),
+    tailColor: 0x7a8088, finColor: 0x7a8088, dorsal: { at: 0.55, len: 0.22, h: 1.4 }, dorsalColor: 0x7a8088, eye: 0.03, anal: true,
+    extra(g, body, L, H) {
+      const head = new THREE.Mesh(new THREE.BoxGeometry(L * 0.3, H * 0.18, L * 0.07), std({ color: 0x8a9098 }));
+      head.position.set(0, 0, L * 0.47); // the "hammer" (cephalofoil)
+      body.add(head);
+    },
+  });
+}
+
+export function manta() {
+  const g = new THREE.Group();
+  const shape = new THREE.Shape([[0, 0.6], [1.5, -0.2], [0.3, -0.5], [0, -0.45], [-0.3, -0.5], [-1.5, -0.2]].map(([x, z]) => new THREE.Vector2(x, z)));
+  const geo = new THREE.ShapeGeometry(shape, 8).rotateX(-Math.PI / 2);
+  const wings = new THREE.Mesh(geo, std({ color: 0x2a3038, side: THREE.DoubleSide }));
+  g.add(wings);
+  const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.02, 1.2, 6).rotateX(Math.PI / 2), std({ color: 0x2a3038 }));
+  tail.position.z = -1.0;
+  g.add(tail);
+  g.userData.animate = (t) => { wings.scale.y = 1; wings.rotation.z = Math.sin(t * 2) * 0.05; };
+  return g;
+}
+
+export const BUILDERS = { shark, hammer, manta, barracuda, parrotfish, clownfish, wrasse, turtle, octopus, jelly: jellyfish, crab, urchin, cucumber, anemone };
 
 // ── 3D models (models/manifest.json) ───────────────────
 // .glb files in lessons/reef-dive/models/ replace the built-in shapes. Each entry in manifest.json is either
@@ -624,6 +651,18 @@ const MOTION = {
     p.x += tail * h.x * 0.15 * sin(uPhase * 0.35 - depth * 4.0);
     p.z += tail * h.z * 0.15 * cos(uPhase * 0.3 - depth * 3.0 + 1.0);`,
 
+  // manta ray: the wings beat up and down, with a wave running from the front of each wing to the back
+  wings: `
+    vec3 c = (uMin + uMax) * 0.5;
+    vec3 h = (uMax - uMin) * 0.5;
+    float span = abs(p.x - c.x) / h.x;            // 0 at the body, 1 at the wingtips
+    float along = (uMax.z - p.z) / (uMax.z - uMin.z); // 0 at the front, 1 at the tail
+    float w = smoothstep(0.15, 1.0, span);
+    p.y += w * w * h.x * 0.38 * sin(uPhase - along * 2.2);
+    p.x -= sign(p.x - c.x) * w * w * h.x * 0.06 * (1.0 - cos(uPhase - along * 2.2)); // tips draw in as they rise
+    float tail = smoothstep(0.55, 1.0, along) * (1.0 - smoothstep(0.0, 0.2, span));
+    p.x += tail * h.x * 0.05 * sin(uPhase * 0.7 - along * 6.0);`,
+
   // anemone: tentacles sway in the current — the higher up, the more they move; the base stays put
   sway: `
     vec3 c = (uMin + uMax) * 0.5;
@@ -695,7 +734,7 @@ export function makeBody(id, overrides, length) {
     });
   }
   // strokes per second (radians): set per model with "beat", e.g. slow for the shark, fast for small fish
-  const beat = o.beat ?? { fish: 9, flippers: 2.4, arms: 2.0, legs: 7, crawl: 1.6, pulse: 4, sway: 1.4 }[o.motion] ?? 2;
+  const beat = o.beat ?? { fish: 9, flippers: 2.4, arms: 2.0, legs: 7, crawl: 1.6, pulse: 4, sway: 1.4, wings: 2.2 }[o.motion] ?? 2;
   let last = null;
   g.userData.animate = (t, speed = 1) => {
     const dt = last === null ? 0 : Math.min(0.1, Math.max(0, t - last));

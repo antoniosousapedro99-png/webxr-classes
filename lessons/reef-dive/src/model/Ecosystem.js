@@ -111,7 +111,7 @@ export class Ecosystem {
   }
 
   record() {
-    const fish = ['parrotfish', 'clownfish', 'wrasse', 'barracuda', 'shark'].map((f) => this.pop[f]);
+    const fish = ['parrotfish', 'clownfish', 'wrasse', 'barracuda', 'shark', 'hammer', 'manta'].map((f) => this.pop[f]);
     this.history.push({
       month: this.month,
       coral: this.pop.coral,
