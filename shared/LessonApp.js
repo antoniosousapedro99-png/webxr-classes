@@ -58,6 +58,7 @@ export class LessonApp {
       this.lab.add(this.sessionPanel.mesh);
       this.sessionPanel.setBuilder((ui) => this.drawSession(ui));
       this.panels.push(this.sessionPanel);
+      this.initPlayerList();
     }
     this.initSessionUI(session);
     this.initXRButtons();
@@ -277,6 +278,142 @@ export class LessonApp {
       ctx.fillText(person.name, x + 24, ui.y + 2);
       x += w + 14;
     }
+  }
+
+  // ───────────── player list (top right) ─────────────
+
+  /** Who's in the session: a drop-down in the top-right corner of the screen, and of your view in the headset. */
+  initPlayerList() {
+    const css = document.createElement('style');
+    css.textContent = `
+      .players { position: fixed; top: 12px; right: 12px; z-index: 30; font: 14px system-ui, sans-serif; color: #eef1ff; text-align: left; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+      .players-btn { background: rgba(14, 18, 32, 0.92); border: 1px solid rgba(124, 140, 255, 0.55); color: #eef1ff; border-radius: 12px; padding: 9px 14px; font: 600 14px system-ui, sans-serif; cursor: pointer; }
+      .players-btn:hover { background: #36427a; }
+      .players-list { list-style: none; margin: 0; padding: 6px 8px; background: rgba(14, 18, 32, 0.95); border: 1px solid rgba(124, 140, 255, 0.55); border-radius: 12px; min-width: 240px; max-height: 60vh; overflow-y: auto; }
+      .players-list[hidden] { display: none; }
+      .players-list li { display: flex; align-items: center; gap: 9px; padding: 7px 4px; }
+      .players-list li + li { border-top: 1px solid rgba(124, 140, 255, 0.15); }
+      .players-list .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+      .players-list small { color: #a3abd1; margin-left: auto; padding-left: 10px; white-space: nowrap; }
+      .players-list .head { color: #9aa8ff; font-weight: 700; font-size: 12px; letter-spacing: 0.08em; }`;
+    document.head.appendChild(css);
+    const el = document.createElement('div');
+    el.className = 'players';
+    el.innerHTML = '<button class="players-btn" aria-expanded="false"></button><ul class="players-list" hidden></ul>';
+    document.body.appendChild(el);
+    this.playersBtnEl = el.querySelector('button');
+    this.playersListEl = el.querySelector('ul');
+    this.playersBtnEl.onclick = () => this.togglePlayerList();
+
+    // in the headset: a small button at the top right of your view; the list drops down below it
+    const onTop = (panel) => {
+      panel.mesh.material.depthTest = false; // never hidden behind the scene
+      panel.mesh.renderOrder = 1000;
+      panel.mesh.visible = false;
+      this.scene.add(panel.mesh);
+      this.panels.push(panel);
+      return panel;
+    };
+    this.playersOpen = false;
+    this.playersPanel = onTop(new CanvasPanel({ width: 0.2, height: 0.05, name: 'players' }));
+    this.playersPanel.setBuilder((ui) => {
+      const n = this.presence.people.length;
+      ui.button({ id: 'players', label: `Players (${n}) ${this.playersOpen ? '▴' : '▾'}`, active: this.playersOpen, onClick: () => this.togglePlayerList() }, 6, 6, ui.W - 12, ui.H - 12, 30);
+    });
+    this.playersListPanel = onTop(new CanvasPanel({ width: 0.3, height: 0.3, name: 'players-list' }));
+    this.playersListPanel.setBuilder((ui) => this.drawPlayerList(ui));
+    this.refreshPlayerList();
+  }
+
+  togglePlayerList() {
+    this.playersOpen = !this.playersOpen;
+    this.refreshPlayerList();
+  }
+
+  /** A short note about a person: you / host, and (same room) whether they have lined up. */
+  personNote(person) {
+    const notes = [];
+    if (person.you) notes.push('you');
+    if (person.host) notes.push('host');
+    if (this.presence.sameRoom) notes.push(person.lined ? '✓ lined up' : 'not lined up');
+    return notes.join(' · ');
+  }
+
+  refreshPlayerList() {
+    const pr = this.presence;
+    if (!pr || !this.playersBtnEl) return;
+    const people = pr.people;
+    const key = JSON.stringify([this.playersOpen, pr.status, people.map((p) => [p.plain, p.color, this.personNote(p)])]);
+    if (key === this.playersKey) return;
+    this.playersKey = key;
+    this.playersBtnEl.textContent = `👥 Players (${people.length}) ${this.playersOpen ? '▴' : '▾'}`;
+    this.playersBtnEl.setAttribute('aria-expanded', String(this.playersOpen));
+    this.playersListEl.hidden = !this.playersOpen;
+    const list = this.playersListEl;
+    list.replaceChildren();
+    const head = document.createElement('li');
+    head.className = 'head';
+    head.textContent = `SESSION ${pr.code}${pr.status === 'connected' ? (pr.peers.size ? '' : ' · waiting for others') : pr.status === 'failed' ? ' · could not connect' : ' · connecting…'}`;
+    list.appendChild(head);
+    for (const person of people) {
+      const li = document.createElement('li');
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      dot.style.background = `#${person.color.toString(16).padStart(6, '0')}`;
+      const name = document.createElement('span');
+      name.textContent = person.plain; // names come from other people: text only, never HTML
+      const note = document.createElement('small');
+      note.textContent = this.personNote(person);
+      li.append(dot, name, note);
+      list.appendChild(li);
+    }
+    this.playersPanel.redraw();
+    this.playersListPanel.redraw();
+  }
+
+  drawPlayerList(ui) {
+    const pr = this.presence;
+    const ctx = ui.ctx;
+    ui.y = 20;
+    ui.text(`SESSION ${pr.code}`, { size: 24, weight: 700, color: THEME.accent });
+    for (const person of pr.people) {
+      const y = ui.y + 4;
+      ctx.fillStyle = `#${person.color.toString(16).padStart(6, '0')}`;
+      ctx.beginPath();
+      ctx.arc(ui.pad + 10, y + 18, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = THEME.text;
+      ctx.font = '600 27px system-ui, sans-serif';
+      ctx.fillText(person.plain.slice(0, 22), ui.pad + 32, y + 2);
+      ctx.fillStyle = THEME.dim;
+      ctx.font = '400 21px system-ui, sans-serif';
+      ctx.fillText(this.personNote(person), ui.pad + 32, y + 34);
+      ui.y += 68;
+    }
+  }
+
+  /** Keep the headset drop-down at the top right of your view, following smoothly. */
+  placePlayerList(dt) {
+    if (!this.playersPanel) return;
+    const show = this.presenting;
+    this.playersPanel.mesh.visible = show;
+    this.playersListPanel.mesh.visible = show && this.playersOpen;
+    if (!show) {
+      this.playersPlaced = false;
+      return;
+    }
+    const cam = this.renderer.xr.getCamera();
+    const q = cam.getWorldQuaternion(new THREE.Quaternion());
+    const p = cam.getWorldPosition(new THREE.Vector3());
+    const k = this.playersPlaced ? 1 - Math.exp(-dt * 10) : 1;
+    this.playersPlaced = true;
+    const put = (mesh, x, y) => {
+      mesh.position.lerp(new THREE.Vector3(x, y, -0.8).applyQuaternion(q).add(p), k);
+      mesh.quaternion.slerp(q, k);
+    };
+    put(this.playersPanel.mesh, 0.26, 0.2);
+    put(this.playersListPanel.mesh, 0.21, 0.2 - 0.025 - 0.01 - 0.15); // right edges line up, just below the button
   }
 
   // ───────────── same room: line up with the room ─────────────
@@ -520,7 +657,9 @@ export class LessonApp {
       if (this.sessionRedraw > 1) {
         this.sessionRedraw = 0;
         this.sessionPanel.redraw();
+        this.refreshPlayerList();
       }
+      this.placePlayerList(dt);
     }
     this.renderer.render(this.scene, this.camera);
   }

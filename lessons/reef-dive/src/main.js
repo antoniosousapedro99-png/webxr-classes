@@ -9,6 +9,7 @@ import { Reef } from './model/Reef.js';
 import { Sea } from './model/Sea.js';
 import { Water, OceanSound, addBlend } from './model/Water.js';
 import { loadModelOverrides, makeBody } from './model/bodies.js';
+import { makeAvatar } from './model/Avatars.js';
 import { drawControls, drawInfo, drawCard } from './ui/panels.js';
 
 // Reef Dive: the classroom becomes the sea floor. One shared reef and its animals fill the room; in a
@@ -21,7 +22,9 @@ const GLOW_SELECTED = new THREE.Color(0x8af6ff); // the species you photographed
 class App extends LessonApp {
   constructor() {
     super({ labPos: new THREE.Vector3(0, 1.2, 1.1), camPos: new THREE.Vector3(0, 1.55, 2.6), background: 0x06344f });
-    this.showAvatars = false; // you see real classmates (through the water), not avatars
+    // classmates appear as divers at their real places (the water hides the real room), or as an axolotl on a computer
+    this.avatarsInRoom = true;
+    this.makeAvatar = makeAvatar;
     this.state = {
       ...this.state,
       mode: 'dive',

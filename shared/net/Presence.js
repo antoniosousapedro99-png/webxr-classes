@@ -108,9 +108,10 @@ export class Presence {
 
   get people() {
     const mark = (lined) => (this.sameRoom ? (lined ? ' ✓' : ' …') : '');
+    const hostId = this.hostId;
     return [
-      { name: `${this.name} (you)${mark(!!this.roomToWorld)}`, color: hashColor(this.selfId ?? 'me') },
-      ...[...this.peers.values()].map((p) => ({ name: `${p.name}${mark(!!p.pose?.lab)}`, color: p.color })),
+      { name: `${this.name} (you)${mark(!!this.roomToWorld)}`, plain: this.name, you: true, host: hostId === this.selfId, lined: !!this.roomToWorld, color: hashColor(this.selfId ?? 'me') },
+      ...[...this.peers.values()].map((p) => ({ name: `${p.name}${mark(!!p.pose?.lab)}`, plain: p.name, you: false, host: hostId === p.id, lined: !!p.pose?.lab, color: p.color })),
     ];
   }
 
@@ -151,22 +152,30 @@ export class Presence {
     const root = new THREE.Group(); // their desk, placed beside yours
     this.app.lab.add(root);
     const avatar = new THREE.Group();
+    avatar.visible = false; // until we know where they are
     root.add(avatar);
+    // A lesson can supply its own avatar: { head, body, hands: [l, r], arms?: [l, r], desk? }
+    // (desk: shown instead for someone using a computer, not a headset)
+    const custom = this.app.makeAvatar?.(color);
     const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.5 });
-    const head = new THREE.Group();
-    head.add(new THREE.Mesh(new THREE.SphereGeometry(0.095, 24, 16), mat));
+    const head = custom?.head ?? new THREE.Group();
+    if (!custom) head.add(new THREE.Mesh(new THREE.SphereGeometry(0.095, 24, 16), mat));
     const visor = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.06, 0.06), new THREE.MeshStandardMaterial({ color: 0x15171c, roughness: 0.2, metalness: 0.4 }));
     visor.position.set(0, 0.01, -0.08);
-    head.add(visor);
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.35, 6, 16), new THREE.MeshStandardMaterial({ color, roughness: 0.6, transparent: true, opacity: 0.55 }));
-    const hands = [0, 1].map(() => {
+    if (!custom) head.add(visor);
+    const body = custom?.body ?? new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.35, 6, 16), new THREE.MeshStandardMaterial({ color, roughness: 0.6, transparent: true, opacity: 0.55 }));
+    const hands = custom?.hands ?? [0, 1].map(() => {
       const h = new THREE.Group();
       h.add(new THREE.Mesh(new THREE.SphereGeometry(0.03, 16, 12), mat));
       h.visible = false;
       return h;
     });
-    avatar.add(head, body, ...hands);
-    const p = { id, name: 'Guest', color, root, avatar, head, body, hands, tag: null, pose: null, held: [null, null], heldKey: ['', ''] };
+    for (const h of hands) h.visible = false;
+    const arms = custom?.arms ?? [];
+    const desk = custom?.desk ?? null;
+    if (desk) { desk.visible = false; avatar.add(desk); }
+    avatar.add(head, body, ...hands, ...arms);
+    const p = { id, name: 'Guest', color, root, avatar, head, body, hands, arms, desk, tag: null, pose: null, held: [null, null], heldKey: ['', ''] };
     p.tag = this.nameTag(p.name, color);
     avatar.add(p.tag);
     p.replica = this.app.createReplica?.() ?? null;
@@ -234,7 +243,7 @@ export class Presence {
       m.decompose(p, r, new THREE.Vector3());
       lab = [...p.toArray(), new THREE.Euler().setFromQuaternion(r, 'YXZ').y].map(q3);
     }
-    return { h: [...pos.toArray(), q.x, q.y, q.z, q.w].map(q3), hands, held: app.netHolding ?? null, lab };
+    return { h: [...pos.toArray(), q.x, q.y, q.z, q.w].map(q3), hands, held: app.netHolding ?? null, lab, xr: !!app.presenting };
   }
 
   /** Who runs the shared world: whoever started the session, or (if they left) the first by id. */
@@ -290,6 +299,7 @@ export class Presence {
       p.replica?.update?.(dt);
       const pose = p.pose;
       if (!pose) continue;
+      p.avatar.visible = true;
       // Same room and lined up: their desk goes where it really is, and their body is the real one.
       const real = this.aligned(p);
       if (real) this.placeAtRealDesk(p);
@@ -298,7 +308,10 @@ export class Presence {
         p.root.rotation.set(0, p.seat.yaw, 0);
       }
       p.wasReal = real;
-      const body = !real && this.app.showAvatars !== false; // a lesson can hide avatars (you see the real people)
+      // a lesson can hide avatars, or keep them even at people's real places (when the scene hides the real people)
+      const shown = (!real || this.app.avatarsInRoom) && this.app.showAvatars !== false;
+      const atDesk = !!p.desk && pose.xr === false; // on a computer: the lesson's desk avatar instead
+      const body = shown && !atDesk;
       for (const c of p.head.children) c.visible = body;
       p.body.visible = body;
       const [x, y, z, qx, qy, qz, qw] = pose.h;
@@ -309,11 +322,32 @@ export class Presence {
       p.body.position.set(p.head.position.x, p.head.position.y - 0.42, p.head.position.z);
       p.body.rotation.set(0, yaw, 0);
       p.tag.position.set(p.head.position.x, p.head.position.y + 0.17, p.head.position.z);
+      if (p.desk) {
+        p.desk.visible = shown && atDesk;
+        if (p.desk.visible) {
+          p.bob = (p.bob ?? Math.random() * 6) + dt;
+          p.desk.position.copy(p.head.position);
+          p.desk.position.y += Math.sin(p.bob * 1.6) * 0.025;
+          p.desk.rotation.set(0, yaw, Math.sin(p.bob * 1.1) * 0.06);
+        }
+      }
       pose.hands.forEach((h, i) => {
         const hand = p.hands[i];
         hand.visible = !!h;
         hand.children[0].visible = body; // the hand ball (the real hand is visible in the same room)
         if (h) hand.position.lerp(new THREE.Vector3(...h), hand.visible ? k : 1);
+        // arms reach from the shoulder to the hand
+        const arm = p.arms[i];
+        if (!arm) return;
+        arm.visible = body && !!h;
+        if (!arm.visible) return;
+        const side = i === 0 ? -1 : 1;
+        const shoulder = new THREE.Vector3(side * 0.17, -0.27, 0.02).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw).add(p.head.position);
+        const to = hand.position.clone().sub(shoulder);
+        const len = Math.max(0.05, Math.min(0.75, to.length()));
+        arm.position.copy(shoulder);
+        arm.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.normalize());
+        arm.scale.set(1, len, 1);
       });
       // what they're holding, shown in the hand that holds it (or by their head on a screen)
       const key = pose.held ? JSON.stringify(pose.held) : '';
