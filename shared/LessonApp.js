@@ -4,6 +4,7 @@ import { CanvasPanel } from './ui/CanvasPanel.js';
 import { Interaction } from './ui/Interaction.js';
 import { THEME } from './ui/CanvasPanel.js';
 import { Presence, sessionFromURL } from './net/Presence.js';
+import { RoomWalls } from './net/RoomAlign.js';
 import { newSessionCode } from './net/code.js';
 
 // Everything every WebXR lesson needs, so each lesson only adds its own content:
@@ -280,104 +281,94 @@ export class LessonApp {
     }
   }
 
-  // ───────────── player list (top right) ─────────────
+  // ───────────── player list (a panel beside the others) ─────────────
 
-  /** Who's in the session: a drop-down in the top-right corner of the screen, and of your view in the headset. */
+  /**
+   * Who's in the session: a "Players" button under the info panel (mirroring the session panel under the
+   * controls); the list drops down below it, with a switch for the avatars.
+   */
   initPlayerList() {
-    const css = document.createElement('style');
-    css.textContent = `
-      .players { position: fixed; top: 12px; right: 12px; z-index: 30; font: 14px system-ui, sans-serif; color: #eef1ff; text-align: left; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-      .players-btn { background: rgba(14, 18, 32, 0.92); border: 1px solid rgba(124, 140, 255, 0.55); color: #eef1ff; border-radius: 12px; padding: 9px 14px; font: 600 14px system-ui, sans-serif; cursor: pointer; }
-      .players-btn:hover { background: #36427a; }
-      .players-list { list-style: none; margin: 0; padding: 6px 8px; background: rgba(14, 18, 32, 0.95); border: 1px solid rgba(124, 140, 255, 0.55); border-radius: 12px; min-width: 240px; max-height: 60vh; overflow-y: auto; }
-      .players-list[hidden] { display: none; }
-      .players-list li { display: flex; align-items: center; gap: 9px; padding: 7px 4px; }
-      .players-list li + li { border-top: 1px solid rgba(124, 140, 255, 0.15); }
-      .players-list .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
-      .players-list small { color: #a3abd1; margin-left: auto; padding-left: 10px; white-space: nowrap; }
-      .players-list .head { color: #9aa8ff; font-weight: 700; font-size: 12px; letter-spacing: 0.08em; }`;
-    document.head.appendChild(css);
-    const el = document.createElement('div');
-    el.className = 'players';
-    el.innerHTML = '<button class="players-btn" aria-expanded="false"></button><ul class="players-list" hidden></ul>';
-    document.body.appendChild(el);
-    this.playersBtnEl = el.querySelector('button');
-    this.playersListEl = el.querySelector('ul');
-    this.playersBtnEl.onclick = () => this.togglePlayerList();
-
-    // in the headset: a small button at the top right of your view; the list drops down below it
-    const onTop = (panel) => {
-      panel.mesh.material.depthTest = false; // never hidden behind the scene
-      panel.mesh.renderOrder = 1000;
-      panel.mesh.visible = false;
-      this.scene.add(panel.mesh);
+    let saved = null;
+    try {
+      saved = localStorage.getItem('webxr-classes:avatars');
+    } catch {}
+    this.avatarsOn = saved !== 'off'; // on unless this device switched them off
+    this.playersOpen = false;
+    const add = (panel, y) => {
+      panel.mesh.position.set(0.62, y, 0.14);
+      panel.mesh.rotation.y = -0.42;
+      this.lab.add(panel.mesh);
       this.panels.push(panel);
       return panel;
     };
-    this.playersOpen = false;
-    this.playersPanel = onTop(new CanvasPanel({ width: 0.2, height: 0.05, name: 'players' }));
+    this.playersPanel = add(new CanvasPanel({ width: 0.5, height: 0.07, name: 'players' }), -0.36 - 0.02 - 0.035);
     this.playersPanel.setBuilder((ui) => {
       const n = this.presence.people.length;
-      ui.button({ id: 'players', label: `Players (${n}) ${this.playersOpen ? '▴' : '▾'}`, active: this.playersOpen, onClick: () => this.togglePlayerList() }, 6, 6, ui.W - 12, ui.H - 12, 30);
+      ui.button({ id: 'players', label: `Players (${n}) ${this.playersOpen ? '▴' : '▾'}`, active: this.playersOpen, onClick: () => this.togglePlayerList() }, 10, 10, ui.W - 20, ui.H - 20, 34);
     });
-    this.playersListPanel = onTop(new CanvasPanel({ width: 0.3, height: 0.3, name: 'players-list' }));
+    this.playersListPanel = add(new CanvasPanel({ width: 0.5, height: 0.34, name: 'players-list' }), -0.465 - 0.01 - 0.17);
     this.playersListPanel.setBuilder((ui) => this.drawPlayerList(ui));
-    this.refreshPlayerList();
+    this.playersListPanel.mesh.visible = false;
+    for (const p of [this.playersPanel, this.playersListPanel]) {
+      p.mesh.renderOrder = this.controlPanel.mesh.renderOrder;
+      p.mesh.material.fog = this.controlPanel.mesh.material.fog;
+    }
   }
 
   togglePlayerList() {
     this.playersOpen = !this.playersOpen;
+    this.playersListPanel.mesh.visible = this.playersOpen;
+    this.playersKey = null;
     this.refreshPlayerList();
   }
 
-  /** A short note about a person: you / host, and (same room) whether they have lined up. */
+  toggleAvatars() {
+    this.avatarsOn = !this.avatarsOn;
+    try {
+      localStorage.setItem('webxr-classes:avatars', this.avatarsOn ? 'on' : 'off');
+    } catch {}
+    this.playersKey = null;
+    this.refreshPlayerList();
+  }
+
+  /** Did people line up in different ways (walls vs touch only)? Then they won't match. */
+  get mixedLineUp() {
+    const modes = new Set(this.presence.people.filter((p) => p.lined).map((p) => p.align));
+    return modes.size > 1;
+  }
+
+  /** A short note about a person: you / host, and (same room) how they lined up. */
   personNote(person) {
     const notes = [];
     if (person.you) notes.push('you');
     if (person.host) notes.push('host');
-    if (this.presence.sameRoom) notes.push(person.lined ? '✓ lined up' : 'not lined up');
+    if (this.presence.sameRoom) notes.push(!person.lined ? 'not lined up' : person.align === 'walls' ? '✓ lined up (walls)' : '✓ lined up (touch)');
     return notes.join(' · ');
   }
 
   refreshPlayerList() {
     const pr = this.presence;
-    if (!pr || !this.playersBtnEl) return;
-    const people = pr.people;
-    const key = JSON.stringify([this.playersOpen, pr.status, people.map((p) => [p.plain, p.color, this.personNote(p)])]);
+    if (!pr || !this.playersPanel) return;
+    const key = JSON.stringify([this.playersOpen, this.avatarsOn, pr.status, pr.people.map((p) => [p.plain, p.color, this.personNote(p)])]);
     if (key === this.playersKey) return;
     this.playersKey = key;
-    this.playersBtnEl.textContent = `👥 Players (${people.length}) ${this.playersOpen ? '▴' : '▾'}`;
-    this.playersBtnEl.setAttribute('aria-expanded', String(this.playersOpen));
-    this.playersListEl.hidden = !this.playersOpen;
-    const list = this.playersListEl;
-    list.replaceChildren();
-    const head = document.createElement('li');
-    head.className = 'head';
-    head.textContent = `SESSION ${pr.code}${pr.status === 'connected' ? (pr.peers.size ? '' : ' · waiting for others') : pr.status === 'failed' ? ' · could not connect' : ' · connecting…'}`;
-    list.appendChild(head);
-    for (const person of people) {
-      const li = document.createElement('li');
-      const dot = document.createElement('span');
-      dot.className = 'dot';
-      dot.style.background = `#${person.color.toString(16).padStart(6, '0')}`;
-      const name = document.createElement('span');
-      name.textContent = person.plain; // names come from other people: text only, never HTML
-      const note = document.createElement('small');
-      note.textContent = this.personNote(person);
-      li.append(dot, name, note);
-      list.appendChild(li);
-    }
     this.playersPanel.redraw();
-    this.playersListPanel.redraw();
+    if (this.playersOpen) this.playersListPanel.redraw();
   }
 
   drawPlayerList(ui) {
     const pr = this.presence;
     const ctx = ui.ctx;
-    ui.y = 20;
-    ui.text(`SESSION ${pr.code}`, { size: 24, weight: 700, color: THEME.accent });
+    ui.y = 22;
+    const status = pr.status === 'connected' ? (pr.peers.size ? '' : ' · waiting for others') : pr.status === 'failed' ? ' · could not connect' : ' · connecting…';
+    ui.text(`SESSION ${pr.code}${status}`, { size: 24, weight: 700, color: THEME.accent });
+    ui.button({ id: 'avatars', label: this.avatarsOn ? 'Avatars: on' : 'Avatars: off', active: this.avatarsOn, onClick: () => this.toggleAvatars() }, ui.right - 230, 14, 230, 52, 24);
+    ui.y = Math.max(ui.y, 76);
+    if (pr.sameRoom && this.mixedLineUp) {
+      ui.text('⚠ Some lined up with the walls, some by touch only: they won’t match. Line up again in the same room scan, or ask everyone to do Space Setup.', { size: 21, color: '#ffd166' });
+    }
     for (const person of pr.people) {
-      const y = ui.y + 4;
+      const y = ui.y + 2;
       ctx.fillStyle = `#${person.color.toString(16).padStart(6, '0')}`;
       ctx.beginPath();
       ctx.arc(ui.pad + 10, y + 18, 10, 0, Math.PI * 2);
@@ -389,31 +380,8 @@ export class LessonApp {
       ctx.fillStyle = THEME.dim;
       ctx.font = '400 21px system-ui, sans-serif';
       ctx.fillText(this.personNote(person), ui.pad + 32, y + 34);
-      ui.y += 68;
+      ui.y += 66;
     }
-  }
-
-  /** Keep the headset drop-down at the top right of your view, following smoothly. */
-  placePlayerList(dt) {
-    if (!this.playersPanel) return;
-    const show = this.presenting;
-    this.playersPanel.mesh.visible = show;
-    this.playersListPanel.mesh.visible = show && this.playersOpen;
-    if (!show) {
-      this.playersPlaced = false;
-      return;
-    }
-    const cam = this.renderer.xr.getCamera();
-    const q = cam.getWorldQuaternion(new THREE.Quaternion());
-    const p = cam.getWorldPosition(new THREE.Vector3());
-    const k = this.playersPlaced ? 1 - Math.exp(-dt * 10) : 1;
-    this.playersPlaced = true;
-    const put = (mesh, x, y) => {
-      mesh.position.lerp(new THREE.Vector3(x, y, -0.8).applyQuaternion(q).add(p), k);
-      mesh.quaternion.slerp(q, k);
-    };
-    put(this.playersPanel.mesh, 0.26, 0.2);
-    put(this.playersListPanel.mesh, 0.21, 0.2 - 0.025 - 0.01 - 0.15); // right edges line up, just below the button
   }
 
   // ───────────── same room: line up with the room ─────────────
@@ -424,9 +392,10 @@ export class LessonApp {
       return;
     }
     this.calibrating = { points: [] };
+    const walls = this.roomWalls?.count >= 2;
     this.explain({
       title: 'Line up with the room',
-      text: 'Agree with your colleagues on two points you can all reach, e.g. two corners of the same table. Touch point A with your fingertips and pinch (or put the controller tip on it and pull the trigger). Then do the same for point B. Everyone must use the same two points, in the same order.',
+      text: `Agree with your colleagues on two points far apart that you can all reach, e.g. two corners of the room or of a long table (2 m or more apart is best). Touch point A with your index fingertip, then pinch (or touch it with the controller's front edge and pull the trigger). Then do the same for point B. Everyone must use the same two points, in the same order.${walls ? ' Your headset has scanned this room, so it will snap to the real walls: rough touches are fine.' : ' Tip: if every headset does Space Setup for this room (Quest settings › Physical space), lining up snaps to the real walls and is much more precise.'}`,
     });
   }
 
@@ -444,11 +413,27 @@ export class LessonApp {
       this.explain({ title: 'Point A marked', text: 'Now touch point B — the second point everyone agreed on — and pinch or pull the trigger.' });
       return;
     }
-    const ok = this.presence.setRoomPoints(cal.points[0], cal.points[1]);
+    const ok = this.presence.setRoomPoints(cal.points[0], cal.points[1], this.roomWalls);
     this.endCalibration();
-    this.explain(ok
-      ? { title: 'Lined up with the room', text: 'Once your colleagues have lined up too, their work appears on their real desks and you see them through passthrough. If anything looks off, line up again.' }
-      : { title: 'Points too close together', text: 'Choose two points at least 10 cm apart (e.g. opposite corners of a table) and try again.' });
+    this.playersKey = null; // the player list shows how everyone lined up
+    if (!ok) {
+      this.explain({ title: 'Points too close together', text: 'Choose two points at least 30 cm apart (e.g. opposite corners of a table) and try again.' });
+      return;
+    }
+    this.explain(this.presence.alignMode === 'walls'
+      ? { title: 'Lined up with the room’s walls ✓', text: 'Your headset snapped to the real walls of the room, so it matches everyone else who did the same to about a centimetre. Check the Players list: everyone should say “lined up (walls)”.' }
+      : { title: 'Lined up by touch', text: 'No room scan was found, so this uses your two touches as they are: expect a few centimetres of error, more for things far away. For a precise match, do Space Setup for this room on every headset (Quest settings › Physical space), then line up again.' });
+  }
+
+  /**
+   * The headset recentred (long press on the Meta button) or lost tracking: its coordinates jumped, so the
+   * room line-up no longer fits. Ask to line up again (with a room scan it only takes a moment).
+   */
+  onTrackingReset() {
+    if (!this.presence?.roomToWorld) return;
+    this.presence.clearRoom();
+    this.playersKey = null;
+    this.explain({ title: 'Line up again', text: 'Your headset recentred, so it no longer matches the room. Press “Line up with the room” and touch the same two points again.' });
   }
 
   endCalibration() {
@@ -572,6 +557,8 @@ export class LessonApp {
     this.needsPlacement = true;
     this.framesSinceStart = 0;
     this.onXRStart?.(session, isAR);
+    // recentring (or lost tracking) moves the headset's coordinates: the room line-up must be redone
+    this.renderer.xr.getReferenceSpace()?.addEventListener?.('reset', () => this.onTrackingReset());
 
     if (isAR && session.requestHitTestSource) {
       session.requestReferenceSpace('viewer')
@@ -646,6 +633,7 @@ export class LessonApp {
       }
       this.updateHitTest(frame);
       this.onXRFrame?.(frame, this.renderer.xr.getReferenceSpace());
+      if (this.presence?.sameRoom) (this.roomWalls ??= new RoomWalls()).update(frame, this.renderer.xr.getReferenceSpace()); // for lining up
     } else {
       this.controls.update();
     }
@@ -659,7 +647,6 @@ export class LessonApp {
         this.sessionPanel.redraw();
         this.refreshPlayerList();
       }
-      this.placePlayerList(dt);
     }
     this.renderer.render(this.scene, this.camera);
   }

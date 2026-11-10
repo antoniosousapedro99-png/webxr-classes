@@ -123,6 +123,35 @@ export class Interaction {
     return new THREE.Vector3().setFromMatrixPosition(c.matrixWorld);
   }
 
+  /**
+   * Where a press "touched" (for lining up with the room). With hands, pinching pulls the fingertip off the
+   * spot it was touching, so use where the index fingertip was just before the pinch began.
+   */
+  touchPoint(c) {
+    const i = this.controllers.indexOf(c);
+    const trail = this.tipTrail?.[i];
+    if (c.userData.inputSource?.hand && trail?.length) {
+      const want = performance.now() - 250;
+      let best = trail[0];
+      for (const t of trail) if (Math.abs(t.t - want) < Math.abs(best.t - want)) best = t;
+      return best.p.clone();
+    }
+    return this.sourcePoint(c);
+  }
+
+  /** Remember the last half second of each index fingertip (see touchPoint). */
+  recordTips() {
+    this.tipTrail ??= [];
+    const now = performance.now();
+    this.hands.forEach((hand, i) => {
+      const tip = hand?.joints?.['index-finger-tip'];
+      const trail = (this.tipTrail[i] ??= []);
+      if (!tip || tip.visible === false) return;
+      trail.push({ t: now, p: tip.getWorldPosition(new THREE.Vector3()) });
+      while (trail.length && now - trail[0].t > 500) trail.shift();
+    });
+  }
+
   /** What a controller/hand would act on: something within reach first, then whatever its ray hits. */
   pick(c) {
     const near = this.nearest(this.sourcePoint(c));
@@ -303,7 +332,7 @@ export class Interaction {
       if (this.app.calibrating && c.userData.calibrated) {
         // lining up with the room: this press marks a point, unless it was on the panel button
         c.userData.calibrated = false;
-        this.app.calibrationPoint(this.sourcePoint(c));
+        this.app.calibrationPoint(this.touchPoint(c));
         this.app.refresh();
         return;
       }
@@ -395,6 +424,7 @@ export class Interaction {
     const hovers = new Map();
     let hoverObject = null;
     if (this.app.renderer.xr.isPresenting) {
+      if (this.app.calibrating) this.recordTips();
       for (const c of this.controllers) {
         const { line, dot, mode } = c.userData;
         if (c.userData.drag) {
