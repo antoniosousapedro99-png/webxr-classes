@@ -2,7 +2,7 @@
 
 | File | What | Original model | Author | Licence | Changes |
 | --- | --- | --- | --- | --- | --- |
-| `hall.glb` | Hintze Hall, Natural History Museum, London | [Hintze Hall](https://sketchfab.com/3d-models/hintze-hall-45f5e56887f44075bbf283977c99541f) | [artfletch](https://sketchfab.com/artfletch) | [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/) | 2M → 450k triangles; 8K textures reduced to 4K (WebP); drawn unlit (its lighting is baked into the textures); meshopt-compressed |
+| `hall.glb` | Hintze Hall, Natural History Museum, London | [Hintze Hall](https://sketchfab.com/3d-models/hintze-hall-45f5e56887f44075bbf283977c99541f) | [artfletch](https://sketchfab.com/artfletch) | [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/) | 2M → 1M triangles; full 8K textures kept, GPU-compressed as KTX2 (ETC1S, encoded with Khronos KTX-Software 4.4.2); drawn unlit (its lighting is baked into the textures); meshopt-compressed |
 
 CC BY 4.0 requires this credit to be kept with the model.
 

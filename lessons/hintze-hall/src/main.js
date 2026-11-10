@@ -50,7 +50,7 @@ class App extends LessonApp {
   async loadHall() {
     const hint = document.getElementById('hint');
     const btn = document.getElementById('btn-ar');
-    if (hint) hint.textContent = 'Loading the hall (about 18 MB)…';
+    if (hint) hint.textContent = 'Loading the hall (about 40 MB)…';
     // the 8K textures are GPU-compressed (KTX2), so they stay small in the headset's memory
     const ktx2 = new KTX2Loader().setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/basis/').detectSupport(this.renderer);
     const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).setKTX2Loader(ktx2).loadAsync(new URL('../models/hall.glb', import.meta.url).toString());
