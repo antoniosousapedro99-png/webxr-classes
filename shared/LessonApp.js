@@ -4,7 +4,7 @@ import { CanvasPanel } from './ui/CanvasPanel.js';
 import { Interaction } from './ui/Interaction.js';
 import { THEME } from './ui/CanvasPanel.js';
 import { Presence, sessionFromURL } from './net/Presence.js';
-import { RoomWalls } from './net/RoomAlign.js';
+import { RoomScan, solveRoom, fingerprint } from './net/RoomAlign.js';
 import { newSessionCode } from './net/code.js';
 
 // Everything every WebXR lesson needs, so each lesson only adds its own content:
@@ -60,6 +60,7 @@ export class LessonApp {
       this.sessionPanel.setBuilder((ui) => this.drawSession(ui));
       this.panels.push(this.sessionPanel);
       this.initPlayerList();
+      this.initAdmin();
     }
     this.initSessionUI(session);
     this.initXRButtons();
@@ -182,6 +183,7 @@ export class LessonApp {
   }
 
   toggleLocked() {
+    if (this.lockedByAdmin) return;
     this.state.locked = !this.state.locked;
     if (this.state.locked) this.state.placing = false;
   }
@@ -189,6 +191,7 @@ export class LessonApp {
   /** Standard buttons for the bottom of a control panel: move the lab, seated mode, lock, voice. */
   generalButtons() {
     const s = this.state;
+    if (this.lockedByAdmin) return [{ id: 'speak', label: s.speak ? 'Voice: on' : 'Voice: off', active: s.speak, onClick: () => this.toggleSpeak(), disabled: !('speechSynthesis' in window) }];
     const b = [{ id: 'recenter', label: this.presenting ? 'Bring lab to me' : 'Reset view', onClick: () => this.recenter() }];
     if (this.hitTestSource) b.push({ id: 'place', label: s.placing ? 'Tap to drop here' : 'Place on surface', active: s.placing, disabled: s.locked, onClick: () => this.togglePlacing() });
     b.push({ id: 'seated', label: s.seated ? 'Seated: on' : 'Seated: off', active: s.seated, onClick: () => this.toggleSeated() });
@@ -253,17 +256,27 @@ export class LessonApp {
 
   // ───────────── shared sessions ─────────────
 
+  /** A headset's room status in a few words (see RoomAlign.js). */
+  roomNote(room) {
+    return { ok: '✓ in place', unsure: '⚠ unsure which way round', 'no-scan': '⚠ needs Space Setup', waiting: '… finding the room', screen: 'on a computer' }[room] ?? '';
+  }
+
   drawSession(ui) {
     const pr = this.presence;
     ui.y = 18;
-    if (pr.sameRoom) {
-      const lined = !!pr.roomToWorld;
-      const label = this.calibrating ? `Touch point ${this.calibrating.points.length === 0 ? 'A' : 'B'}…  (tap to cancel)` : lined ? 'Lined up ✓ · line up again' : 'Line up with the room';
-      ui.button({ id: 'calibrate', label, active: !!this.calibrating, disabled: !this.presenting, onClick: () => this.toggleCalibration() }, ui.pad, ui.y, ui.contentWidth, 54, 24);
-      ui.y += 66;
-    }
     const status = pr.status === 'connected' ? (pr.peers.size ? '' : ' · waiting for others to join') : pr.status === 'failed' ? ' · could not connect' : ' · connecting…';
     ui.text(`SESSION ${pr.code}${status}`, { size: 24, weight: 700, color: pr.status === 'failed' ? '#ff6b6b' : THEME.accent });
+    if (pr.sameRoom) {
+      const r = pr.roomStatus ?? 'waiting';
+      const text = {
+        ok: 'Room: in place ✓',
+        unsure: 'Room: found, but not sure which way round. Tell your teacher.',
+        'no-scan': 'Room: this headset has not scanned the room (Space Setup). Tell your teacher.',
+        waiting: 'Room: finding the room…',
+        screen: 'Room: lines up by itself in the headset',
+      }[r];
+      ui.text(text, { size: 22, color: r === 'ok' || r === 'screen' ? '#7ee2a8' : '#ffd166' });
+    }
     const ctx = ui.ctx;
     let x = ui.pad;
     for (const person of pr.people.slice(0, 6)) {
@@ -309,7 +322,12 @@ export class LessonApp {
     this.playersListPanel = add(new CanvasPanel({ width: 0.5, height: 0.34, name: 'players-list' }), -0.465 - 0.01 - 0.17);
     this.playersListPanel.setBuilder((ui) => this.drawPlayerList(ui));
     this.playersListPanel.mesh.visible = false;
-    for (const p of [this.playersPanel, this.playersListPanel]) {
+    this.matchPanelLook(this.playersPanel, this.playersListPanel);
+  }
+
+  /** New panels look like the lesson's own (draw order, fog). */
+  matchPanelLook(...panels) {
+    for (const p of panels) {
       p.mesh.renderOrder = this.controlPanel.mesh.renderOrder;
       p.mesh.material.fog = this.controlPanel.mesh.material.fog;
     }
@@ -331,118 +349,241 @@ export class LessonApp {
     this.refreshPlayerList();
   }
 
-  /** Did people line up in different ways (walls vs touch only)? Then they won't match. */
-  get mixedLineUp() {
-    const modes = new Set(this.presence.people.filter((p) => p.lined).map((p) => p.align));
-    return modes.size > 1;
-  }
-
-  /** A short note about a person: you / host, and (same room) how they lined up. */
+  /** A short note about a person: you / admin, and (same room) whether their headset found the room. */
   personNote(person) {
     const notes = [];
     if (person.you) notes.push('you');
-    if (person.host) notes.push('host');
-    if (this.presence.sameRoom) notes.push(!person.lined ? 'not lined up' : person.align === 'walls' ? '✓ lined up (walls)' : '✓ lined up (touch)');
+    if (person.host) notes.push('admin');
+    if (this.presence.sameRoom) notes.push(this.roomNote(person.room));
     return notes.join(' · ');
   }
 
   refreshPlayerList() {
     const pr = this.presence;
     if (!pr || !this.playersPanel) return;
-    const key = JSON.stringify([this.playersOpen, this.avatarsOn, pr.status, pr.people.map((p) => [p.plain, p.color, this.personNote(p)])]);
+    const key = JSON.stringify([this.playersOpen, this.avatarsOn, pr.status, pr.people.map((p) => [p.plain, p.color, this.personNote(p)]), this.isAdmin, this.admin, this.kickArmed]);
     if (key === this.playersKey) return;
     this.playersKey = key;
     this.playersPanel.redraw();
     if (this.playersOpen) this.playersListPanel.redraw();
+    if (this.adminPanel?.mesh.visible) this.adminPanel.redraw();
+  }
+
+  /** A row per person: colour, name, note. Returns nothing; advances ui.y. */
+  drawPerson(ui, person, right = ui.right) {
+    const ctx = ui.ctx;
+    const y = ui.y + 2;
+    ctx.fillStyle = `#${person.color.toString(16).padStart(6, '0')}`;
+    ctx.beginPath();
+    ctx.arc(ui.pad + 10, y + 18, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = THEME.text;
+    ctx.font = '600 27px system-ui, sans-serif';
+    ctx.fillText(person.plain.slice(0, 22), ui.pad + 32, y + 2, right - ui.pad - 40);
+    ctx.fillStyle = THEME.dim;
+    ctx.font = '400 21px system-ui, sans-serif';
+    ctx.fillText(this.personNote(person), ui.pad + 32, y + 34, right - ui.pad - 40);
   }
 
   drawPlayerList(ui) {
     const pr = this.presence;
-    const ctx = ui.ctx;
     ui.y = 22;
     const status = pr.status === 'connected' ? (pr.peers.size ? '' : ' · waiting for others') : pr.status === 'failed' ? ' · could not connect' : ' · connecting…';
     ui.text(`SESSION ${pr.code}${status}`, { size: 24, weight: 700, color: THEME.accent });
     ui.button({ id: 'avatars', label: this.avatarsOn ? 'Avatars: on' : 'Avatars: off', active: this.avatarsOn, onClick: () => this.toggleAvatars() }, ui.right - 230, 14, 230, 52, 24);
     ui.y = Math.max(ui.y, 76);
-    if (pr.sameRoom && this.mixedLineUp) {
-      ui.text('⚠ Some lined up with the walls, some by touch only: they won’t match. Line up again in the same room scan, or ask everyone to do Space Setup.', { size: 21, color: '#ffd166' });
-    }
     for (const person of pr.people) {
-      const y = ui.y + 2;
-      ctx.fillStyle = `#${person.color.toString(16).padStart(6, '0')}`;
-      ctx.beginPath();
-      ctx.arc(ui.pad + 10, y + 18, 10, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.textBaseline = 'top';
-      ctx.fillStyle = THEME.text;
-      ctx.font = '600 27px system-ui, sans-serif';
-      ctx.fillText(person.plain.slice(0, 22), ui.pad + 32, y + 2);
-      ctx.fillStyle = THEME.dim;
-      ctx.font = '400 21px system-ui, sans-serif';
-      ctx.fillText(this.personNote(person), ui.pad + 32, y + 34);
+      this.drawPerson(ui, person);
       ui.y += 66;
     }
   }
 
-  // ───────────── same room: line up with the room ─────────────
+  // ───────────── same room: the room frame (automatic) ─────────────
 
-  toggleCalibration() {
-    if (this.calibrating) {
-      this.endCalibration();
-      return;
+  /**
+   * Re-read the room scan and work out where the shared room frame is (RoomAlign.js). The admin's headset
+   * uses the shared rule and sends its room "fingerprint"; everyone else matches it. Nothing to press.
+   */
+  updateRoomFrame() {
+    const pr = this.presence;
+    const scan = this.roomScan;
+    const admin = pr.isHost;
+    const sol = scan.hasRoom ? solveRoom(scan, admin ? null : pr.roomRef) : null;
+    const changed = pr.setRoomFrame(sol?.matrix ?? null, !scan.hasRoom || !sol ? 'no-scan' : sol.sure ? 'ok' : 'unsure');
+    if (admin && sol) {
+      const ref = { size: sol.size, features: fingerprint(scan, sol.matrix) };
+      const fresh = JSON.stringify(ref) !== JSON.stringify(this.roomRefOut);
+      this.roomRefOut = ref;
+      if (fresh) pr.roomCh?.send(ref);
     }
-    this.calibrating = { points: [] };
-    const walls = this.roomWalls?.count >= 2;
-    this.explain({
-      title: 'Line up with the room',
-      text: `Agree with your colleagues on two points far apart that you can all reach, e.g. two corners of the room or of a long table (2 m or more apart is best). Touch point A with your index fingertip, then pinch (or touch it with the controller's front edge and pull the trigger). Then do the same for point B. Everyone must use the same two points, in the same order.${walls ? ' Your headset has scanned this room, so it will snap to the real walls: rough touches are fine.' : ' Tip: if every headset does Space Setup for this room (Quest settings › Physical space), lining up snaps to the real walls and is much more precise.'}`,
-    });
-  }
-
-  /** Called by Interaction while lining up: the hand/controller tip was pressed here (world space). */
-  calibrationPoint(p) {
-    const cal = this.calibrating;
-    if (!cal) return;
-    cal.points.push(p.clone());
-    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.012, 16, 12), new THREE.MeshBasicMaterial({ color: cal.points.length === 1 ? 0xffd166 : 0x7ee2a8, toneMapped: false }));
-    dot.position.copy(p);
-    this.scene.add(dot);
-    (this.calibrationMarks ??= []).push(dot);
-    this.interaction.pulse(0.6, 60);
-    if (cal.points.length === 1) {
-      this.explain({ title: 'Point A marked', text: 'Now touch point B — the second point everyone agreed on — and pinch or pull the trigger.' });
-      return;
-    }
-    const ok = this.presence.setRoomPoints(cal.points[0], cal.points[1], this.roomWalls);
-    this.endCalibration();
-    this.playersKey = null; // the player list shows how everyone lined up
-    if (!ok) {
-      this.explain({ title: 'Points too close together', text: 'Choose two points at least 30 cm apart (e.g. opposite corners of a table) and try again.' });
-      return;
-    }
-    this.explain(this.presence.alignMode === 'walls'
-      ? { title: 'Lined up with the room’s walls ✓', text: 'Your headset snapped to the real walls of the room, so it matches everyone else who did the same to about a centimetre. Check the Players list: everyone should say “lined up (walls)”.' }
-      : { title: 'Lined up by touch', text: 'No room scan was found, so this uses your two touches as they are: expect a few centimetres of error, more for things far away. For a precise match, do Space Setup for this room on every headset (Quest settings › Physical space), then line up again.' });
+    if (changed) this.onRoomFrame?.();
+    this.playersKey = null;
   }
 
   /**
-   * The headset recentred (long press on the Meta button) or lost tracking: its coordinates jumped, so the
-   * room line-up no longer fits. Ask to line up again (with a room scan it only takes a moment).
+   * The headset recentred (long press on the Meta button) or lost tracking: its coordinates jumped. The room
+   * scan comes back in the new coordinates, so just read it again now: the room frame puts itself right.
    */
   onTrackingReset() {
-    if (!this.presence?.roomToWorld) return;
-    this.presence.clearRoom();
-    this.playersKey = null;
-    this.explain({ title: 'Line up again', text: 'Your headset recentred, so it no longer matches the room. Press “Line up with the room” and touch the same two points again.' });
+    if (this.roomScan) this.roomScan.last = 0;
   }
 
-  endCalibration() {
-    this.calibrating = null;
-    setTimeout(() => {
-      for (const m of this.calibrationMarks ?? []) this.scene.remove(m);
-      this.calibrationMarks = [];
-    }, 4000);
+  // ───────────── admin (whoever opened the session) ─────────────
+
+  /** Whoever opened the session (until connected, only the person who started it counts). */
+  get isAdmin() {
+    const pr = this.presence;
+    if (!pr) return false;
+    return pr.selfId ? pr.isHost : !!pr.host;
+  }
+
+  /** The Admin menu: to the left of the controls, only for the admin. */
+  initAdmin() {
+    this.admin = { lock: false }; // what the admin has set for everyone
+    this.lockedByAdmin = false; // (students) the admin has locked my menus
+    this.adminPanel = new CanvasPanel({ width: 0.5, height: 0.72, name: 'admin' });
+    this.adminPanel.mesh.position.set(-1.0, 0, 0.46);
+    this.adminPanel.mesh.rotation.y = 0.95;
+    this.adminPanel.mesh.visible = false;
+    this.adminPanel.setBuilder((ui) => this.drawAdmin(ui));
+    this.lab.add(this.adminPanel.mesh);
+    this.panels.push(this.adminPanel);
+    this.matchPanelLook(this.adminPanel);
+    this.adminClock = 0;
+  }
+
+  drawAdmin(ui) {
+    ui.title('Admin', { size: 40 });
+    ui.text('You opened this session, so you run it for everyone.', { size: 21, color: THEME.dim });
+    for (const section of this.adminLessonButtons?.() ?? []) {
+      ui.heading(section.heading);
+      if (section.text) ui.text(section.text, { size: 20, color: THEME.dim });
+      ui.buttons(section.buttons, { cols: section.cols ?? 2, height: 52, size: 21, gap: 8 });
+    }
+    ui.heading('Students');
+    ui.buttons([
+      { id: 'lock-students', label: this.admin.lock ? 'Menus: locked' : 'Menus: unlocked', active: this.admin.lock, onClick: () => this.toggleStudentLock() },
+      ...(this.presence.sameRoom ? [{ id: 'refind', label: 'Re-find room (all)', onClick: () => this.adminSend({ k: 'refind' }) }] : []),
+    ], { height: 52, size: 21, gap: 8 });
+    const students = this.presence.people.filter((p) => !p.you);
+    if (!students.length) ui.text('Nobody else has joined yet.', { size: 21, color: THEME.dim });
+    for (const person of students) {
+      const armed = this.kickArmed?.id === person.id && performance.now() - this.kickArmed.t < 3000;
+      this.drawPerson(ui, person, ui.right - 160);
+      ui.button({ id: `kick-${person.id}`, label: armed ? 'Sure?' : 'Remove', active: armed, color: '#5a2f3a', onClick: () => this.kick(person.id) }, ui.right - 150, ui.y + 6, 150, 50, 21);
+      ui.y += 66;
+    }
+  }
+
+  adminSend(d, to) {
+    this.presence?.adminCh?.send(d, to);
+  }
+
+  /** Everything the admin has set, sent to everyone now and then (and to anyone who joins). */
+  broadcastAdmin(to) {
+    if (this.isAdmin) this.adminSend({ k: 'state', lock: this.admin.lock, lesson: this.adminLessonState?.() ?? null }, to);
+  }
+
+  onPeerJoinedAdmin(id) {
+    this.broadcastAdmin(id);
+    if (this.roomRefOut) this.presence.roomCh?.send(this.roomRefOut, id);
+  }
+
+  toggleStudentLock() {
+    this.admin.lock = !this.admin.lock;
+    this.broadcastAdmin();
     this.refresh();
+  }
+
+  /** Remove someone from the session (press twice). */
+  kick(id) {
+    const armed = this.kickArmed?.id === id && performance.now() - this.kickArmed.t < 3000;
+    if (!armed) {
+      this.kickArmed = { id, t: performance.now() };
+      setTimeout(() => this.refreshPlayerList(), 3100);
+      this.refreshPlayerList();
+      return;
+    }
+    this.kickArmed = null;
+    this.adminSend({ k: 'kick' }, id);
+  }
+
+  /** Messages from the admin (students only). */
+  onAdmin(d) {
+    if (d.k === 'state') {
+      const lock = !!d.lock;
+      if (lock !== this.lockedByAdmin) {
+        this.lockedByAdmin = lock;
+        this.state.locked = lock; // locked: the lab and its panels can't be moved
+        if (lock) this.state.placing = false;
+        this.refresh();
+      }
+      this.onAdminLesson?.(d.lesson);
+    } else if (d.k === 'kick') {
+      this.presence.leave();
+      this.explain({ title: 'You have left the session', text: 'Your teacher removed you from the shared session. Going back to the lessons…' });
+      const go = () => { location.href = this.lessonsURL(); };
+      setTimeout(() => {
+        const session = this.renderer.xr.getSession();
+        if (session) session.end().then(go, go);
+        else go();
+      }, 3500);
+    } else if (d.k === 'refind' && this.roomScan) {
+      this.roomScan.last = 0;
+      this.presence.clearRoom('waiting');
+    }
+  }
+
+  /** Every frame: the admin menu shows for the admin only; the admin re-sends its settings now and then. */
+  updateAdmin(dt) {
+    if (!this.adminPanel) return;
+    const show = this.isAdmin && !this.menusHidden;
+    if (show !== this.adminPanel.mesh.visible) {
+      this.adminPanel.mesh.visible = show;
+      if (show) this.adminPanel.redraw();
+    }
+    if (!this.isAdmin) return;
+    this.adminClock += dt;
+    if (this.adminClock > 3) {
+      this.adminClock = 0;
+      this.broadcastAdmin(); // in case a message was lost, or the admin changed
+      if (this.roomRefOut) this.presence.roomCh?.send(this.roomRefOut);
+    }
+  }
+
+  // ───────────── B (right controller): hide / show all menus ─────────────
+
+  updateMenuButton() {
+    if (!this.presenting || this.ownMenuToggle) return;
+    let pressed = false;
+    for (const src of this.renderer.xr.getSession()?.inputSources ?? []) {
+      if (src.handedness === 'right' && src.gamepad?.buttons[5]?.pressed) pressed = true;
+    }
+    if (pressed && !this.menuButtonDown) this.toggleMenus();
+    this.menuButtonDown = pressed;
+  }
+
+  toggleMenus() {
+    this.menusHidden = !this.menusHidden;
+    if (!this.menusHidden) {
+      for (const p of this.panels) {
+        if (p.mesh.userData.hiddenByMenu) p.mesh.visible = true;
+        p.mesh.userData.hiddenByMenu = false;
+      }
+      if (this.playersListPanel) this.playersListPanel.mesh.visible = this.playersOpen;
+      this.refresh();
+    }
+  }
+
+  /** While menus are hidden, keep every panel hidden (lessons may show some again when they refresh). */
+  hideMenus() {
+    if (!this.menusHidden) return;
+    for (const p of this.panels) {
+      if (!p.mesh.visible) continue;
+      p.mesh.visible = false;
+      p.mesh.userData.hiddenByMenu = true;
+    }
   }
 
   /** The 2D start screen: show the session code, or offer to start / join one. */
@@ -461,7 +602,7 @@ export class LessonApp {
     if (session) {
       url.searchParams.set('session', session.code);
       url.searchParams.delete('host'); // the shared link makes others join, not host
-      box.innerHTML = `<p><strong>Shared session <span class="code">${session.code}</span></strong> · ${session.sameRoom ? 'same room' : 'different rooms'}<br>Colleagues join from the lessons page with this code, or with this link.${session.sameRoom ? ' In the headset, everyone presses “Line up with the room” and touches the same two points.' : ''}</p>
+      box.innerHTML = `<p><strong>Shared session <span class="code">${session.code}</span></strong> · ${session.sameRoom ? 'same room' : 'different rooms'}<br>Colleagues join from the lessons page with this code, or with this link.${session.sameRoom ? ' Each headset lines itself up with the room automatically (it needs to have scanned the room once: Quest Settings › Physical space › Space Setup).' : ''}</p>
         <div class="buttons"><button class="secondary" id="copy-link">Copy link</button><button class="secondary" id="leave-session">Leave session</button></div>`;
       box.querySelector('#copy-link').onclick = (e) => {
         navigator.clipboard?.writeText(url.toString()).then(() => { e.target.textContent = 'Link copied'; }).catch(() => prompt('Copy this link:', url.toString()));
@@ -582,9 +723,9 @@ export class LessonApp {
     this.grid.visible = true;
     document.body.classList.remove('in-xr');
     this.onXREnd?.();
-    // Each new headset session has a new coordinate system, so the room line-up must be redone.
+    // Each new headset session has a new coordinate system: the room frame is found again from the scan.
     this.presence?.clearRoom();
-    this.calibrating = null;
+    this.roomScan = null;
     this.recenter();
     this.refresh();
   }
@@ -633,7 +774,9 @@ export class LessonApp {
       }
       this.updateHitTest(frame);
       this.onXRFrame?.(frame, this.renderer.xr.getReferenceSpace());
-      if (this.presence?.sameRoom) (this.roomWalls ??= new RoomWalls()).update(frame, this.renderer.xr.getReferenceSpace()); // for lining up
+      // same room: every headset lines itself up from its room scan (nothing to press)
+      if (this.presence?.sameRoom && (this.roomScan ??= new RoomScan()).update(frame, this.renderer.xr.getReferenceSpace())) this.updateRoomFrame();
+      this.updateMenuButton();
     } else {
       this.controls.update();
     }
@@ -647,7 +790,13 @@ export class LessonApp {
         this.sessionPanel.redraw();
         this.refreshPlayerList();
       }
+      if (this.presence.sameRoom && !this.presenting && this.presence.roomStatus !== 'screen') {
+        this.presence.clearRoom('screen');
+        this.onRoomFrame?.();
+      }
+      this.updateAdmin(dt);
     }
+    this.hideMenus();
     this.renderer.render(this.scene, this.camera);
   }
 }

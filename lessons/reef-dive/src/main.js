@@ -101,8 +101,20 @@ class App extends LessonApp {
     return pr.peers.get(pr.hostId)?.name ?? 'The host';
   }
 
-  /** Put the reef ring around you, on the floor, with its front outcrop straight ahead (host / solo). */
+  /**
+   * Where the reef goes. In a same-room session it is fixed in the room for everyone: in the middle of the
+   * room (or where the admin put it), in the shared room frame that every headset finds from its room scan.
+   * Otherwise (solo, on a screen, or before this headset has found the room) the ring is centred on you.
+   */
   placeOcean() {
+    const pr = this.presence;
+    if (pr?.sameRoom && pr.roomToWorld) {
+      const [x, z, yaw] = this.reefLocal ?? [0, 0, 0];
+      const local = new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(1, 1, 1));
+      pr.roomToWorld.clone().multiply(local).decompose(this.ocean.position, this.ocean.quaternion, new THREE.Vector3());
+      this.oceanPlaced = true;
+      return;
+    }
     const p = this.viewCamera().getWorldPosition(new THREE.Vector3());
     this.ocean.position.set(p.x, 0, p.z); // centred on you, on the floor (local-floor space: y = 0)
     this.ocean.rotation.set(0, this.lab.rotation.y, 0);
@@ -111,19 +123,67 @@ class App extends LessonApp {
 
   placeInFrontOfUser() {
     super.placeInFrontOfUser();
-    // the host places the shared reef; others get it from the host once lined up with the room
-    if (!this.oceanFromHost) this.placeOcean();
+    this.placeOcean();
   }
 
-  /** The host's reef, in the shared room frame (so lined-up headsets can put it in the same real place). */
-  oceanAnchor() {
+  /** The room frame was found (or moved): put the reef back in its place in the room. */
+  onRoomFrame() {
+    this.placeOcean();
+  }
+
+  // ───────────── admin ─────────────
+
+  /** The lesson's part of the Admin menu. */
+  adminLessonButtons() {
+    const sections = [{
+      heading: 'Activity for everyone',
+      buttons: [['dive', 'Identify'], ['lab', 'Reef lab']].map(([id, label]) => ({ id: `admin-mode-${id}`, label, active: this.state.mode === id, onClick: () => this.setMode(id) })),
+    }];
+    if (this.presence?.sameRoom) {
+      const centred = !this.reefLocal || this.reefLocal.every((v) => v === 0);
+      sections.push({
+        heading: 'Reef position',
+        text: this.presence.roomToWorld ? (centred ? 'In the middle of the room.' : 'Where you put it.') : 'Put on the headset to place the reef in the room.',
+        buttons: [
+          { id: 'reef-centre', label: 'Middle of room', active: centred, disabled: !this.presence.roomToWorld, onClick: () => this.moveReef(null) },
+          { id: 'reef-here', label: 'Put it here', disabled: !this.presence.roomToWorld, onClick: () => this.moveReef('here') },
+        ],
+      });
+    }
+    return sections;
+  }
+
+  /** Admin: move the reef to the middle of the room, or centre it on where you stand (facing your way). */
+  moveReef(where) {
     const pr = this.presence;
-    if (!pr?.worldToRoom) return null;
-    const m = pr.worldToRoom.clone().multiply(this.ocean.matrixWorld);
-    const p = new THREE.Vector3();
-    const q = new THREE.Quaternion();
-    m.decompose(p, q, new THREE.Vector3());
-    return [p.x, p.y, p.z, new THREE.Euler().setFromQuaternion(q, 'YXZ').y].map((v) => Math.round(v * 1000) / 1000);
+    if (!pr?.worldToRoom) return;
+    if (!where) this.reefLocal = [0, 0, 0];
+    else {
+      const cam = this.viewCamera();
+      const p = cam.getWorldPosition(new THREE.Vector3()).applyMatrix4(pr.worldToRoom);
+      const dir = cam.getWorldDirection(new THREE.Vector3()).transformDirection(pr.worldToRoom);
+      this.reefLocal = [p.x, p.z, Math.atan2(-dir.x, -dir.z)].map((v) => Math.round(v * 100) / 100);
+    }
+    this.placeOcean();
+    this.broadcastAdmin();
+    this.refresh();
+  }
+
+  adminLessonState() {
+    return { mode: this.state.mode, reef: this.reefLocal ?? [0, 0, 0] };
+  }
+
+  /** Students: follow the admin's activity and reef position. */
+  onAdminLesson(l) {
+    if (!l) return;
+    if (l.mode && l.mode !== this.state.mode) {
+      this.setMode(l.mode);
+      this.refresh();
+    }
+    if (l.reef && JSON.stringify(l.reef) !== JSON.stringify(this.reefLocal ?? [0, 0, 0])) {
+      this.reefLocal = l.reef;
+      this.placeOcean();
+    }
   }
 
   ecoMessage() {
@@ -142,14 +202,7 @@ class App extends LessonApp {
   onWorld(d) {
     if (this.isHost) return;
     if (d.k === 'sea') {
-      this.sea.apply(d.a);
-      const pr = this.presence;
-      if (d.anchor && pr.roomToWorld) {
-        const [x, y, z, yaw] = d.anchor;
-        const m = pr.roomToWorld.clone().multiply(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(1, 1, 1)));
-        m.decompose(this.ocean.position, this.ocean.quaternion, new THREE.Vector3());
-        this.oceanFromHost = true;
-      }
+      this.sea.apply(d.a); // creatures, relative to the reef (which sits in the same place in the room for everyone)
     } else if (d.k === 'eco') {
       this.eco.load(d.eco);
       this.running = d.running;
@@ -299,6 +352,7 @@ class App extends LessonApp {
 
   setMode(mode) {
     this.set({ mode, sort: null, result: null, bio: { qid: null, answer: null } });
+    if (this.isAdmin) this.broadcastAdmin(); // everyone follows the admin's activity
     const intro = {
       dive: ['Identify', 'Identify the reef’s organisms: every photo opens an ID card with its scientific name, group and role. Can you find all ' + ORDER.length + ' species?'],
       lab: ['Reef lab', this.canControl ? 'Change the conditions, ask everyone to predict, then run a year and watch the reef respond.' : `${this.hostName} controls the conditions. Predict what will happen to the coral, then watch.`],
@@ -371,7 +425,7 @@ class App extends LessonApp {
         this.sendClock = (this.sendClock ?? 0) + dt;
         if (this.sendClock > 0.1) {
           this.sendClock = 0;
-          this.presence.sendWorld({ k: 'sea', a: this.sea.serialize(), anchor: this.oceanAnchor() });
+          this.presence.sendWorld({ k: 'sea', a: this.sea.serialize() });
         }
       }
     } else {

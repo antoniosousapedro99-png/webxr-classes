@@ -9,7 +9,12 @@ const pct = (v) => `${Math.round(v * 100)}%`;
 export function drawControls(ui, app) {
   const s = app.state;
   ui.title('Reef Dive', { size: 42 });
-  ui.buttons(MODES.map(([id, label]) => ({ id: `mode-${id}`, label, active: s.mode === id, onClick: () => app.setMode(id) })), { height: 64, size: 25, gap: 10 });
+  if (app.presence && !app.isAdmin) {
+    // in a session the admin picks the activity for everyone
+    ui.text(`Activity: ${MODES.find(([id]) => id === s.mode)[1]}  ·  chosen by ${app.hostName === 'You' ? 'you' : app.hostName}`, { size: 24, weight: 700, color: THEME.accent });
+  } else {
+    ui.buttons(MODES.map(([id, label]) => ({ id: `mode-${id}`, label, active: s.mode === id, onClick: () => app.setMode(id) })), { height: 64, size: 25, gap: 10 });
+  }
   ui.gap(4);
   if (s.mode === 'dive') diveControls(ui, app);
   else labControls(ui, app);
@@ -25,7 +30,7 @@ function diveControls(ui, app) {
     : 'Click any creature to photograph it and open its ID card. Plankton clouds and the reef itself count too!', { size: 22, color: THEME.dim });
   ui.buttons([
     { id: 'names', label: s.names ? 'Names: on' : 'Names: off', active: s.names, onClick: () => app.toggleNames() },
-    { id: 'water', label: `Water: ${app.water.levelInfo.label.toLowerCase()}`, onClick: () => app.cycleWater() },
+    ...(app.lockedByAdmin ? [] : [{ id: 'water', label: `Water: ${app.water.levelInfo.label.toLowerCase()}`, onClick: () => app.cycleWater() }]),
   ], { height: 52, size: 22 });
 
   ui.heading('Sort it (classification key)');

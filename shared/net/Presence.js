@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { connect } from './transport.js';
 import { makeLabel } from '../ui/labels.js';
 import { makeAxolotl } from './axolotl.js';
-import { snapToWalls } from './RoomAlign.js';
 
 // Shared sessions: everyone keeps their own models, and sees everyone else working beside them.
 //
@@ -12,9 +11,8 @@ import { snapToWalls } from './RoomAlign.js';
 //    and a live copy of their work, built by the lesson from the state they share
 //    (lesson.netState / lesson.createReplica). Each viewer can switch avatars off (app.avatarsOn).
 //  • Everything is sent relative to the sender's own lab, so it lines up whatever room they're in.
-//  • Same-room sessions (?room=same): once everyone has "lined up with the room" (touched the same two
-//    real points, snapped to the room's walls when the headset has scanned the room — see RoomAlign.js),
-//    each desk and avatar appears where that person really is.
+//  • Same-room sessions (?room=same): every headset lines itself up with the room from its room scan
+//    (RoomAlign.js), so each desk and avatar appears where that person really is.
 
 const COLORS = [0x5b8cff, 0xff8a5c, 0x3ccf91, 0xffc94d, 0xb48cff, 0xff6b9a, 0x4cc9ff, 0xe0e070];
 const SEAT_GAP = 1.75; // metres between desks
@@ -32,6 +30,15 @@ export function myName() {
   } catch {
     return 'Guest';
   }
+}
+
+/** Two room frames within 1 cm and about half a degree: don't move anything. */
+function nearlySame(a, b) {
+  const pa = new THREE.Vector3().setFromMatrixPosition(a);
+  const pb = new THREE.Vector3().setFromMatrixPosition(b);
+  const xa = new THREE.Vector3(1, 0, 0).transformDirection(a);
+  const xb = new THREE.Vector3(1, 0, 0).transformDirection(b);
+  return pa.distanceTo(pb) < 0.01 && xa.dot(xb) > Math.cos(0.009);
 }
 
 const hashColor = (id) => COLORS[[...id].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7) % COLORS.length];
@@ -75,10 +82,24 @@ export class Presence {
     this.askCh.onMessage((d, id) => {
       if (this.isHost) this.app.onAsk?.(d, id);
     });
+    // The admin (whoever opened the session) runs the class: settings for everyone ('admin') and the
+    // room's fingerprint that every headset lines itself up with ('room'). Only the admin is listened to.
+    this.roomRef = null;
+    this.adminCh = t.channel('admin');
+    this.adminCh.onMessage((d, id) => {
+      if (id === this.hostId && !this.isHost) this.app.onAdmin?.(d);
+    });
+    this.roomCh = t.channel('room');
+    this.roomCh.onMessage((d, id) => {
+      if (id === this.hostId && !this.isHost) this.roomRef = d;
+    });
     t.onPeerJoin((id) => {
       this.ensure(id);
       this.helloCh.send({ name: this.name, host: this.host }, id);
-      if (this.isHost) setTimeout(() => this.app.onPeerJoinedWorld?.(id), 300);
+      if (this.isHost) setTimeout(() => {
+        this.app.onPeerJoinedWorld?.(id);
+        this.app.onPeerJoinedAdmin?.(id);
+      }, 300);
       this.sendState(true, id);
       this.app.refresh();
     });
@@ -110,41 +131,35 @@ export class Presence {
   // ───────────── people ─────────────
 
   get people() {
-    const mark = (lined) => (this.sameRoom ? (lined ? ' ✓' : ' …') : '');
     const hostId = this.hostId;
     return [
-      { name: `${this.name} (you)${mark(!!this.roomToWorld)}`, plain: this.name, you: true, host: hostId === this.selfId, lined: !!this.roomToWorld, align: this.alignMode, color: hashColor(this.selfId ?? 'me') },
-      ...[...this.peers.values()].map((p) => ({ name: `${p.name}${mark(!!p.pose?.lab)}`, plain: p.name, you: false, host: hostId === p.id, lined: !!p.pose?.lab, align: p.pose?.lab ? p.pose.align ?? 'touch' : null, color: p.color })),
+      { id: this.selfId, plain: this.name, name: `${this.name} (you)`, you: true, host: hostId === this.selfId, room: this.sameRoom ? this.roomStatus : null, color: hashColor(this.selfId ?? 'me') },
+      ...[...this.peers.values()].map((p) => ({ id: p.id, plain: p.name, name: p.name, you: false, host: hostId === p.id, room: this.sameRoom ? p.pose?.room ?? 'waiting' : null, color: p.color })),
     ];
   }
 
   /**
-   * Line up with the room from two real points touched in the same order on every headset.
-   * The shared "room frame" has its origin at A, x pointing (level) towards B, y straight up.
+   * Where the shared room frame is in this headset's world (see RoomAlign.js), or null.
+   * status: 'ok' | 'unsure' (couldn't tell which way round) | 'no-scan' (no room scan) | 'waiting'.
    */
-  setRoomPoints(a, b, room = null) {
-    const x = new THREE.Vector3(b.x - a.x, 0, b.z - a.z);
-    if (x.lengthSq() < 0.01) return false; // points too close together to give a direction
-    // with a room scan, snap to the real walls (precise); otherwise use the touches as they are
-    const walls = snapToWalls(a, b, room);
-    if (walls) {
-      this.roomToWorld = walls;
-      this.alignMode = 'walls';
-    } else {
-      x.normalize();
-      const y = new THREE.Vector3(0, 1, 0);
-      const z = new THREE.Vector3().crossVectors(x, y);
-      this.roomToWorld = new THREE.Matrix4().makeBasis(x, y, z).setPosition(a);
-      this.alignMode = 'touch';
+  setRoomFrame(matrix, status) {
+    this.roomStatus = status;
+    if (!matrix) {
+      this.clearRoom(status);
+      return false;
     }
-    this.worldToRoom = this.roomToWorld.clone().invert();
-    return true;
+    const changed = !this.roomToWorld || !nearlySame(this.roomToWorld, matrix);
+    if (changed) {
+      this.roomToWorld = matrix.clone();
+      this.worldToRoom = matrix.clone().invert();
+    }
+    return changed;
   }
 
-  clearRoom() {
+  clearRoom(status = 'waiting') {
     this.roomToWorld = null;
-    this.alignMode = null;
     this.worldToRoom = null;
+    this.roomStatus = status;
   }
 
   /** Is this colleague shown at their real place in the room? */
@@ -244,7 +259,7 @@ export class Presence {
       m.decompose(p, r, new THREE.Vector3());
       lab = [...p.toArray(), new THREE.Euler().setFromQuaternion(r, 'YXZ').y].map(q3);
     }
-    return { h: [...pos.toArray(), q.x, q.y, q.z, q.w].map(q3), hands, held: app.netHolding ?? null, lab, align: lab ? this.alignMode : null, xr: !!app.presenting };
+    return { h: [...pos.toArray(), q.x, q.y, q.z, q.w].map(q3), hands, held: app.netHolding ?? null, lab, room: this.sameRoom ? this.roomStatus ?? 'waiting' : null, xr: !!app.presenting };
   }
 
   /** Who runs the shared world: whoever started the session, or (if they left) the first by id. */

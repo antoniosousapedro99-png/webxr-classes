@@ -33,6 +33,7 @@ class App extends LessonApp {
     this.controls.dispose();
     this.controls = { enabled: true, target: new THREE.Vector3(), update() {} };
     this.keys = new Set();
+    this.ownMenuToggle = true; // B / Y hide the panels here (see updateXR), not the shared B handler
     this.exhibits = new THREE.Group();
     this.scene.add(this.exhibits);
     this.buildExhibits();

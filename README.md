@@ -23,11 +23,21 @@ Every lesson can be opened **solo** or in a **shared session**:
 
 Each person has **their own models**. Everyone else appears beside you at their own desk as a little **axolotl** floating where their eyes are, facing where they look, with a ring in their colour and their name above it, plus a live copy of their work. You can see their PC being built part by part, their atom or molecule, or their cell with its knock-outs, and whatever part or organelle is in their hand. Desks sit side by side in the same order for everyone, so if you see someone on your right, they see you on their left. Avatars are on by default; switch them off in the Players panel if you would rather just see the real people.
 
-**Same room:** tick **"We're in the same room"** when starting or joining a session. In the headset, everyone presses **Line up with the room** on the small session panel under the controls. Then each person touches the same two real points in the same order (index fingertip, then pinch; or the controller's front edge and the trigger). Pick points far apart, e.g. two corners of the room or the ends of a long table. Once you are lined up, each person's work and avatar appear where they really are.
+**Same room:** tick **"We're in the same room"** when starting or joining a session (Reef Dive ticks it for you). Everyone then sees the same things in the same real places, with **nothing to press**:
 
-- **Snapping to the walls (recommended):** if a headset has scanned the room (Quest settings › Physical space › Space Setup), lining up snaps to the real walls: the direction matches the walls exactly and the origin moves to the wall corner behind point A, on the floor. Every headset picks the same corner, so they agree to about a centimetre (≈3 cm at worst in a simulation with realistic scan noise), and the touches only have to be roughly right. Without a scan, the touches are used as they are, which is off by up to about 25 cm a few metres away.
-- The Players list shows "lined up (walls)" or "lined up (touch)" for each person, and warns if people lined up in different ways (they won't match). For the best result, do Space Setup for the room on every headset.
-- If a headset recentres (long press on the Meta button) or loses tracking, it asks that person to line up again. Line up again after restarting the headset session too.
+- **Before class, once per headset:** scan the classroom with Quest **Settings › Physical space › Space Setup** (about 2 minutes; mark the walls, door, windows and tables). If the browser asks to use spatial data, allow it.
+- In the lesson, each headset finds the room by itself from its scan (`shared/net/RoomAlign.js`): the room's walls give the directions, and the middle of the room, on the floor, is the shared origin. Which way round is settled by the door, windows, tables and other fittings, which every headset matches against the admin's headset. It checks again every second, so a headset that recentres or loses tracking puts itself right. In a simulation with realistic scan noise, headsets agreed to within about 5 cm and never got the room the wrong way round.
+- The session panel and the Players list show each headset's room status: **in place ✓**, **needs Space Setup**, or **unsure which way round** (a very symmetric room with nothing in it to tell the ends apart: add the door and some furniture in Space Setup).
+
+**Admin:** whoever starts the session (usually the teacher) is the admin and gets an **Admin** menu to the left of the controls:
+
+- **Activity for everyone** (lesson-specific; in Reef Dive: Identify / Reef lab). Students see which activity is on, and can't switch it.
+- **Reef position** (Reef Dive, same room): in the middle of the room (default) or **Put it here** (centred where the admin stands). It stays fixed in the room for everyone.
+- **Students:** **Menus: locked** hides students' settings (moving the panels, placing, seated mode, water level, leaving with ← Lessons; only Voice stays). **Re-find room (all)** makes every headset read its room scan again. Each student is listed with their room status and a **Remove** button (press twice) that takes them out of the session.
+
+If the admin leaves, the next person in the session takes over.
+
+**Hiding the menus:** press **B** on the right controller to hide or show all the panels (anyone, any lesson).
 
 **How it connects:** peer-to-peer (WebRTC) using [Trystero](https://github.com/dmotz/trystero), bundled in `shared/vendor/`. Public Nostr relays are only used to introduce the devices; after that, lesson data goes directly between them. No server is needed, so it works on GitHub Pages.
 
@@ -155,7 +165,7 @@ Also included:
 
 The classroom becomes the sea floor. Through passthrough, the water fades the real room into teal-to-navy depths (the **Water** button in the Dive panel sets it to light, medium or deep for each person; the animals are drawn in front of it, so they stay vivid). A sandy sea bed covers the real floor. Sunlight shimmers on the surface overhead, light rays and sun shafts slant down, light ripples across the sand, soft marine snow and glowing plankton drift past, bubbles rise from your hands, and far-off animals fade into blue haze, all with muffled ocean sound. You stand in a sandy clearing with seagrass meadows, ringed by a coral reef: ten coral-covered outcrops about 2.4–2.8 m away, with narrow gaps between them. Nineteen species live there at **real size**, including a 1.6 m reef shark, a 3 m great hammerhead, a young giant manta ray (3 m across), a turtle, barracuda, a parrotfish school, clownfish in their anemone, cleaner wrasse, jellyfish, an octopus, crabs, urchins and sea cucumbers. Crabs and sea cucumbers live on the sand of the clearing, jellyfish drift overhead, parrotfish graze their way round the reef, and the shark, barracudas and turtle cruise outside the ring in the blue. Animals steer around people and never swim through the reef.
 
-**One shared ocean.** In a same-room session (pre-selected for this lesson), the person who started the session (usually the teacher) runs the reef and streams it to everyone. All headsets see the same animals in the same real places. Because the water hides the real room, classmates appear as their **axolotl** avatars, floating where they really are once everyone has lined up with the room.
+**One shared ocean.** In a same-room session (pre-selected for this lesson), the person who started the session (usually the teacher) is the admin: they run the reef and stream it to everyone, pick the activity for the whole class and can place the reef. The reef sits in the middle of the classroom (or where the admin put it), and every headset finds it there by itself from its room scan, so all headsets see the same animals in the same real places. Because the water hides the real room, classmates appear as their **axolotl** avatars, floating where they really are.
 
 ### Lesson objectives → activities
 
@@ -219,7 +229,7 @@ index.html                         landing page listing the lessons
 shared/                            used by every lesson
   LessonApp.js                     three.js + WebXR setup, lab + panels, placement, render loop
   net/                             shared sessions: transport (P2P / same-device), presence (avatars, desks, copies),
-                                   axolotl avatar, RoomAlign (lining up same-room headsets with the walls), config
+                                   axolotl avatar, RoomAlign (each headset finds the shared room frame from its room scan), config
   models/                          shared 3D models (the axolotl avatar) and their credits
   vendor/                          Trystero (MIT) bundled as one file
   ui/                              canvas panels, labels, mouse/touch/controller/hand input
