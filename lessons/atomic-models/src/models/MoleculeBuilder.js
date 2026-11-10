@@ -278,7 +278,6 @@ export class MoleculeBuilder {
   }
 
   holdSingle(atom) {
-    this.app.netHolding = { label: bySymbol(atom.sym).name, sym: atom.sym }; // colleagues see it in your hand
     this.single.add(atom);
     this.held.add(atom);
     const tray = this.app.tray;
@@ -315,7 +314,6 @@ export class MoleculeBuilder {
         tray.highlightBin(tray.binContains(world));
       },
       release: (world) => {
-        this.app.netHolding = null;
         this.single.delete(atom);
         this.held.delete(atom);
         tray.highlightBin(false);
@@ -348,7 +346,6 @@ export class MoleculeBuilder {
   }
 
   holdGroup(atoms, startWorld) {
-    this.app.netHolding = { label: formulaOf(atoms.reduce((c, a) => ({ ...c, [a.sym]: (c[a.sym] || 0) + 1 }), {})) };
     atoms.forEach((a) => this.held.add(a));
     const start = this.content.worldToLocal(startWorld.clone());
     const starts = atoms.map((a) => a.pos.clone());
@@ -360,7 +357,6 @@ export class MoleculeBuilder {
         tray.highlightBin(tray.binContains(world));
       },
       release: (world) => {
-        this.app.netHolding = null;
         atoms.forEach((a) => this.held.delete(a));
         tray.highlightBin(false);
         if (tray.binContains(world) && !this.rules.bin) {

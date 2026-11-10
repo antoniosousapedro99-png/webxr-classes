@@ -1,18 +1,16 @@
 import * as THREE from 'three';
 import { connect } from './transport.js';
-import { makeLabel } from '../ui/labels.js';
-import { makeAxolotl } from './axolotl.js';
 
 // Shared sessions: everyone keeps their own models, and sees everyone else working beside them.
 //
 //  • Each person's lab is a "desk". Other people's desks appear side by side next to yours
 //    (if you see someone on your right, they see you on their left).
-//  • On each desk you see that person's avatar (a little axolotl where their eyes are, with their name)
-//    and a live copy of their work, built by the lesson from the state they share
-//    (lesson.netState / lesson.createReplica). Each viewer can switch avatars off (app.avatarsOn).
+//  • On each desk you see a live copy of that person's work, built by the lesson from the state they
+//    share (lesson.netState / lesson.createReplica). There are no avatars: in mixed reality you see the
+//    real people.
 //  • Everything is sent relative to the sender's own lab, so it lines up whatever room they're in.
 //  • Same-room sessions (?room=same): every headset lines itself up with the room from its room scan
-//    (RoomAlign.js), so each desk and avatar appears where that person really is.
+//    (RoomAlign.js), so each desk appears where that person really is.
 
 const COLORS = [0x5b8cff, 0xff8a5c, 0x3ccf91, 0xffc94d, 0xb48cff, 0xff6b9a, 0x4cc9ff, 0xe0e070];
 const SEAT_GAP = 1.75; // metres between desks
@@ -108,10 +106,6 @@ export class Presence {
       const p = this.ensure(id);
       p.host = !!d.host;
       p.name = String(d.name ?? 'Guest').slice(0, 24);
-      p.tag.removeFromParent();
-      p.tag.userData.dispose?.();
-      p.tag = this.nameTag(p.name, p.color);
-      p.avatar.add(p.tag);
       this.app.refresh();
     });
     this.poseCh.onMessage((d, id) => {
@@ -167,33 +161,12 @@ export class Presence {
     return this.sameRoom && !!this.roomToWorld && !!p.pose?.lab;
   }
 
-  nameTag(name, color) {
-    const tag = makeLabel(name, { height: 0.045, size: 44, color: `#${color.toString(16).padStart(6, '0')}` });
-    tag.userData.isTag = true;
-    return tag;
-  }
-
   ensure(id) {
     if (this.peers.has(id)) return this.peers.get(id);
     const color = hashColor(id);
     const root = new THREE.Group(); // their desk, placed beside yours
     this.app.lab.add(root);
-    const avatar = new THREE.Group();
-    avatar.visible = false; // until we know where they are
-    root.add(avatar);
-    // The avatar is an axolotl where their eyes are. `head` and `hands` are invisible anchors that follow
-    // their head and hands, so whatever they hold can be shown in their hand.
-    const head = new THREE.Group();
-    const axolotl = makeAxolotl(color);
-    const hands = [0, 1].map(() => {
-      const h = new THREE.Group();
-      h.visible = false;
-      return h;
-    });
-    avatar.add(head, axolotl, ...hands);
-    const p = { id, name: 'Guest', color, root, avatar, head, axolotl, hands, tag: null, pose: null, held: [null, null], heldKey: ['', ''] };
-    p.tag = this.nameTag(p.name, color);
-    avatar.add(p.tag);
+    const p = { id, name: 'Guest', color, root, pose: null };
     p.replica = this.app.createReplica?.() ?? null;
     if (p.replica) root.add(p.replica.group);
     this.peers.set(id, p);
@@ -239,17 +212,7 @@ export class Presence {
   myPose() {
     const app = this.app;
     const cam = app.viewCamera();
-    const pos = app.lab.worldToLocal(cam.getWorldPosition(new THREE.Vector3()));
-    const q = app.lab.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(cam.getWorldQuaternion(new THREE.Quaternion()));
-    const hands = [null, null];
-    if (app.presenting) {
-      for (const c of app.interaction.controllers) {
-        const src = c.userData.inputSource;
-        if (c.userData.mode !== 'tracked-pointer' || !src) continue;
-        const i = src.handedness === 'left' ? 0 : 1;
-        hands[i] = app.lab.worldToLocal(app.interaction.sourcePoint(c)).toArray().map(q3);
-      }
-    }
+    const pos = app.lab.worldToLocal(cam.getWorldPosition(new THREE.Vector3())); // where they are (e.g. so animals steer round them)
     // Same room: where my lab really is, in the shared room frame (so others can put my desk there).
     let lab = null;
     if (this.sameRoom && this.worldToRoom) {
@@ -259,7 +222,7 @@ export class Presence {
       m.decompose(p, r, new THREE.Vector3());
       lab = [...p.toArray(), new THREE.Euler().setFromQuaternion(r, 'YXZ').y].map(q3);
     }
-    return { h: [...pos.toArray(), q.x, q.y, q.z, q.w].map(q3), hands, held: app.netHolding ?? null, lab, room: this.sameRoom ? this.roomStatus ?? 'waiting' : null, xr: !!app.presenting };
+    return { h: pos.toArray().map(q3), lab, room: this.sameRoom ? this.roomStatus ?? 'waiting' : null };
   }
 
   /** Who runs the shared world: whoever started the session, or (if they left) the first by id. */
@@ -310,13 +273,10 @@ export class Presence {
         if (this.sinceFull > 4) this.sinceFull = 0;
       }
     }
-    const k = Math.min(1, dt * 12);
     for (const p of this.peers.values()) {
       p.replica?.update?.(dt);
-      const pose = p.pose;
-      if (!pose) continue;
-      p.avatar.visible = true;
-      // Same room and lined up: their desk goes where it really is, and their body is the real one.
+      if (!p.pose) continue;
+      // Same room and lined up: their desk goes where it really is.
       const real = this.aligned(p);
       if (real) this.placeAtRealDesk(p);
       else if (p.seat && p.wasReal) {
@@ -324,51 +284,13 @@ export class Presence {
         p.root.rotation.set(0, p.seat.yaw, 0);
       }
       p.wasReal = real;
-      // the axolotl: shown unless this viewer switched avatars off
-      const [x, y, z, qx, qy, qz, qw] = pose.h;
-      p.head.position.lerp(new THREE.Vector3(x, y, z), k);
-      p.head.quaternion.slerp(new THREE.Quaternion(qx, qy, qz, qw), k);
-      const yaw = new THREE.Euler().setFromQuaternion(p.head.quaternion, 'YXZ').y;
-      p.axolotl.visible = this.app.avatarsOn !== false;
-      if (p.axolotl.visible) {
-        p.bob = (p.bob ?? Math.random() * 6) + dt; // a gentle float
-        p.axolotl.position.copy(p.head.position);
-        p.axolotl.position.y += Math.sin(p.bob * 1.6) * 0.02;
-        p.axolotl.rotation.set(0, yaw, Math.sin(p.bob * 1.1) * 0.05);
-      }
-      p.tag.position.set(p.head.position.x, p.head.position.y + 0.2, p.head.position.z);
-      pose.hands.forEach((h, i) => {
-        const hand = p.hands[i];
-        hand.visible = !!h;
-        if (h) hand.position.lerp(new THREE.Vector3(...h), hand.visible ? k : 1);
-      });
-      // what they're holding, shown in the hand that holds it (or by their head on a screen)
-      const key = pose.held ? JSON.stringify(pose.held) : '';
-      const hi = pose.hands[1] ? 1 : pose.hands[0] ? 0 : -1;
-      if (key !== p.heldKey[0]) {
-        p.heldKey[0] = key;
-        p.held[0]?.removeFromParent();
-        p.held[0] = key ? this.heldObject(p, pose.held) : null;
-      }
-      if (p.held[0]) {
-        const anchor = hi >= 0 ? p.hands[hi] : p.head;
-        if (p.held[0].parent !== anchor) anchor.add(p.held[0]);
-        p.held[0].position.set(0, hi >= 0 ? 0 : -0.25, hi >= 0 ? 0 : -0.3);
-      }
     }
   }
 
-  heldObject(p, held) {
-    const custom = p.replica?.heldObject?.(held);
-    const g = new THREE.Group();
-    if (custom) g.add(custom);
-    else g.add(new THREE.Mesh(new THREE.SphereGeometry(0.02, 12, 8), new THREE.MeshBasicMaterial({ color: p.color, toneMapped: false })));
-    if (held.label) {
-      const tag = makeLabel(held.label, { height: 0.026, size: 40 });
-      tag.position.y = 0.07;
-      g.add(tag);
-    }
-    return g;
+  /** Where a colleague's head is, in world space (or null). */
+  headOf(p) {
+    if (!p.pose?.h) return null;
+    return p.root.localToWorld(new THREE.Vector3(p.pose.h[0], p.pose.h[1], p.pose.h[2]));
   }
 
   leave() {

@@ -25,6 +25,15 @@ export const WATER_LEVELS = [
 ];
 
 /** Normal "over" blending that also keeps alpha correct for passthrough compositing. */
+/** Repeatable random numbers (the same on every headset, so everyone sees the same water). */
+function rng(seed) {
+  let x = seed % 2147483647 || 1;
+  return () => {
+    x = (x * 16807) % 2147483647;
+    return (x - 1) / 2147483646;
+  };
+}
+
 function overBlend(mat) {
   return Object.assign(mat, {
     blending: THREE.CustomBlending,
@@ -89,10 +98,11 @@ export function softPoints({ color, size = 0.006, opacity = 0.7, glow = false, t
 export function pointAttributes(geo, n, minSize, maxSize) {
   const size = new Float32Array(n);
   const seed = new Float32Array(n);
+  const random = rng(n * 31 + Math.round(maxSize * 1e5));
   for (let i = 0; i < n; i++) {
-    const r = Math.random();
+    const r = random();
     size[i] = minSize + (maxSize - minSize) * r * r * r; // mostly small, a few big
-    seed[i] = Math.random();
+    seed[i] = random();
   }
   geo.setAttribute('size', new THREE.BufferAttribute(size, 1));
   geo.setAttribute('seed', new THREE.BufferAttribute(seed, 1));
@@ -167,6 +177,11 @@ export class Water {
   }
 
   /** Cycle light → medium → deep (each person's own view). */
+  /** Set the water level (in a shared session the admin sets it for everyone). */
+  setLevel(i) {
+    if (WATER_LEVELS[i]) this.level = i;
+  }
+
   cycleLevel() {
     this.level = (this.level + 1) % WATER_LEVELS.length;
     try { localStorage.setItem('reef-dive-water', String(this.level)); } catch { /* storage blocked */ }
@@ -202,14 +217,15 @@ export class Water {
     g.fillRect(0, 0, 64, 256);
     const tex = new THREE.CanvasTexture(c);
     this.shafts = [];
+    const random = rng(97);
     for (let i = 0; i < 9; i++) {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(0.35 + Math.random() * 0.45, 3.4),
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(0.35 + random() * 0.45, 3.4),
         addBlend(new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.4, side: THREE.DoubleSide, fog: false })));
-      const a = (i / 9) * Math.PI * 2 + Math.random();
-      const r = 0.8 + Math.random() * 2.8;
+      const a = (i / 9) * Math.PI * 2 + random();
+      const r = 0.8 + random() * 2.8;
       m.position.set(Math.cos(a) * r, 1.7, Math.sin(a) * r);
       m.rotation.z = 0.22;
-      m.userData.phase = Math.random() * 10;
+      m.userData.phase = random() * 10;
       this.root.add(m);
       this.shafts.push(m);
     }
@@ -249,26 +265,31 @@ export class Water {
 
   makeSnow() {
     // Marine snow: soft flakes of many sizes drifting slowly down, in a 5 m box that follows you.
+    // The flakes live in the reef's frame and move with the shared clock (see update), so everyone in a
+    // session sees the same flakes in the same places.
     const n = 1600;
     const pos = new Float32Array(n * 3);
-    for (let i = 0; i < n * 3; i++) pos[i] = (Math.random() - 0.5) * 5;
+    const random = rng(1601);
+    for (let i = 0; i < n * 3; i++) pos[i] = (random() - 0.5) * 5;
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     pointAttributes(geo, n, 0.0025, 0.014);
     this.snow = new THREE.Points(geo, softPoints({ color: 0xe6f6ff, opacity: 0.6, twinkle: 0.35 }));
     this.snow.frustumCulled = false;
     this.snow.renderOrder = 6;
-    this.app.scene.add(this.snow);
+    this.snowBase = pos.slice();
+    this.root.add(this.snow);
     // a few bright motes catching the light
     const m = 160;
     const pos2 = new Float32Array(m * 3);
-    for (let i = 0; i < m * 3; i++) pos2[i] = (Math.random() - 0.5) * 5;
+    for (let i = 0; i < m * 3; i++) pos2[i] = (random() - 0.5) * 5;
     const geo2 = new THREE.BufferGeometry();
     geo2.setAttribute('position', new THREE.BufferAttribute(pos2, 3));
     pointAttributes(geo2, m, 0.003, 0.008);
     this.motes = new THREE.Points(geo2, softPoints({ color: 0xbff4ff, opacity: 0.9, glow: true, twinkle: 0.9 }));
     this.motes.frustumCulled = false;
-    this.app.scene.add(this.motes);
+    this.motesBase = pos2.slice();
+    this.root.add(this.motes);
   }
 
   makeBubbles() {
@@ -331,15 +352,17 @@ export class Water {
     const h = (xr.isPresenting && xr.getBaseLayer?.()?.framebufferHeight) || this.app.renderer.domElement.height;
     POINT_SCALE.value = h * 0.5;
 
-    // marine snow drifts slowly down and sideways, and wraps around you
-    const wrap = (v, c) => (v - c > 2.5 ? v - 5 : v - c < -2.5 ? v + 5 : v);
-    for (const [pts, fall, sway] of [[this.snow, 0.018, 0.0007], [this.motes, 0.006, 0.0012]]) {
+    // marine snow drifts slowly down and sideways (worked out from the shared clock, in the reef's frame),
+    // and the 5 m box of flakes repeats so there are always flakes around you
+    const wrap = (v, c) => c + ((((v - c + 2.5) % 5) + 5) % 5) - 2.5;
+    const me = this.root.worldToLocal(cam.clone());
+    for (const [pts, base, fall, sway] of [[this.snow, this.snowBase, 0.018, 0.04], [this.motes, this.motesBase, 0.006, 0.07]]) {
       const p = pts.geometry.attributes.position;
       for (let i = 0; i < p.count; i++) {
-        const x = p.getX(i) + Math.sin(t * 0.3 + i) * sway;
-        const y = p.getY(i) - dt * fall * (0.6 + (i % 7) / 7);
-        const z = p.getZ(i) + Math.cos(t * 0.25 + i * 1.7) * sway;
-        p.setXYZ(i, wrap(x, cam.x), wrap(y, cam.y), wrap(z, cam.z));
+        const x = base[i * 3] + Math.sin(t * 0.3 + i) * sway;
+        const y = base[i * 3 + 1] - t * fall * (0.6 + (i % 7) / 7);
+        const z = base[i * 3 + 2] + Math.cos(t * 0.25 + i * 1.7) * sway;
+        p.setXYZ(i, wrap(x, me.x), wrap(y, me.y), wrap(z, me.z));
       }
       p.needsUpdate = true;
       pts.material.uniforms.uTime.value = t;

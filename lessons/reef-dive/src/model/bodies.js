@@ -693,7 +693,7 @@ const MOTION = {
 };
 
 /** A model for a species: a .glb from the manifest if there is one, otherwise the built-in shape. */
-export function makeBody(id, overrides, length) {
+export function makeBody(id, overrides, length, seed = Math.random()) {
   const o = overrides?.[id];
   if (!o || !o.scene) return BUILDERS[id]();
   const g = new THREE.Group();
@@ -705,17 +705,17 @@ export function makeBody(id, overrides, length) {
   m.position.set(-c.x * s, -(o.floor ? o.box.min.y : c.y) * s, -c.z * s);
   g.add(m);
 
-  // its own animation (e.g. the jellyfish's pulse), played at a random point so a group doesn't move in step
+  // its own animation (e.g. the jellyfish's pulse), started at a point set by the animal's id (so a group doesn't move in step, yet everyone sees the same)
   let mixer = null;
   const clip = o.animation && animationClip(o);
   if (clip) {
     mixer = new THREE.AnimationMixer(m);
     const action = mixer.clipAction(clip).play();
-    action.time = Math.random() * clip.duration;
+    action.time = seed * clip.duration;
     m.traverse((x) => { if (x.isSkinnedMesh) x.frustumCulled = false; }); // its bounds move with the bones
   }
   // otherwise a shader motion (fish tail beat, flippers, arms, legs, crawl)
-  const phase = { value: Math.random() * 10 };
+  const phase = { value: seed * 10 };
   const code = !clip && MOTION[o.motion];
   if (code) {
     m.updateMatrixWorld(true);

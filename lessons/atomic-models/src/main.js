@@ -341,13 +341,6 @@ class App extends LessonApp {
         }
       },
       update: (dt) => atom.animate(dt),
-      heldObject(held) {
-        const color = held.sym ? bySymbol(held.sym)?.color : { proton: 0xe5484d, neutron: 0x9aa4b5, electron: 0x4cc9ff }[held.kind];
-        if (color == null) return null;
-        const m = new THREE.Mesh(sphere, new THREE.MeshStandardMaterial({ color }));
-        m.scale.setScalar(held.sym === 'H' ? 0.022 : held.kind ? 0.016 : 0.032);
-        return m;
-      },
     };
   }
 

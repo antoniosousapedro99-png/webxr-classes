@@ -30,7 +30,7 @@ function diveControls(ui, app) {
     : 'Click any creature to photograph it and open its ID card. Plankton clouds and the reef itself count too!', { size: 22, color: THEME.dim });
   ui.buttons([
     { id: 'names', label: s.names ? 'Names: on' : 'Names: off', active: s.names, onClick: () => app.toggleNames() },
-    ...(app.lockedByAdmin ? [] : [{ id: 'water', label: `Water: ${app.water.levelInfo.label.toLowerCase()}`, onClick: () => app.cycleWater() }]),
+    ...(app.presence && !app.isAdmin ? [] : [{ id: 'water', label: `Water: ${app.water.levelInfo.label.toLowerCase()}`, onClick: () => app.cycleWater() }]),
   ], { height: 52, size: 22 });
 
   ui.heading('Sort it (classification key)');

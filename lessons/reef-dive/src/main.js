@@ -170,7 +170,7 @@ class App extends LessonApp {
   }
 
   adminLessonState() {
-    return { mode: this.state.mode, reef: this.reefLocal ?? [0, 0, 0] };
+    return { mode: this.state.mode, reef: this.reefLocal ?? [0, 0, 0], water: this.water.level };
   }
 
   /** Students: follow the admin's activity and reef position. */
@@ -178,6 +178,10 @@ class App extends LessonApp {
     if (!l) return;
     if (l.mode && l.mode !== this.state.mode) {
       this.setMode(l.mode);
+      this.refresh();
+    }
+    if (l.water != null && l.water !== this.water.level) {
+      this.water.setLevel(l.water);
       this.refresh();
     }
     if (l.reef && JSON.stringify(l.reef) !== JSON.stringify(this.reefLocal ?? [0, 0, 0])) {
@@ -203,6 +207,7 @@ class App extends LessonApp {
     if (this.isHost) return;
     if (d.k === 'sea') {
       this.sea.apply(d.a); // creatures, relative to the reef (which sits in the same place in the room for everyone)
+      if (d.t) this.followClock(d.t);
     } else if (d.k === 'eco') {
       this.eco.load(d.eco);
       this.running = d.running;
@@ -362,7 +367,9 @@ class App extends LessonApp {
 
   /** How strongly the water tints the real room (your own view only). */
   cycleWater() {
+    if (this.presence && !this.isAdmin) return; // in a session the admin sets the water for everyone
     const lv = this.water.cycleLevel();
+    if (this.isAdmin) this.broadcastAdmin();
     sound.click();
     this.explain({ title: `Water: ${lv.label.toLowerCase()}`, text: { light: 'Clear, shallow water: you can see the room well.', medium: 'Open water: the room fades into the blue.', deep: 'Deeper water: the room is only just visible, so the reef stands out.' }[lv.id] });
   }
@@ -415,6 +422,20 @@ class App extends LessonApp {
     this.sound.start();
   }
 
+  // ───────────── one clock for everyone ─────────────
+
+  /** The host's animation clocks (water, light and sea, reef sway). */
+  clockNow() {
+    return [this.water.time, this.sea.time, this.reef.time].map((v) => Math.round(v * 100) / 100);
+  }
+
+  /** Students: keep the animation clocks on the host's (only jump if they drift). */
+  followClock([water, sea, reef]) {
+    if (Math.abs(this.water.time - water) > 0.25) this.water.time = water;
+    if (Math.abs(this.sea.time - sea) > 0.25) this.sea.time = sea;
+    if (Math.abs(this.reef.time - reef) > 0.25) this.reef.time = reef;
+  }
+
   // ───────────── every frame ─────────────
 
   update(dt) {
@@ -425,7 +446,14 @@ class App extends LessonApp {
         this.sendClock = (this.sendClock ?? 0) + dt;
         if (this.sendClock > 0.1) {
           this.sendClock = 0;
-          this.presence.sendWorld({ k: 'sea', a: this.sea.serialize() });
+          // the animals, plus the clock that drives the water, light and swaying reef (so everyone sees the same)
+          this.presence.sendWorld({ k: 'sea', a: this.sea.serialize(), t: this.clockNow() });
+        }
+        // the reef's state again now and then, in case a message was lost
+        this.ecoClock = (this.ecoClock ?? 0) + dt;
+        if (this.ecoClock > 3) {
+          this.ecoClock = 0;
+          this.broadcastEco();
         }
       }
     } else {
@@ -515,7 +543,8 @@ class App extends LessonApp {
   headsInOcean() {
     const heads = [this.ocean.worldToLocal(this.viewCamera().getWorldPosition(new THREE.Vector3()))];
     for (const p of this.presence?.peers.values() ?? []) {
-      if (p.pose) heads.push(this.ocean.worldToLocal(p.head.getWorldPosition(new THREE.Vector3())));
+      const head = this.presence.headOf(p);
+      if (head) heads.push(this.ocean.worldToLocal(head));
     }
     return heads;
   }

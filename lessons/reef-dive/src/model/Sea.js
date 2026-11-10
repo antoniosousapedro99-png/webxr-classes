@@ -15,6 +15,11 @@ const margin = (sp) => (sp === 'wrasse' || sp === 'crab' || sp === 'cucumber' ? 
 // (the 3 m hammerhead and manta swim along the outside of the ring, so their sideways clearance is what matters)
 
 const rand = (a, b) => a + Math.random() * (b - a);
+/** A number in [0, 1) from an animal's id: identical on every headset. */
+const idSeed = (id) => {
+  const x = Math.sin(id * 127.1 + 311.7) * 43758.5453;
+  return x - Math.floor(x);
+};
 const ring = (r0, r1, y0, y1) => {
   const a = Math.random() * Math.PI * 2;
   const r = rand(r0, r1);
@@ -36,11 +41,12 @@ export class Sea {
   // ───────────── creating / removing animals ─────────────
 
   spawn(sp, id = this.nextId++, pos = null) {
-    const body = makeBody(sp, this.overrides, SPECIES[sp].length);
+    const seed = idSeed(id); // the same on every headset, so the same animal moves the same way for everyone
+    const body = makeBody(sp, this.overrides, SPECIES[sp].length, seed);
     body.traverse((o) => {
       if (o.isMesh || o.isInstancedMesh) Object.assign(o.userData, { handler: this.handler, species: sp, tapOnly: true });
     });
-    const a = { id, sp, body, pos: pos ?? this.startPos(sp), vel: new THREE.Vector3(), target: null, yaw: Math.random() * 6, phase: Math.random() * 10, net: null };
+    const a = { id, sp, body, pos: pos ?? this.startPos(sp), vel: new THREE.Vector3(), target: null, yaw: seed * 6, phase: seed * 10, net: null };
     a.target = this.newTarget(a);
     body.position.copy(a.pos);
     this.root.add(body);
@@ -204,6 +210,11 @@ export class Sea {
     for (const [id, si, x, y, z, yaw] of list) {
       seen.add(id);
       let a = this.agents.get(id);
+      if (a && a.sp !== ORDER[si]) {
+        // this headset made its own animals before it connected: an id the host uses for another species
+        this.despawn(id);
+        a = null;
+      }
       if (!a) a = this.spawn(ORDER[si], id, new THREE.Vector3(x, y, z));
       a.net = { pos: new THREE.Vector3(x, y, z), yaw };
     }

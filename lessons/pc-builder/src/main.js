@@ -5,7 +5,6 @@ import { sound } from '../../../shared/util/sound.js';
 import { CASES } from './data/parts.js';
 import { emptyBuild } from './data/rules.js';
 import { PCBuild } from './model/PCBuild.js';
-import { partMesh } from './model/parts3d.js';
 import { PartsTray } from './model/PartsTray.js';
 import { bootScript, TourFX } from './model/boot.js';
 import { drawControls, drawInfo, drawCard } from './ui/panels.js';
@@ -127,12 +126,6 @@ class App extends LessonApp {
         pc.rebuild();
       },
       update: (dt) => pc.animate(dt, on),
-      heldObject(held) {
-        if (!held.part) return null;
-        const m = partMesh(held.part);
-        m.position.copy(pc.centreOffset(held.part)).negate();
-        return m;
-      },
     };
   }
 

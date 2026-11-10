@@ -20,11 +20,10 @@ import { newSessionCode } from './net/code.js';
 //   grabTargets()        objects that can be picked up / tapped
 //   onXRStart(session, isAR), onXREnd(), onXRFrame(frame, refSpace)
 //
-// Shared sessions (?session=CODE in the URL): everyone keeps their own models and sees the others
-// beside them. A lesson takes part by providing:
+// Shared sessions (?session=CODE in the URL): everyone keeps their own models and sees the others' work
+// beside them (no avatars: in mixed reality you see the real people). A lesson takes part by providing:
 //   netState()           a small JSON snapshot of what it shows (sent to the others when it changes)
-//   createReplica()      → { group, apply(snapshot), update(dt)?, heldObject(held)? } to show someone else's work
-//   this.netHolding      { label, ... } while the user is holding something (shown in their avatar's hand)
+//   createReplica()      → { group, apply(snapshot), update(dt)? } to show someone else's work
 
 export class LessonApp {
   constructor({ labPos = new THREE.Vector3(0, 1.2, 0), camPos = new THREE.Vector3(0, 1.45, 1.35), background = 0x0d1020 } = {}) {
@@ -298,14 +297,9 @@ export class LessonApp {
 
   /**
    * Who's in the session: a "Players" button under the info panel (mirroring the session panel under the
-   * controls); the list drops down below it, with a switch for the avatars.
+   * controls); the list drops down below it.
    */
   initPlayerList() {
-    let saved = null;
-    try {
-      saved = localStorage.getItem('webxr-classes:avatars');
-    } catch {}
-    this.avatarsOn = saved !== 'off'; // on unless this device switched them off
     this.playersOpen = false;
     const add = (panel, y) => {
       panel.mesh.position.set(0.62, y, 0.14);
@@ -340,15 +334,6 @@ export class LessonApp {
     this.refreshPlayerList();
   }
 
-  toggleAvatars() {
-    this.avatarsOn = !this.avatarsOn;
-    try {
-      localStorage.setItem('webxr-classes:avatars', this.avatarsOn ? 'on' : 'off');
-    } catch {}
-    this.playersKey = null;
-    this.refreshPlayerList();
-  }
-
   /** A short note about a person: you / admin, and (same room) whether their headset found the room. */
   personNote(person) {
     const notes = [];
@@ -361,7 +346,7 @@ export class LessonApp {
   refreshPlayerList() {
     const pr = this.presence;
     if (!pr || !this.playersPanel) return;
-    const key = JSON.stringify([this.playersOpen, this.avatarsOn, pr.status, pr.people.map((p) => [p.plain, p.color, this.personNote(p)]), this.isAdmin, this.admin, this.kickArmed]);
+    const key = JSON.stringify([this.playersOpen, pr.status, pr.people.map((p) => [p.plain, p.color, this.personNote(p)]), this.isAdmin, this.admin, this.kickArmed]);
     if (key === this.playersKey) return;
     this.playersKey = key;
     this.playersPanel.redraw();
@@ -391,8 +376,7 @@ export class LessonApp {
     ui.y = 22;
     const status = pr.status === 'connected' ? (pr.peers.size ? '' : ' · waiting for others') : pr.status === 'failed' ? ' · could not connect' : ' · connecting…';
     ui.text(`SESSION ${pr.code}${status}`, { size: 24, weight: 700, color: THEME.accent });
-    ui.button({ id: 'avatars', label: this.avatarsOn ? 'Avatars: on' : 'Avatars: off', active: this.avatarsOn, onClick: () => this.toggleAvatars() }, ui.right - 230, 14, 230, 52, 24);
-    ui.y = Math.max(ui.y, 76);
+    ui.y += 6;
     for (const person of pr.people) {
       this.drawPerson(ui, person);
       ui.y += 66;
