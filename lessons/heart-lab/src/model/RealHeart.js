@@ -392,6 +392,37 @@ export class RealHeart {
     return V(extra[id] ?? [0, 0, 0]);
   }
 
+  /**
+   * Opened up: where to point a part's name tag. Parts left whole inside (valves, conduction system) keep their
+   * usual place; others point at where the cut passes through them (null: nothing of it is left).
+   */
+  anchorCut(id) {
+    if (NO_CLIP.has(id) || !this.parts.has(id)) return this.anchor(id);
+    const a = this.anchor(id);
+    const n = this.cutNormal;
+    if (a.clone().sub(this.cutPoint).dot(n) < 0) return a; // already on the side that stays
+    this.sectionCache ??= {};
+    if (!(id in this.sectionCache)) {
+      // the middle of the part's cross-section (its vertices close to the cutting plane)
+      const sum = new THREE.Vector3();
+      let k = 0;
+      const p = new THREE.Vector3();
+      for (const o of this.parts.get(id)) {
+        o.traverse((m) => {
+          if (!m.isMesh) return;
+          const pos = m.geometry.attributes.position;
+          for (let i = 0; i < pos.count; i += 3) {
+            p.fromBufferAttribute(pos, i);
+            const d = p.clone().sub(this.cutPoint).dot(n);
+            if (d < 0 && d > -0.04) { sum.add(p); k++; }
+          }
+        });
+      }
+      this.sectionCache[id] = k > 10 ? sum.divideScalar(k).addScaledVector(n, -0.02) : null;
+    }
+    return this.sectionCache[id]?.clone() ?? null;
+  }
+
   /** Points the blood flows through (see Blood.js). */
   get geo() {
     const L = this.L;

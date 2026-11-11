@@ -12,6 +12,7 @@ import { Arteries } from './model/Arteries.js';
 import { LabelQuiz } from './model/LabelQuiz.js';
 import { HeartSounds } from './model/sounds.js';
 import { drawControls, drawInfo, drawCard, MODES } from './ui/panels.js';
+import { NameTags } from './ui/NameTags.js';
 
 // Heart Lab: your own heart on the desk to turn, open up and label, and a big beating heart for the whole
 // class that the teacher (the admin of a shared session) controls: the demo from the lesson plan.
@@ -81,8 +82,7 @@ class App extends LessonApp {
     this.heart.group.position.set(0, 0.03, 0);
     this.lab.add(this.heart.group);
     this.blood = new Blood(this.heart, this.heart.space);
-    this.names = new THREE.Group();
-    this.heart.space.add(this.names);
+    this.names = new NameTags(this.heart, 0.016);
 
     // the class heart
     this.bigStage = new THREE.Group();
@@ -92,8 +92,7 @@ class App extends LessonApp {
     this.big.model.traverse((o) => { if (o.isMesh) o.userData.tapOnly = true; });
     this.bigStage.add(this.big.group);
     this.bigBlood = new Blood(this.big, this.big.space);
-    this.bigNames = new THREE.Group();
-    this.big.space.add(this.bigNames);
+    this.bigNames = new NameTags(this.big, 0.045);
 
     // heart monitors: one on your desk, one under the big heart
     this.ecg = new Ecg();
@@ -144,16 +143,16 @@ class App extends LessonApp {
     swap(this.heart, heart);
     this.heart = heart;
     this.blood = new Blood(heart, heart.space);
-    heart.space.add(this.names);
+    this.names.attach(heart);
     const big = new RealHeart(model, { handler: this.bigHandler(), big: true });
     big.space.traverse((o) => { if (o.isMesh) o.userData.tapOnly = true; });
     swap(this.big, big);
     this.big = big;
     this.bigBlood = new Blood(big, big.space);
-    big.space.add(this.bigNames);
+    this.bigNames.attach(big);
     // rebuild what depended on the old hearts
     heart.setLevel(this.state.level);
-    this.makeNames(heart, this.names, this.state.names, 0.016 / SMALL);
+    this.names.set(this.state.names, this.state.level);
     this.bigNameKey = null;
     this.targetsLevel = null;
     this.bigTargetsCache = null;
@@ -239,7 +238,7 @@ class App extends LessonApp {
     this.state.at = null;
     this.heart.setLevel(level);
     if (this.state.mode === 'label') this.quiz.start(this.heart, level);
-    this.makeNames(this.heart, this.names, this.state.names, 0.016 / SMALL);
+    this.names.set(this.state.names, this.state.level);
     this.refresh();
   }
 
@@ -253,27 +252,11 @@ class App extends LessonApp {
 
   toggleNames() {
     this.state.names = !this.state.names;
-    this.makeNames(this.heart, this.names, this.state.names, 0.016 / SMALL);
+    this.names.set(this.state.names, this.state.level);
   }
 
   toggleSound() {
     this.state.sound = !this.state.sound;
-  }
-
-  /** Name tags on every part (rebuilt when the level changes). */
-  makeNames(heart, group, on, height) {
-    for (const o of [...group.children]) {
-      o.userData.dispose?.();
-      group.remove(o);
-    }
-    if (!on) return;
-    for (const id of partsFor(heart.level)) {
-      const tag = makeLabel(PARTS[id].name, { height, size: 38 });
-      tag.position.copy(heart.anchor(id));
-      tag.material.depthTest = false;
-      tag.renderOrder = 6;
-      group.add(tag);
-    }
   }
 
   journeyTo(i, quiet = false) {
@@ -573,6 +556,8 @@ class App extends LessonApp {
       this.arteries.update(run, v.vent);
     }
 
+    this.names.update(this.viewCamera());
+
     // the class heart
     const d = this.demo;
     this.bigStage.visible = d.big !== false;
@@ -588,10 +573,11 @@ class App extends LessonApp {
       this.bigEcg.labels = d.level === 'advanced';
       this.bigEcgScreen.visible = ECG_MODES.includes(d.mode);
       if (this.bigEcgScreen.visible) this.bigEcg.update(brun, fb, { bpm: bbpm, st: bcond === 'attack' ? 1 : 0, note: bcond === 'attack' ? 'ST elevation' : '' });
+      this.bigNames.update(this.viewCamera());
       const nameKey = `${d.names}|${d.level}`;
       if (nameKey !== this.bigNameKey) {
         this.bigNameKey = nameKey;
-        this.makeNames(this.big, this.bigNames, d.names, 0.045 / BIG);
+        this.bigNames.set(d.names, d.level);
       }
     }
 
