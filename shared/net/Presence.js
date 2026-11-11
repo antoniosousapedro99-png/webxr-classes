@@ -51,6 +51,8 @@ export class Presence {
     this.roomToWorld = null; // set once this headset has lined up with the room
     this.name = myName();
     this.status = 'connecting';
+    this.error = null; // why it couldn't start (plain language)
+    this.problem = null; // something going wrong while connected (plain language)
     this.peers = new Map();
     this.poseClock = 0;
     this.stateClock = 0;
@@ -69,6 +71,13 @@ export class Presence {
     this.t = t;
     this.selfId = t.selfId;
     this.status = 'connected';
+    this.connectedAt = performance.now();
+    t.onProblem?.((text) => {
+      if (this.peers.size) return; // already working with others: a hiccup with one more device
+      this.problem = text;
+      this.app.refresh();
+    });
+    setTimeout(() => this.app.refresh(), 20500); // "nobody found yet" help appears after 20 s
     this.helloCh = t.channel('hello');
     this.poseCh = t.channel('pose');
     this.stateCh = t.channel('state');
@@ -92,6 +101,7 @@ export class Presence {
       if (id === this.hostId && !this.isHost) this.roomRef = d;
     });
     t.onPeerJoin((id) => {
+      this.problem = null;
       this.ensure(id);
       this.helloCh.send({ name: this.name, host: this.host }, id);
       if (this.isHost) setTimeout(() => {
@@ -167,6 +177,7 @@ export class Presence {
     const root = new THREE.Group(); // their desk, placed beside yours
     this.app.lab.add(root);
     const p = { id, name: 'Guest', color, root, pose: null };
+    this.everJoined = true; // (so "waiting" can tell "nobody yet" from "everyone dropped out")
     p.replica = this.app.createReplica?.() ?? null;
     if (p.replica) root.add(p.replica.group);
     this.peers.set(id, p);

@@ -90,15 +90,16 @@ class App extends LessonApp {
     return !this.presence || this.presence.isHost;
   }
 
-  /** Can this person change the shared reef? (the host — usually the teacher — or anyone solo) */
+  /** Can this person change the shared reef? (the admin — usually the teacher — or anyone solo) */
   get canControl() {
-    return this.isHost;
+    return !this.presence || this.isAdmin;
   }
 
   get hostName() {
     const pr = this.presence;
-    if (!pr || pr.isHost) return 'You';
-    return pr.peers.get(pr.hostId)?.name ?? 'The host';
+    if (!pr || this.isAdmin) return 'You';
+    const name = this.adminName;
+    return name[0].toUpperCase() + name.slice(1);
   }
 
   /**

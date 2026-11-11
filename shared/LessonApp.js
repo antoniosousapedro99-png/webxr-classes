@@ -260,11 +260,31 @@ export class LessonApp {
     return { ok: '✓ in place', unsure: '⚠ unsure which way round', 'no-scan': '⚠ needs Space Setup', waiting: '… finding the room', screen: 'on a computer' }[room] ?? '';
   }
 
+  /** How the session is doing: a few words for the title line, and help text when something is wrong. */
+  sessionStatus() {
+    const pr = this.presence;
+    if (pr.status === 'failed') return { text: ' · could not connect', help: pr.error ?? 'Couldn’t start the shared session.', bad: true };
+    if (pr.status !== 'connected') return { text: ' · connecting…', help: null };
+    if (pr.peers.size) return { text: '', help: this.adminHere ? null : 'Your teacher isn’t connected right now. Everything carries on as they left it.' };
+    if (pr.everJoined) {
+      return { text: ' · waiting for others', help: this.isAdmin ? 'Everyone else has left. They can rejoin with the same code.' : 'Your teacher isn’t connected right now. Everything carries on as they left it.' };
+    }
+    const long = performance.now() - (pr.connectedAt ?? 0) > 20000;
+    const help = pr.problem ?? (!long ? null : this.isAdmin
+      ? 'Students join with this code, on the same Wi-Fi as you.'
+      : 'Nobody found yet. Check the code, and that you’re on the same Wi-Fi as your teacher.');
+    return { text: ' · waiting for others', help };
+  }
+
   drawSession(ui) {
     const pr = this.presence;
     ui.y = 18;
-    const status = pr.status === 'connected' ? (pr.peers.size ? '' : ' · waiting for others to join') : pr.status === 'failed' ? ' · could not connect' : ' · connecting…';
-    ui.text(`SESSION ${pr.code}${status}`, { size: 24, weight: 700, color: pr.status === 'failed' ? '#ff6b6b' : THEME.accent });
+    const st = this.sessionStatus();
+    ui.text(`SESSION ${pr.code}${st.text}`, { size: 24, weight: 700, color: st.bad ? '#ff6b6b' : THEME.accent });
+    if (st.help) {
+      ui.text(st.help, { size: 21, color: st.bad ? '#ff9a9a' : '#ffd166' });
+      return;
+    }
     if (pr.sameRoom) {
       const r = pr.roomStatus ?? 'waiting';
       const text = {
@@ -346,7 +366,7 @@ export class LessonApp {
   refreshPlayerList() {
     const pr = this.presence;
     if (!pr || !this.playersPanel) return;
-    const key = JSON.stringify([this.playersOpen, pr.status, pr.people.map((p) => [p.plain, p.color, this.personNote(p)]), this.isAdmin, this.admin, this.kickArmed]);
+    const key = JSON.stringify([this.playersOpen, pr.status, this.sessionStatus().help, pr.people.map((p) => [p.plain, p.color, this.personNote(p)]), this.isAdmin, this.admin, this.kickArmed]);
     if (key === this.playersKey) return;
     this.playersKey = key;
     this.playersPanel.redraw();
@@ -374,8 +394,9 @@ export class LessonApp {
   drawPlayerList(ui) {
     const pr = this.presence;
     ui.y = 22;
-    const status = pr.status === 'connected' ? (pr.peers.size ? '' : ' · waiting for others') : pr.status === 'failed' ? ' · could not connect' : ' · connecting…';
-    ui.text(`SESSION ${pr.code}${status}`, { size: 24, weight: 700, color: THEME.accent });
+    const st = this.sessionStatus();
+    ui.text(`SESSION ${pr.code}${st.text}`, { size: 24, weight: 700, color: st.bad ? '#ff6b6b' : THEME.accent });
+    if (st.help) ui.text(st.help, { size: 21, color: st.bad ? '#ff9a9a' : '#ffd166' });
     ui.y += 6;
     for (const person of pr.people) {
       this.drawPerson(ui, person);
@@ -415,11 +436,20 @@ export class LessonApp {
 
   // ───────────── admin (whoever opened the session) ─────────────
 
-  /** Whoever opened the session (until connected, only the person who started it counts). */
+  /**
+   * Whoever opened the session. Only they are ever admin: if their headset drops out (e.g. it goes to sleep),
+   * nobody else gets admin powers; students keep the last settings until the admin is back.
+   */
   get isAdmin() {
     const pr = this.presence;
-    if (!pr) return false;
-    return pr.selfId ? pr.isHost : !!pr.host;
+    if (!pr?.host) return false;
+    return pr.selfId ? pr.isHost : true;
+  }
+
+  /** Is the admin (whoever opened the session) here? */
+  get adminHere() {
+    const pr = this.presence;
+    return !!pr && (pr.host || [...pr.peers.values()].some((p) => p.host));
   }
 
   /** A student in a shared session: the admin chooses some things for everyone. */
@@ -431,7 +461,8 @@ export class LessonApp {
   get adminName() {
     const pr = this.presence;
     if (!pr || this.isAdmin) return 'you';
-    return pr.peers.get(pr.hostId)?.name ?? 'the teacher';
+    const admin = [...pr.peers.values()].filter((p) => p.host).sort((a, b) => (a.id < b.id ? -1 : 1))[0];
+    return admin?.name ?? 'the teacher';
   }
 
   /** The Admin menu: to the left of the controls, only for the admin. */

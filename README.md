@@ -12,6 +12,8 @@ Mixed reality lessons built with [WebXR](https://immersiveweb.dev/) and [three.j
 
 **Getting around:** every lesson has a **← Lessons** button in its control panel (press it twice, so nobody leaves by accident) and an *All lessons* link on its start screen. Panels that hold more than fits get a scrollbar: use its ▲ ▼ buttons, the thumbstick while pointing at the panel, or pinch / pull the trigger on the panel and drag (mouse wheel or drag on a computer).
 
+**Moving the project** to another GitHub account, organisation or computer, the outside services it uses, and which licences to check before commercial use: see [HANDOVER.md](HANDOVER.md).
+
 ## Shared sessions (work alongside colleagues)
 
 Every lesson can be opened **solo** or in a **shared session**:
@@ -37,14 +39,22 @@ Each person has **their own models**. Everyone else's work appears beside you at
 - **Reef position** (Reef Dive, same room): in the middle of the room (default) or **Put it here** (centred where the admin stands). It stays fixed in the room for everyone.
 - **Students:** **Menus: locked** hides students' settings (moving the panels, placing, seated mode, water level, leaving with ← Lessons; only Voice stays). **Re-find room (all)** makes every headset read its room scan again. Each student is listed with their room status and a **Remove** button (press twice) that takes them out of the session.
 
-If the admin leaves, the next person in the session takes over.
+Only the person who started the session is ever admin. If their headset drops out (for example it goes to sleep), nobody else gets admin powers: everything carries on as they left it, students see “Your teacher isn’t connected right now”, and the admin gets everything back when they return (same page or link, which keeps `host=1`). The shared world (e.g. the reef) keeps running on another device meanwhile.
 
 **Hiding the menus:** press **B** on the right controller to hide or show all the panels (anyone, any lesson).
 
-**How it connects:** peer-to-peer (WebRTC) using [Trystero](https://github.com/dmotz/trystero), bundled in `shared/vendor/`. Public Nostr relays are only used to introduce the devices; after that, lesson data goes directly between them. No server is needed, so it works on GitHub Pages.
+**How it connects:** peer-to-peer (WebRTC) using [Trystero](https://github.com/dmotz/trystero), bundled in `shared/vendor/`. No server of our own is needed, so it works on GitHub Pages. Settings are in `shared/net/config.js`.
 
-- Some school or corporate networks block direct peer-to-peer connections. If people can't see each other, add a TURN server in `shared/net/config.js`.
-- To use your own relays instead of the public ones, list them in the same file.
+1. **Same network only.** Each device asks a STUN server for its network's public address. Devices behind the same school router share it, so it becomes part of the session's name (as a one-way hash; the address isn't sent anywhere). Only devices on the same network can find each other, even with the right code. No Wi-Fi name (SSID) is needed. A school with several public addresses side by side still works: only the first three numbers must match (`networkPrefix`).
+2. **Introductions** go through three fixed public Nostr relays (`relayUrls`). Only short, encrypted connection notes pass through them.
+3. **Lesson data** then flows directly between the devices, inside the school network.
+
+Measured in tests: joining takes about 2 seconds once the lesson has loaded; a teacher's change reaches students in under a second; someone leaving is noticed in under a second.
+
+If something is wrong, the session panel says so in plain words: the network can't be checked (STUN blocked), devices found each other but can't connect (Wi-Fi "client isolation"), nobody found yet (wrong code or a different Wi-Fi), or the teacher isn't connected.
+
+**For the school's IT / web filter (e.g. Lightspeed):** allow the site (`*.github.io`, or wherever it is hosted), `cdn.jsdelivr.net`, the relays `nos.lol`, `relay.primal.net` and `nostr.mom` (secure WebSockets, port 443), and outgoing UDP to the STUN servers (`stun.l.google.com` and `stun1.l.google.com` port 19302, `stun.cloudflare.com` port 3478). Devices on the headsets' Wi-Fi must be able to reach each other (client isolation off). If direct connections are impossible, add a TURN server in `config.js`.
+
 - To test on one computer, open the same session in two tabs with `&net=local` added to the URL.
 
 ## Atom Scale Lab
