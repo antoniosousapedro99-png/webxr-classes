@@ -82,6 +82,7 @@ class App extends LessonApp {
       for (const id of [...this.sea.agents.keys()]) this.sea.despawn(id);
       if (this.isHost) this.sea.setPopulations(this.eco.pop, [...this.eco.removed]);
     }
+    this.refresh(); // (shows a note on the panel if any model failed to load)
   }
 
   // ───────────── shared world ─────────────

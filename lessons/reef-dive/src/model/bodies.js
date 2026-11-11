@@ -486,23 +486,43 @@ export const BUILDERS = { shark, hammer, manta, barracuda, parrotfish, clownfish
 // .glb files in lessons/reef-dive/models/ replace the built-in shapes. Each entry in manifest.json is either
 // a file name, or { file, animation?, animSpeed?, motion?, floor? } — see models/README.md.
 // Models are scaled to the species' real length; their nose points along +z and their back along +y.
+// What went wrong, if anything, so the lesson can say so on its panel (a headset has no visible console).
+export const modelStatus = { failed: [], reason: '' };
+const why = (e) => String(e?.message || e || 'unknown error').replace(/https?:\/\/\S*\/([^/\s"]+)/g, '$1').slice(0, 140);
+
 export async function loadModelOverrides(base) {
   let manifest;
+  const retry = async (fn) => {
+    try { return await fn(); } catch { await new Promise((r) => setTimeout(r, 1500)); return fn(); } // one retry: a busy school Wi-Fi can drop a download
+  };
   try {
-    const res = await fetch(new URL('manifest.json', base));
-    if (!res.ok) return {};
+    const res = await retry(async () => {
+      const r = await fetch(new URL('manifest.json', base));
+      if (!r.ok) throw new Error(`manifest.json: ${r.status}`);
+      return r;
+    });
     manifest = await res.json();
-  } catch {
+  } catch (e) {
+    modelStatus.failed.push('all');
+    modelStatus.reason = why(e);
     return {};
   }
-  const [{ GLTFLoader }, { MeshoptDecoder }, SkeletonUtils] = await Promise.all([
-    import('three/addons/loaders/GLTFLoader.js'),
-    import('three/addons/libs/meshopt_decoder.module.js'),
-    import('three/addons/utils/SkeletonUtils.js'),
-  ]);
+  let GLTFLoader, MeshoptDecoder, SkeletonUtils;
+  try {
+    [{ GLTFLoader }, { MeshoptDecoder }, SkeletonUtils] = await retry(() => Promise.all([
+      import('three/addons/loaders/GLTFLoader.js'),
+      import('three/addons/libs/meshopt_decoder.module.js'),
+      import('three/addons/utils/SkeletonUtils.js'),
+    ]));
+    await MeshoptDecoder.ready;
+  } catch (e) {
+    modelStatus.failed.push('all');
+    modelStatus.reason = `model loader: ${why(e)}`;
+    return {};
+  }
   skeletonClone = SkeletonUtils.clone;
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-  const load = (file) => loader.loadAsync(new URL(file, base).toString());
+  const load = (file) => retry(() => loader.loadAsync(new URL(file, base).toString()));
   const out = {};
   await Promise.all(Object.entries(manifest).map(async ([id, entry]) => {
     const opts = typeof entry === 'string' ? { file: entry } : entry;
@@ -531,6 +551,8 @@ export async function loadModelOverrides(base) {
       out[id] = { ...opts, scene, box, clips: gltf.animations };
     } catch (e) {
       console.warn(`Could not load model for ${id}`, e);
+      modelStatus.failed.push(id);
+      modelStatus.reason ||= why(e);
     }
   }));
   return out;

@@ -1,5 +1,6 @@
 import { SPECIES, ORDER, KEY, QUESTIONS } from '../data/species.js';
 import { THEME, font } from '../../../../shared/ui/CanvasPanel.js';
+import { modelStatus } from '../model/bodies.js';
 
 const MODES = [['dive', 'Identify'], ['lab', 'Reef lab']];
 const pct = (v) => `${Math.round(v * 100)}%`;
@@ -82,6 +83,10 @@ export function drawInfo(ui, app) {
   else {
     ui.title('Coral reef', { size: 38 });
     ui.text('Tropical coral reefs cover under 1% of the ocean floor but are home to about a quarter of all marine species. Everything you see is at its real size: identify it, then test the reef in the reef lab.', { size: 23 });
+  }
+  if (modelStatus.failed.length) {
+    const which = modelStatus.failed.includes('all') ? 'The 3D models' : `${modelStatus.failed.length} 3D model${modelStatus.failed.length > 1 ? 's' : ''} (${modelStatus.failed.join(', ')})`;
+    ui.box(`${which} couldn’t load, so simple shapes are shown instead. Reason: ${modelStatus.reason}`, { size: 18, color: '#ffd166' });
   }
   ui.divider();
   ui.heading('Ask the marine biologist');
