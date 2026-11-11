@@ -7,6 +7,7 @@ Mixed reality lessons built with [WebXR](https://immersiveweb.dev/) and [three.j
 | **Atom Scale Lab** | Chemistry | [`lessons/atomic-models/`](lessons/atomic-models/) |
 | **PC Builder Lab** | Computer Science | [`lessons/pc-builder/`](lessons/pc-builder/) |
 | **Cell Explorer** | Biology | [`lessons/cell-explorer/`](lessons/cell-explorer/) |
+| **Heart Lab** | Biology | [`lessons/heart-lab/`](lessons/heart-lab/) |
 | **Reef Dive** | Biology (IB) | [`lessons/reef-dive/`](lessons/reef-dive/) |
 | **Hintze Hall** | Museum visit (VR) | [`lessons/hintze-hall/`](lessons/hintze-hall/) |
 
@@ -25,7 +26,7 @@ Every lesson can be opened **solo** or in a **shared session**:
 
 Each person has **their own models**. Everyone else's work appears beside you at their own desk as a live copy: you can see their PC being built part by part, their atom or molecule, or their cell with its knock-outs. Desks sit side by side in the same order for everyone, so if you see someone on your right, they see you on their left. There are **no avatars**: the lessons are mixed reality, so you see the real people.
 
-**Same room:** tick **"We're in the same room"** when starting or joining a session (Reef Dive ticks it for you). Everyone then sees the same things in the same real places, with **nothing to press**:
+**Same room:** tick **"We're in the same room"** when starting or joining a session (Heart Lab and Reef Dive tick it for you). Everyone then sees the same things in the same real places, with **nothing to press**:
 
 - **Before class, once per headset:** scan the classroom with Quest **Settings › Physical space › Space Setup** (about 2 minutes; mark the walls, door, windows and tables). If the browser asks to use spatial data, allow it.
 - In the lesson, each headset finds the room by itself from its scan (`shared/net/RoomAlign.js`): the room's walls give the directions, and the middle of the room, on the floor, is the shared origin. Which way round is settled by the door, windows, tables and other fittings, which every headset matches against the admin's headset. It checks again every second, so a headset that recentres or loses tracking puts itself right. In a simulation with realistic scan noise, headsets agreed to within about 5 cm and never got the room the wrong way round.
@@ -36,6 +37,7 @@ Each person has **their own models**. Everyone else's work appears beside you at
 - **Activity for everyone** (lesson-specific; in Reef Dive: Identify / Reef lab). Students see which activity is on, and can't switch it.
 - **Cell Explorer:** **Cell for everyone** (Animal / Plant / Bacterium) and **Activity for everyone** (Explore / Label it / Follow a process / Compare sizes). Students see the admin's choice instead of those buttons; knock-outs, cut-away, names and process steps stay their own.
 - **PC Builder:** **Case for everyone** (**Free choice**, the default, or one case that every student must use), **Turn all off** (switches off every computer) and **Empty all cases** (press twice; every student starts again with an empty case).
+- **Heart Lab:** **Activity for everyone**, **Level for everyone** (Core / Advanced) and, in the same room, **Class heart** position (middle of the room, or in front of the teacher). The class heart mirrors the teacher’s own heart; a part the teacher taps lights up for everyone. While students label, the menu shows each student’s score.
 - **Reef position** (Reef Dive, same room): in the middle of the room (default) or **Put it here** (centred where the admin stands). It stays fixed in the room for everyone.
 - **Students:** **Menus: locked** hides students' settings (moving the panels, placing, seated mode, water level, leaving with ← Lessons; only Voice stays). **Re-find room (all)** makes every headset read its room scan again. Each student is listed with their room status and a **Remove** button (press twice) that takes them out of the session.
 
@@ -173,6 +175,26 @@ Also included:
 - **Ask the biologist:** offline Q&A, plus an optional AI endpoint (`biologistEndpoint` in `lessons/cell-explorer/config.js`, same contract as the chemistry lesson).
 - **Seated mode and lab lock:** in every lesson's shared toolbar, used here.
 
+## Heart Lab
+
+A beating human heart for every student and a big one for the whole class, built entirely in code (no model files), so every part can be tapped, highlighted, cut open and animated. Each student has **their own heart** on the desk (about 32 cm tall) to turn by hand, open up and label. Behind it, a **class heart** about 1.3 m tall beats for everyone. In a shared session the teacher (the admin) controls the class heart, and in a same-room session (pre-selected for this lesson) it stands in the middle of the classroom, or wherever the teacher puts it. Every headset's class heart beats in step, because the beat is timed from the clock.
+
+**Two looks:** **Realistic** (muscle with fibres, fat in the grooves, pale arteries, purple veins, red coronary arteries) and **Textbook** (blue = deoxygenated side, red = oxygenated side). **Open it up** removes the front of the heart, showing the four chambers, the septum and the valves, while the great vessels turn see-through so the blood inside shows. **Names** labels every part. Two levels: **Core** (ages 14–16) and **Advanced** (16–18, IB / A-level). Advanced adds the conduction system (SA node, AV node, bundle of His, Purkinje fibres), the chordae tendineae and papillary muscles, ECG wave names, pressure graphs and more detail in every explanation.
+
+### Lesson objectives → activities
+
+| Objective | Activity |
+| --- | --- |
+| Identify and explain the functions of the parts of the heart | **Explore:** tap any part (chambers, septum, the four valves, aorta, pulmonary artery and veins, venae cavae, coronary arteries) for its function. **Label it** (plenary): drag the names onto your own heart. Right answers stick; wrong ones come back with a hint. The teacher sees every student's score in the Admin menu. |
+| Explain how the heart works, using scientific terms | **Blood flow:** blue and red blood cells wait behind shut valves and surge through when they open, following *the journey of the blood* in 7 steps. **Cardiac cycle:** atrial systole, ventricular systole and diastole (5 stages at Advanced), with the valves opening and shutting, a live ECG, valve and chamber status, **slow motion**, **pause** and the real "lub-dub" sounds. **Exercise:** resting to sprinting, with heart rate, stroke volume and cardiac output. |
+| (from the plan) healthy vs clogged arteries | **Conditions:** coronary heart disease (plaque in the artery, with healthy and narrowed arteries side by side and the blood slowing), **heart attack** (a clot blocks it, the muscle beyond darkens and stops pulling its weight, and the ECG shows ST elevation), a **leaky mitral valve** (blood squirts back, with a murmur) and a **hole in the septum** (blood crosses from left to right). |
+
+**Demo (teacher):** the class heart shows exactly what the teacher's own heart shows: look, opened up, activity, journey step, cardiac-cycle stage, exercise level and condition. **◀ Turn / Turn ▶** rotate it. When the teacher taps a part, it lights up on everyone's class heart and every student gets its explanation ("Your teacher is showing…"). Students keep full control of their own heart.
+
+**Ask the cardiologist:** 8 pre-written answers (why the left side is thicker, why the heart needs its own arteries, what makes lub-dub, double circulation, valves, heart attacks, the ECG, exercise). An AI cardiologist can be connected later with `cardiologistEndpoint` in `lessons/heart-lab/config.js` (same contract as the chemistry lesson).
+
+All timings (chambers, valves, blood, sounds, ECG, pressures) come from one table in `src/data/heart.js`, so they always agree.
+
 ## Reef Dive
 
 The classroom becomes the sea floor. Through passthrough, the water fades the real room into teal-to-navy depths (the **Water** button in the Dive panel sets it to light, medium or deep; in a shared session only the admin has it, and it applies to everyone). A sandy sea bed covers the real floor. Sunlight shimmers on the surface overhead, light rays and sun shafts slant down, light ripples across the sand, soft marine snow and glowing plankton drift past, bubbles rise from your hands, and far-off animals fade into blue haze, all with muffled ocean sound. You stand in a sandy clearing with seagrass meadows, ringed by a coral reef: ten coral-covered outcrops about 2.4–2.8 m away, with narrow gaps between them. Nineteen species live there at **real size**, including a 1.6 m reef shark, a 3 m great hammerhead, a young giant manta ray (3 m across), a turtle, barracuda, a parrotfish school, clownfish in their anemone, cleaner wrasse, jellyfish, an octopus, crabs, urchins and sea cucumbers. Crabs and sea cucumbers live on the sand of the clearing, jellyfish drift overhead, parrotfish graze their way round the reef, and the shark, barracudas and turtle cruise outside the ring in the blue. Animals steer around people and never swim through the reef.
@@ -246,6 +268,9 @@ shared/                            used by every lesson
   ui/                              canvas panels, labels, mouse/touch/controller/hand input
   util/sound.js                    synthesised sound effects
   fx/Flows.js                      animated flows between points (used for processes)
+lessons/heart-lab/
+  src/data/heart.js                parts, journey of the blood, cardiac-cycle timings, exercise, conditions, answers
+  src/model/                       the heart (built in code), blood flow, ECG, arteries, labelling quiz, heart sounds
 lessons/pc-builder/
   src/data/parts.js, rules.js      the parts catalogue and compatibility rules
   src/model/                       life-size part models, the case + slots, tray, power-on + tour

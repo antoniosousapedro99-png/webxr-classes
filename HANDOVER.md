@@ -34,8 +34,8 @@ To run on a computer without GitHub: serve the folder with any static web server
 
 - All links inside the project are relative, so it works under any address.
 - Shared sessions keep working across the move: devices just need to open the lessons from the same address.
-- The only settings files: `shared/net/config.js` (networking) and `lessons/atomic-models/config.js` (optional AI
-  chemist server).
+- The only settings files: `shared/net/config.js` (networking), and each lesson’s `config.js` (optional AI expert
+  servers, all off by default).
 
 ## Outside services it relies on (all free, no account)
 
@@ -56,6 +56,7 @@ The project's own code has **no licence file yet**: the owner should choose one 
 | three.js, three-mesh-bvh, Trystero (`shared/vendor/TRYSTERO-LICENSE`) | MIT | yes, keep the licence notices |
 | Hintze Hall scan, most Reef Dive models | CC BY 4.0 | yes, keep the credits in the `CREDITS.md` files |
 | Some Reef Dive models | CC0 | yes |
+| Heart Lab (heart, sounds, textures) | made in code for this project | yes (it is the project’s own) |
 | **Reef Dive hammerhead** (`hammer.glb`) | CC BY-NC 4.0 | **no**: replace it before any commercial use |
 | **Reef Dive manta ray** (`manta.glb`) | CC BY-NC-SA 4.0 | **no**: replace it before any commercial use |
 | **Reef Dive parrotfish** (`parrotfish.glb`) | Sketchfab Standard, used with the owner's permission | get that permission confirmed for the new owner, or replace it |
