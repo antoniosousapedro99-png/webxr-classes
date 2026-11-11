@@ -177,7 +177,7 @@ Also included:
 
 ## Heart Lab
 
-A beating human heart for every student and a big one for the whole class, built entirely in code (no model files), so every part can be tapped, highlighted, cut open and animated. Each student has **their own heart** on the desk (about 32 cm tall) to turn by hand, open up and label. Behind it, a **class heart** about 1.3 m tall beats for everyone. In a shared session the teacher (the admin) controls the class heart, and in a same-room session (pre-selected for this lesson) it stands in the middle of the classroom, or wherever the teacher puts it. Every headset's class heart beats in step, because the beat is timed from the clock.
+A beating human heart for every student and a big one for the whole class. The heart is a **real human heart** from the BodyParts3D anatomy database (CC BY-SA 2.1 Japan, credited in `lessons/heart-lab/CREDITS.md`), about 850 KB, split into its parts so every one can be tapped, highlighted, cut open and animated: the chambers squeeze in order (worked out on the graphics card, so the wall never cracks), the real tricuspid, mitral and pulmonary valves open and shut, and **Open it up** cuts it along the four-chamber plane and turns it to face you, like a textbook section. Until the model has loaded (or if a network blocks it) a simpler heart built in code is shown, and everything still works. How the model was made, and how to rebuild it: `tools/heart-model/README.md`. Each student has **their own heart** on the desk (about 32 cm tall) to turn by hand, open up and label. Behind it, a **class heart** about 1.3 m tall beats for everyone. In a shared session the teacher (the admin) controls the class heart, and in a same-room session (pre-selected for this lesson) it stands in the middle of the classroom, or wherever the teacher puts it. Every headset's class heart beats in step, because the beat is timed from the clock.
 
 **Two looks:** **Realistic** (muscle with fibres, fat in the grooves, pale arteries, purple veins, red coronary arteries) and **Textbook** (blue = deoxygenated side, red = oxygenated side). **Open it up** removes the front of the heart, showing the four chambers, the septum and the valves, while the great vessels turn see-through so the blood inside shows. **Names** labels every part. Two levels: **Core** (ages 14–16) and **Advanced** (16–18, IB / A-level). Advanced adds the conduction system (SA node, AV node, bundle of His, Purkinje fibres), the chordae tendineae and papillary muscles, ECG wave names, pressure graphs and more detail in every explanation.
 
@@ -269,8 +269,10 @@ shared/                            used by every lesson
   util/sound.js                    synthesised sound effects
   fx/Flows.js                      animated flows between points (used for processes)
 lessons/heart-lab/
+  models/heart.glb, heart.json     the anatomical heart (BodyParts3D, CC BY-SA) and its landmarks
   src/data/heart.js                parts, journey of the blood, cardiac-cycle timings, exercise, conditions, answers
-  src/model/                       the heart (built in code), blood flow, ECG, arteries, labelling quiz, heart sounds
+  src/model/                       RealHeart (the anatomical model), Heart (backup built in code), blood flow, ECG, arteries, labelling quiz, heart sounds
+tools/heart-model/                 rebuilds the Heart Lab model from the BodyParts3D files (not needed to run anything)
 lessons/pc-builder/
   src/data/parts.js, rules.js      the parts catalogue and compatibility rules
   src/model/                       life-size part models, the case + slots, tray, power-on + tour

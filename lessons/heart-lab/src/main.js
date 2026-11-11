@@ -5,6 +5,7 @@ import { makeLabel } from '../../../shared/ui/labels.js';
 import { sound } from '../../../shared/util/sound.js';
 import { PARTS, JOURNEY, PHASES, RATES, CONDITIONS, ANSWERS, T, partsFor } from './data/heart.js';
 import { Heart } from './model/Heart.js';
+import { RealHeart, loadHeartModel } from './model/RealHeart.js';
 import { Blood } from './model/Blood.js';
 import { Ecg } from './model/Ecg.js';
 import { Arteries } from './model/Arteries.js';
@@ -17,7 +18,6 @@ import { drawControls, drawInfo, drawCard, MODES } from './ui/panels.js';
 // In a same-room session the big heart stands in the middle of the classroom for everyone.
 
 const SMALL = 0.2; // your heart: about 32 cm tall (a real one is about 12 cm)
-const MODEL_MID = 0.19; // the middle of the heart model, top to bottom
 const BIG = 0.8; // the class heart: about 1.3 m tall
 const BIG_IN_LAB = new THREE.Vector3(0, 0.2, -1.75); // behind your desk (solo, or before the room is found)
 const BIG_HEIGHT = 1.5; // its middle, above the classroom floor
@@ -78,24 +78,22 @@ class App extends LessonApp {
     // your heart
     this.heart = new Heart({ handler: this.smallHandler() });
     this.heart.group.scale.setScalar(SMALL);
-    this.heart.model.position.y = -MODEL_MID;
     this.heart.group.position.set(0, 0.03, 0);
     this.lab.add(this.heart.group);
-    this.blood = new Blood(this.heart, this.heart.model);
+    this.blood = new Blood(this.heart, this.heart.space);
     this.names = new THREE.Group();
-    this.heart.model.add(this.names);
+    this.heart.space.add(this.names);
 
     // the class heart
     this.bigStage = new THREE.Group();
     this.scene.add(this.bigStage);
     this.big = new Heart({ handler: this.bigHandler(), big: true });
     this.big.group.scale.setScalar(BIG);
-    this.big.model.position.y = -MODEL_MID;
     this.big.model.traverse((o) => { if (o.isMesh) o.userData.tapOnly = true; });
     this.bigStage.add(this.big.group);
-    this.bigBlood = new Blood(this.big, this.big.model);
+    this.bigBlood = new Blood(this.big, this.big.space);
     this.bigNames = new THREE.Group();
-    this.big.model.add(this.bigNames);
+    this.big.space.add(this.bigNames);
 
     // heart monitors: one on your desk, one under the big heart
     this.ecg = new Ecg();
@@ -118,6 +116,49 @@ class App extends LessonApp {
     this.controlPanel.setBuilder((ui) => drawControls(ui, this));
     this.infoPanel.setBuilder((ui) => drawInfo(ui, this));
     this.explainPanel.setBuilder((ui) => drawCard(ui, this));
+    this.loadRealHeart();
+  }
+
+  /**
+   * Swap in the anatomical heart (a real human heart, models/heart.glb) once it has loaded. Until then, or if it
+   * can't be loaded (e.g. a school filter blocks it), the heart built in code is shown, and everything still works.
+   */
+  async loadRealHeart() {
+    let model;
+    try {
+      model = await loadHeartModel(new URL('../models/', import.meta.url));
+    } catch (e) {
+      console.warn('Heart model not loaded; using the heart built in code', e);
+      this.modelProblem = String(e?.message || e);
+      this.refresh();
+      return;
+    }
+    const swap = (old, fresh) => {
+      fresh.group.position.copy(old.group.position);
+      fresh.group.scale.copy(old.group.scale);
+      fresh.model.rotation.copy(old.model.rotation);
+      old.group.parent.add(fresh.group);
+      old.group.removeFromParent();
+    };
+    const heart = new RealHeart(model, { handler: this.smallHandler() });
+    swap(this.heart, heart);
+    this.heart = heart;
+    this.blood = new Blood(heart, heart.space);
+    heart.space.add(this.names);
+    const big = new RealHeart(model, { handler: this.bigHandler(), big: true });
+    big.space.traverse((o) => { if (o.isMesh) o.userData.tapOnly = true; });
+    swap(this.big, big);
+    this.big = big;
+    this.bigBlood = new Blood(big, big.space);
+    big.space.add(this.bigNames);
+    // rebuild what depended on the old hearts
+    heart.setLevel(this.state.level);
+    this.makeNames(heart, this.names, this.state.names, 0.016 / SMALL);
+    this.bigNameKey = null;
+    this.targetsLevel = null;
+    this.bigTargetsCache = null;
+    if (this.state.mode === 'label') this.quiz.start(heart, this.state.level);
+    this.refresh();
   }
 
   // ───────────── picking ─────────────
@@ -487,13 +528,15 @@ class App extends LessonApp {
   grabTargets() {
     if (this.state.mode === 'label') return this.quiz.grabTargets;
     const level = this.state.level;
-    if (this.targetsLevel !== level) {
+    if (this.targetsLevel !== level || this.targetsHeart !== this.heart) {
+      this.targetsHeart = this.heart;
       this.targetsLevel = level;
       this.targetsCache = this.heart.targets;
       this.bigTargetsCache = null;
     }
     if (!this.bigStage.visible) return this.targetsCache;
-    if (this.bigTargetsLevel !== this.big.level || !this.bigTargetsCache) {
+    if (this.bigTargetsLevel !== this.big.level || !this.bigTargetsCache || this.bigTargetsHeart !== this.big) {
+      this.bigTargetsHeart = this.big;
       this.bigTargetsLevel = this.big.level;
       this.bigTargetsCache = this.big.targets;
     }

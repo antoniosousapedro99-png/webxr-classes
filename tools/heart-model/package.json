@@ -1,0 +1,12 @@
+{
+  "name": "heart-model-build",
+  "private": true,
+  "description": "Rebuilds lessons/heart-lab/models/heart.glb + heart.json from the BodyParts3D heart parts (see README.md). Not needed to run the lessons.",
+  "type": "module",
+  "dependencies": {
+    "@gltf-transform/core": "4.5.1",
+    "@gltf-transform/extensions": "4.5.1",
+    "@gltf-transform/functions": "4.5.1",
+    "meshoptimizer": "1.3.0"
+  }
+}

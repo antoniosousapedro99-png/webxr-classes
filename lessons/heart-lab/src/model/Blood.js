@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { GEO } from './Heart.js';
 import { T } from '../data/heart.js';
 
 // Blood cells flowing through the heart, in time with the valves: they wait in the atria while the AV
@@ -48,44 +47,35 @@ class Path {
   }
 }
 
-const VAL = GEO.valves;
-
-function paths() {
-  const ra = GEO.RA.c;
-  const la = GEO.LA.c;
-  const rv = V(-0.1, -0.15, 0.08);
-  const rvLow = V(-0.06, -0.33, 0.08);
-  const lv = V(0.1, -0.15, -0.04);
-  const lvLow = V(0.18, -0.38, -0.02);
-  const rvOut = V(0.0, 0.05, 0.15);
-  const lvOut = V(-0.01, 0.05, -0.03);
-  const pa = GEO.paTrunk;
-  const ao = GEO.aorta;
+/** The paths through a heart, from its own points (heart.geo), so they work for either heart model. */
+function paths(g) {
+  const k = g.scale ?? 1;
+  const r = (x) => x * k;
   const deoxy = [];
-  for (const inlet of [[GEO.svc[0], GEO.svc[1]], [GEO.ivc[0], GEO.ivc[1]]]) {
-    for (const out of [GEO.paLeft, GEO.paRight]) {
+  for (const inlet of g.inlets) {
+    for (const out of g.paOut) {
       deoxy.push(new Path(
-        [...inlet, ra, VAL.tricuspid.c, rv, rvLow, rvOut, VAL.pulmonaryValve.c, pa[1], pa[2], ...out.slice(1)],
-        [0.02, 0.03, 0.11, 0.03, 0.1, 0.06, 0.04, 0.02, 0.03, 0.03, ...out.slice(1).map(() => 0.025)],
-        { av: VAL.tricuspid.c, sl: VAL.pulmonaryValve.c },
+        [...inlet, g.RAc, g.tricuspid, g.RVc, g.RVlow, g.RVout, g.pulmonaryValve, ...g.paTrunk, ...out],
+        [...inlet.map(() => r(0.025)), r(0.11), r(0.03), r(0.1), r(0.06), r(0.04), r(0.02), ...g.paTrunk.map(() => r(0.03)), ...out.map(() => r(0.025))],
+        { av: g.tricuspid, sl: g.pulmonaryValve },
       ));
     }
   }
   const oxy = [];
-  for (const vein of GEO.pulmVeins) {
-    for (const out of [[ao[3], ao[4], ao[5], ao[6], ao[7]], [ao[3], GEO.aortaBranches[1][1]]]) {
+  for (const vein of g.veins) {
+    for (const out of g.aortaOut) {
       oxy.push(new Path(
-        [vein[0], vein.at(-1), la, VAL.mitral.c, lv, lvLow, lvOut, VAL.aorticValve.c, ao[1], ao[2], ...out],
-        [0.02, 0.025, 0.1, 0.03, 0.11, 0.06, 0.04, 0.02, 0.035, 0.035, ...out.map(() => 0.03)],
-        { av: VAL.mitral.c, sl: VAL.aorticValve.c },
+        [...vein, g.LAc, g.mitral, g.LVc, g.LVlow, g.LVout, g.aorticValve, ...out],
+        [...vein.map(() => r(0.022)), r(0.1), r(0.03), r(0.11), r(0.06), r(0.04), r(0.02), ...out.map(() => r(0.032))],
+        { av: g.mitral, sl: g.aorticValve },
       ));
     }
   }
   return {
     deoxy,
     oxy,
-    leak: new Path([lv, VAL.mitral.c, la.clone().add(V(0, 0.02, 0.06))], [0.05, 0.02, 0.08]),
-    vsd: new Path([lv, GEO.septumHole, rv.clone().add(V(0, 0.05, 0))], [0.04, 0.012, 0.07]),
+    leak: new Path([g.LVc, g.mitral, g.LAc.clone().lerp(g.mitral, 0.3)], [r(0.05), r(0.02), r(0.08)]),
+    vsd: new Path([g.LVc, g.septumHole, g.RVc], [r(0.04), r(0.012), r(0.07)]),
   };
 }
 
@@ -95,9 +85,9 @@ export class Blood {
     this.heart = heart;
     this.group = new THREE.Group();
     parent.add(this.group);
-    this.paths = paths();
+    this.paths = paths(heart.geo);
     this.lad = new Path(heart.ladPts, heart.ladPts.map(() => 0.004));
-    const dot = new THREE.SphereGeometry(0.017, 8, 6);
+    const dot = new THREE.SphereGeometry(0.017 * (heart.geo.scale ?? 1), 8, 6);
     const make = (kind, n, color, size = 1) => {
       const mesh = new THREE.InstancedMesh(size === 1 ? dot : new THREE.SphereGeometry(0.017 * size, 6, 5), new THREE.MeshBasicMaterial({ color, toneMapped: false }), n);
       mesh.frustumCulled = false;
@@ -130,6 +120,14 @@ export class Blood {
 
   /** dt: seconds of heart time (already slowed down); f: phase of the beat; cond: the condition shown. */
   update(dt, f, cond) {
+    // opened up: blood in the part cut away is hidden too
+    if (this.heart.cutOn !== this.cutOn) {
+      this.cutOn = this.heart.cutOn;
+      for (const s of Object.values(this.sets)) {
+        s.mesh.material.clippingPlanes = this.cutOn ? [this.heart.clip] : null;
+        s.mesh.material.needsUpdate = true;
+      }
+    }
     const show = this.show;
     const sys = f > T.avClose && f < T.slClose; // ventricles squeezing
     this.sets.deoxy.mesh.visible = show === 'deoxy' || show === 'both';

@@ -56,7 +56,8 @@ The project's own code has **no licence file yet**: the owner should choose one 
 | three.js, three-mesh-bvh, Trystero (`shared/vendor/TRYSTERO-LICENSE`) | MIT | yes, keep the licence notices |
 | Hintze Hall scan, most Reef Dive models | CC BY 4.0 | yes, keep the credits in the `CREDITS.md` files |
 | Some Reef Dive models | CC0 | yes |
-| Heart Lab (heart, sounds, textures) | made in code for this project | yes (it is the project’s own) |
+| **Heart Lab heart model** (`lessons/heart-lab/models/heart.glb`, `heart.json`) | CC BY-SA 2.1 Japan (BodyParts3D) | yes, keep the credit in its `CREDITS.md`; changes to these two files stay under the same licence |
+| Heart Lab sounds, blood flow, ECG, backup heart | made in code for this project | yes (it is the project’s own) |
 | **Reef Dive hammerhead** (`hammer.glb`) | CC BY-NC 4.0 | **no**: replace it before any commercial use |
 | **Reef Dive manta ray** (`manta.glb`) | CC BY-NC-SA 4.0 | **no**: replace it before any commercial use |
 | **Reef Dive parrotfish** (`parrotfish.glb`) | Sketchfab Standard, used with the owner's permission | get that permission confirmed for the new owner, or replace it |

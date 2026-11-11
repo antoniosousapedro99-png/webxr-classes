@@ -152,6 +152,27 @@ export class Heart {
     this.build();
     this.setView('real');
     this.setLevel('core');
+    this.space = this.model; // where blood and name tags go
+    this.model.position.y = -0.19; // (its middle, top to bottom)
+    this.real = false;
+  }
+
+  /** Points the blood flows through (see Blood.js). */
+  get geo() {
+    const VAL = GEO.valves;
+    const ao = GEO.aorta;
+    return {
+      RAc: GEO.RA.c, LAc: GEO.LA.c, RVc: V(-0.1, -0.15, 0.08), LVc: V(0.1, -0.15, -0.04),
+      RVlow: V(-0.06, -0.33, 0.08), LVlow: V(0.18, -0.38, -0.02), RVout: V(0.0, 0.05, 0.15), LVout: V(-0.01, 0.05, -0.03),
+      tricuspid: VAL.tricuspid.c, mitral: VAL.mitral.c, pulmonaryValve: VAL.pulmonaryValve.c, aorticValve: VAL.aorticValve.c,
+      inlets: [[GEO.svc[0], GEO.svc[1]], [GEO.ivc[0], GEO.ivc[1]]],
+      paTrunk: [GEO.paTrunk[1], GEO.paTrunk[2]],
+      paOut: [GEO.paLeft.slice(1), GEO.paRight.slice(1)],
+      aortaOut: [[ao[1], ao[2], ao[3], ao[4], ao[5], ao[6], ao[7]], [ao[1], ao[2], ao[3], GEO.aortaBranches[1][1]]],
+      veins: GEO.pulmVeins.map((v) => [v[0], v.at(-1)]),
+      septumHole: GEO.septumHole,
+      scale: 1,
+    };
   }
 
   // ───────────── building ─────────────
