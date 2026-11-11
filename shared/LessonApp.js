@@ -422,6 +422,18 @@ export class LessonApp {
     return pr.selfId ? pr.isHost : !!pr.host;
   }
 
+  /** A student in a shared session: the admin chooses some things for everyone. */
+  get followsAdmin() {
+    return !!this.presence && !this.isAdmin;
+  }
+
+  /** Who the admin is, for "chosen by …" notes. */
+  get adminName() {
+    const pr = this.presence;
+    if (!pr || this.isAdmin) return 'you';
+    return pr.peers.get(pr.hostId)?.name ?? 'the teacher';
+  }
+
   /** The Admin menu: to the left of the controls, only for the admin. */
   initAdmin() {
     this.admin = { lock: false }; // what the admin has set for everyone

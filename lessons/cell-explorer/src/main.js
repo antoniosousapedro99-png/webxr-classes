@@ -8,7 +8,7 @@ import { Cell } from './model/Cell.js';
 import { Explorer } from './model/Explorer.js';
 import { LabelQuiz } from './model/LabelQuiz.js';
 import { CompareView } from './model/Compare.js';
-import { drawControls, drawInfo, drawCard } from './ui/panels.js';
+import { drawControls, drawInfo, drawCard, MODES } from './ui/panels.js';
 
 const CELL_POS = new THREE.Vector3(0, 0.02, -0.05);
 const FLOW_COLORS = { rna: 0xb08ee0, protein: 0x7ec8ff, glucose: 0xffffff, energy: 0xffb347, waste: 0xff8fa3, light: 0xfff27a, water: 0x6fc3ff, dna: 0xffa94d };
@@ -65,6 +65,7 @@ class App extends LessonApp {
     if (this.state.mode === 'label') this.quiz.start(this.cell);
     if (this.state.mode === 'process') this.tourTo(0, true);
     this.state.explain = { title: CELLS[type].name, text: CELLS[type].intro };
+    if (this.isAdmin) this.broadcastAdmin(); // everyone looks at the admin's cell
   }
 
   setMode(mode) {
@@ -91,6 +92,7 @@ class App extends LessonApp {
     } else {
       s.explain = { title: CELLS[s.cellType].name, text: CELLS[s.cellType].intro };
     }
+    if (this.isAdmin) this.broadcastAdmin(); // everyone does the admin's activity
   }
 
   // ───────────── explore ─────────────
@@ -174,6 +176,43 @@ class App extends LessonApp {
     }
     this.state.bio = { qid, answer: ANSWERS[qid] };
     this.say(ANSWERS[qid]);
+  }
+
+  // ───────────── admin ─────────────
+
+  /** The lesson's part of the Admin menu: the cell and the activity, for everyone. */
+  adminLessonButtons() {
+    const s = this.state;
+    return [
+      {
+        heading: 'Cell for everyone',
+        buttons: Object.entries(CELLS).map(([id, c]) => ({ id: `admin-cell-${id}`, label: c.short, active: s.cellType === id, disabled: s.mode === 'compare', onClick: () => this.setCell(id) })),
+        cols: Math.min(3, Object.keys(CELLS).length),
+      },
+      {
+        heading: 'Activity for everyone',
+        buttons: MODES.map(([id, label]) => ({ id: `admin-mode-${id}`, label, active: s.mode === id, onClick: () => this.setMode(id) })),
+      },
+    ];
+  }
+
+  adminLessonState() {
+    return { cell: this.state.cellType, mode: this.state.mode };
+  }
+
+  /** Students: follow the admin's cell and activity. */
+  onAdminLesson(l) {
+    if (!l) return;
+    let changed = false;
+    if (l.cell && CELLS[l.cell] && l.cell !== this.state.cellType) {
+      this.setCell(l.cell);
+      changed = true;
+    }
+    if (l.mode && MODES.some(([id]) => id === l.mode) && l.mode !== this.state.mode) {
+      this.setMode(l.mode);
+      changed = true;
+    }
+    if (changed) this.refresh();
   }
 
   // ───────────── shared sessions ─────────────

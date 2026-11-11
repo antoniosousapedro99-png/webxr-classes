@@ -1,20 +1,27 @@
 import { ORGANELLES, CELLS, TOURS, QUESTIONS } from '../data/cells.js';
 import { THEME, font } from '../../../../shared/ui/CanvasPanel.js';
 
-const MODES = [['explore', 'Explore'], ['label', 'Label it'], ['process', 'Follow a process'], ['compare', 'Compare sizes']];
+export const MODES = [['explore', 'Explore'], ['label', 'Label it'], ['process', 'Follow a process'], ['compare', 'Compare sizes']];
 
 // ───────────────────────── Left: controls ─────────────────────────
 
 export function drawControls(ui, app) {
   const s = app.state;
   ui.title('Cell Explorer', { size: 42 });
-  ui.heading('Choose a cell');
-  ui.buttons(Object.entries(CELLS).map(([id, c]) => ({
-    id: `cell-${id}`, label: c.short, active: s.cellType === id, disabled: s.mode === 'compare', onClick: () => app.setCell(id),
-  })), { height: 62, size: 27 });
+  if (app.followsAdmin) {
+    // in a session the admin picks the cell and the activity for everyone
+    const mode = MODES.find(([id]) => id === s.mode)[1];
+    ui.text(`${s.mode === 'compare' ? 'All cells' : CELLS[s.cellType].short}  ·  ${mode}`, { size: 28, weight: 700, color: THEME.accent });
+    ui.text(`Chosen by ${app.adminName}`, { size: 21, color: THEME.dim });
+  } else {
+    ui.heading('Choose a cell');
+    ui.buttons(Object.entries(CELLS).map(([id, c]) => ({
+      id: `cell-${id}`, label: c.short, active: s.cellType === id, disabled: s.mode === 'compare', onClick: () => app.setCell(id),
+    })), { height: 62, size: 27 });
 
-  ui.heading('Activity');
-  ui.buttons(MODES.map(([id, label]) => ({ id: `mode-${id}`, label, active: s.mode === id, onClick: () => app.setMode(id) })), { cols: 2, height: 60, size: 25, gap: 10 });
+    ui.heading('Activity');
+    ui.buttons(MODES.map(([id, label]) => ({ id: `mode-${id}`, label, active: s.mode === id, onClick: () => app.setMode(id) })), { cols: 2, height: 60, size: 25, gap: 10 });
+  }
 
   if (s.mode === 'explore') {
     ui.buttons([

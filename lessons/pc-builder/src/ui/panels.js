@@ -18,9 +18,14 @@ export function drawControls(ui, app) {
   const b = s.build;
   ui.title('Build a PC', { size: 42 });
   ui.heading('1 · Choose a case');
-  ui.buttons(Object.entries(CASES).map(([id, c]) => ({
-    id: `case-${id}`, label: c.short, active: b.case === id, onClick: () => app.setCase(id),
-  })), { height: 62, size: 27 });
+  if (app.followsAdmin && app.pcAdmin.case) {
+    // the admin has picked one case for everyone
+    ui.text(`${CASES[b.case].short}  ·  chosen by ${app.adminName}`, { size: 26, weight: 700, color: THEME.accent });
+  } else {
+    ui.buttons(Object.entries(CASES).map(([id, c]) => ({
+      id: `case-${id}`, label: c.short, active: b.case === id, onClick: () => app.setCase(id),
+    })), { height: 62, size: 27 });
+  }
 
   ui.heading('2 · Take parts from the tray');
   ui.buttons(TRAY_CATS.map(([cat, label]) => ({

@@ -28,6 +28,9 @@ class App extends LessonApp {
         text: 'Start with a motherboard: pick it up from the tray and bring it into the case — when the preview turns green, let go. Then add the CPU, cooler, RAM, storage, graphics card and power supply. Press Power to test it.',
       },
     };
+    // What the admin has chosen for everyone (shared sessions): a fixed case or free choice, and
+    // counters for one-off commands ("turn every PC off", "empty every case").
+    this.pcAdmin = { case: null, off: 0, reset: 0 };
     this.initLesson();
     this.start();
   }
@@ -74,6 +77,10 @@ class App extends LessonApp {
 
   setCase(id) {
     if (id === this.state.build.case) return;
+    if (this.isAdmin && this.pcAdmin.case) {
+      this.pcAdmin.case = id; // the admin's case is everyone's case
+      this.broadcastAdmin();
+    }
     this.powerOff();
     const dropped = this.pc.changeCase(id);
     this.state.booted = false;
@@ -100,6 +107,87 @@ class App extends LessonApp {
 
   grabTargets() {
     return [...this.pc.grabTargets, ...this.tray.grabTargets];
+  }
+
+  // ───────────── admin ─────────────
+
+  /** The lesson's part of the Admin menu. */
+  adminLessonButtons() {
+    const a = this.pcAdmin;
+    const armed = this.emptyArmed && performance.now() - this.emptyArmed < 3000;
+    return [
+      {
+        heading: 'Case for everyone',
+        buttons: [
+          { id: 'admin-case-free', label: 'Free choice', active: !a.case, onClick: () => this.adminCase(null) },
+          ...Object.entries(CASES).map(([id, c]) => ({ id: `admin-case-${id}`, label: c.short, active: a.case === id, onClick: () => this.adminCase(id) })),
+        ],
+        cols: 2,
+      },
+      {
+        heading: 'Every computer',
+        buttons: [
+          { id: 'admin-off', label: 'Turn all off', onClick: () => this.adminAll('off') },
+          { id: 'admin-empty', label: armed ? 'Sure? Press again' : 'Empty all cases', active: armed, onClick: () => this.adminAll('reset') },
+        ],
+      },
+    ];
+  }
+
+  /** Admin: everyone uses this case (null: everyone chooses their own). */
+  adminCase(id) {
+    this.pcAdmin.case = id;
+    if (id) this.setCase(id);
+    this.broadcastAdmin();
+    this.refresh();
+  }
+
+  /** Admin: switch off / empty everyone's computer (emptying needs a second press). */
+  adminAll(what) {
+    if (what === 'reset') {
+      const armed = this.emptyArmed && performance.now() - this.emptyArmed < 3000;
+      if (!armed) {
+        this.emptyArmed = performance.now();
+        setTimeout(() => this.refresh(), 3100);
+        return;
+      }
+      this.emptyArmed = 0;
+      this.emptyCase();
+    } else {
+      this.powerOff();
+      this.explain({ title: 'Every computer is off', text: 'You switched off everyone’s computer.' });
+    }
+    this.pcAdmin[what]++;
+    this.broadcastAdmin();
+    this.refresh();
+  }
+
+  adminLessonState() {
+    return { ...this.pcAdmin };
+  }
+
+  /** Students: follow the admin's case, and their "turn off" / "empty" commands. */
+  onAdminLesson(l) {
+    if (!l) return;
+    const seen = this.seenAdmin;
+    this.seenAdmin = { off: l.off, reset: l.reset };
+    let changed = false;
+    if ((l.case ?? null) !== this.pcAdmin.case) {
+      this.pcAdmin.case = l.case ?? null;
+      changed = true;
+    }
+    if (l.case && CASES[l.case] && l.case !== this.state.build.case) this.setCase(l.case);
+    // one-off commands: only ones given after I joined (the first message just says where the counters are)
+    if (seen && l.reset !== seen.reset) {
+      this.emptyCase();
+      this.explain({ title: 'Start again', text: `${this.adminName} emptied every case. All the parts are back in the tray — start with the motherboard.` });
+      changed = true;
+    } else if (seen && l.off !== seen.off && this.state.power !== 'off') {
+      this.powerOff();
+      this.explain({ title: 'Computer off', text: `${this.adminName} switched every computer off.` });
+      changed = true;
+    }
+    if (changed) this.refresh();
   }
 
   // ───────────── shared sessions ─────────────

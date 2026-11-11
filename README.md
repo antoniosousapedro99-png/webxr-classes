@@ -32,6 +32,8 @@ Each person has **their own models**. Everyone else's work appears beside you at
 **Admin:** whoever starts the session (usually the teacher) is the admin and gets an **Admin** menu to the left of the controls:
 
 - **Activity for everyone** (lesson-specific; in Reef Dive: Identify / Reef lab). Students see which activity is on, and can't switch it.
+- **Cell Explorer:** **Cell for everyone** (Animal / Plant / Bacterium) and **Activity for everyone** (Explore / Label it / Follow a process / Compare sizes). Students see the admin's choice instead of those buttons; knock-outs, cut-away, names and process steps stay their own.
+- **PC Builder:** **Case for everyone** (**Free choice**, the default, or one case that every student must use), **Turn all off** (switches off every computer) and **Empty all cases** (press twice; every student starts again with an empty case).
 - **Reef position** (Reef Dive, same room): in the middle of the room (default) or **Put it here** (centred where the admin stands). It stays fixed in the room for everyone.
 - **Students:** **Menus: locked** hides students' settings (moving the panels, placing, seated mode, water level, leaving with ← Lessons; only Voice stays). **Re-find room (all)** makes every headset read its room scan again. Each student is listed with their room status and a **Remove** button (press twice) that takes them out of the session.
 
