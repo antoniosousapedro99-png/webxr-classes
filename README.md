@@ -5,6 +5,7 @@ Mixed reality lessons built with [WebXR](https://immersiveweb.dev/) and [three.j
 | Lesson | Subject | Path |
 | --- | --- | --- |
 | **Atom Scale Lab** | Chemistry | [`lessons/atomic-models/`](lessons/atomic-models/) |
+| **Acid Lab** | Chemistry | [`lessons/acid-lab/`](lessons/acid-lab/) |
 | **PC Builder Lab** | Computer Science | [`lessons/pc-builder/`](lessons/pc-builder/) |
 | **Cell Explorer** | Biology | [`lessons/cell-explorer/`](lessons/cell-explorer/) |
 | **Heart Lab** | Biology | [`lessons/heart-lab/`](lessons/heart-lab/) |
@@ -26,7 +27,7 @@ Every lesson can be opened **solo** or in a **shared session**:
 
 Each person has **their own models**. Everyone else's work appears beside you at their own desk as a live copy: you can see their PC being built part by part, their atom or molecule, or their cell with its knock-outs. Desks sit side by side in the same order for everyone, so if you see someone on your right, they see you on their left. There are **no avatars**: the lessons are mixed reality, so you see the real people.
 
-**Same room:** tick **"We're in the same room"** when starting or joining a session (Heart Lab and Reef Dive tick it for you). Everyone then sees the same things in the same real places, with **nothing to press**:
+**Same room:** tick **"We're in the same room"** when starting or joining a session (Acid Lab, Heart Lab and Reef Dive tick it for you). Everyone then sees the same things in the same real places, with **nothing to press**:
 
 - **Before class, once per headset:** scan the classroom with Quest **Settings › Physical space › Space Setup** (about 2 minutes; mark the walls, door, windows and tables). If the browser asks to use spatial data, allow it.
 - In the lesson, each headset finds the room by itself from its scan (`shared/net/RoomAlign.js`): the room's walls give the directions, and the middle of the room, on the floor, is the shared origin. Which way round is settled by the door, windows, tables and other fittings, which every headset matches against the admin's headset. It checks again every second, so a headset that recentres or loses tracking puts itself right. In a simulation with realistic scan noise, headsets agreed to within about 5 cm and never got the room the wrong way round.
@@ -37,6 +38,7 @@ Each person has **their own models**. Everyone else's work appears beside you at
 - **Activity for everyone** (lesson-specific; in Reef Dive: Identify / Reef lab). Students see which activity is on, and can't switch it.
 - **Cell Explorer:** **Cell for everyone** (Animal / Plant / Bacterium) and **Activity for everyone** (Explore / Label it / Follow a process / Compare sizes). Students see the admin's choice instead of those buttons; knock-outs, cut-away, names and process steps stay their own.
 - **PC Builder:** **Case for everyone** (**Free choice**, the default, or one case that every student must use), **Turn all off** (switches off every computer) and **Empty all cases** (press twice; every student starts again with an empty case).
+- **Acid Lab:** **Activity for everyone**, **Level for everyone**, the **Class board** position (same room) and each student’s progress (results recorded out of 18). Everyone gets the admin’s set of solutions; **New solutions** (in the admin’s own controls) deals a new set to the whole class.
 - **Heart Lab:** **Activity for everyone**, **Level for everyone** (Core / Advanced) and, in the same room, **Class heart** position (middle of the room, or in front of the teacher). The class heart mirrors the teacher’s own heart; a part the teacher taps lights up for everyone. While students label, the menu shows each student’s score.
 - **Reef position** (Reef Dive, same room): in the middle of the room (default) or **Put it here** (centred where the admin stands). It stays fixed in the room for everyone.
 - **Students:** **Menus: locked** hides students' settings (moving the panels, placing, seated mode, water level, leaving with ← Lessons; only Voice stays). **Re-find room (all)** makes every headset read its room scan again. Each student is listed with their room status and a **Remove** button (press twice) that takes them out of the session.
@@ -113,6 +115,28 @@ The lab appears in front of the student in their real room (passthrough mixed re
 | Hand tracking | Point + pinch | Reach in (or point) + pinch | — | "Bring lab to me" button |
 | Phone AR | Tap | Touch and drag | — | "Place on a surface", then tap |
 | Desktop / tablet | Click | Drag | Shift-drag | Drag empty space to orbit |
+
+## Acid Lab
+
+A lab bench for every student, built entirely in code (no model files). The bench has a pH scale, six beakers of mystery solutions (A to F), dispensers of **red litmus**, **blue litmus** and **universal indicator** paper, a **digital pH meter**, distilled water for rinsing and, at the advanced level, a pH 7.00 buffer. Placed on a real table (*Place on surface*), the bench top sits on the table. Behind it, a **class board** about 2.6 m wide shows the pH scale, the teacher's current test in large print, and everyone's sticky notes. In a same-room session (pre-selected for this lesson) the board is fixed in the classroom for every headset.
+
+Everyone in a session gets the **same six solutions** as the teacher (chosen from 17 everyday and laboratory substances, always two clear acids, one weak acid, one about neutral and two alkalis), so the class can compare results. They all look like water: the only way to tell them apart is to test them.
+
+### Lesson objectives → activities
+
+| Objective | Activity |
+| --- | --- |
+| (starter) pH as a measure of acidity; everyday substances | **pH scale:** drag twelve bottles (lemon juice, cola, milk, blood, sea water, soap, bleach…) to where they belong on the scale. Close enough and each clicks into its true place and shows its pH; otherwise it comes back with a hint. |
+| Measure the pH of unknown substances using litmus paper and digital tools | **Test papers:** take a strip, dip it, and it lands on the white tile in front of that beaker. Litmus behaves like the real thing: blue turns red only in acids, red turns blue only in alkalis, and neither changes for weak or neutral solutions. Universal indicator paper is matched by eye against the colour chart. **pH meter:** dip the probe, wait for the reading to settle (STABLE), record it. |
+| Compare the accuracy and ease of traditional and modern techniques | **Compare:** *Check my results* shows the real pH and substance for each letter, ticks and crosses for every result, the average error of indicator paper and of the meter, which solutions litmus wrongly showed as neutral, and the pros and cons of the three methods. |
+| Practical lab skills: accurate observation and data recording | Students record every result themselves in a table (6 solutions × 3 methods). Sloppy technique gives wrong numbers, as in a real lab: recording before the reading settles, **not rinsing the probe** (the reading is pulled towards the last sample), or at the advanced level **not calibrating** the meter first. **Safety:** nothing can be picked up until the goggles are on, and corrosive solutions are flagged when the answers are revealed. |
+| (plenary) reflect on real-world pH measurement; sticky notes | **Takeaway:** build a sticky note by choosing an opening and one or two endings (no typing in the headset); it appears on the class board with the student's name. |
+
+**Levels:** Core, and Advanced, which adds hydrogen-ion concentrations, the logarithmic scale (each step is ×10), a stricter sorting tolerance and meter calibration.
+
+**Teacher (admin):** chooses the activity, the level and (with *New solutions*) the set of unknowns for everyone, places the class board, and sees how many of the 18 results each student has recorded. The class board mirrors the teacher's own bench: the substances the teacher has placed on the scale and the test the teacher is doing.
+
+**Ask the chemist:** 8 pre-written answers (what pH measures, why each step is ×10, why litmus gives no number, rinsing, calibrating, neutralisation, who measures pH in real life, alkali safety). An AI chemist can be connected later with `chemistEndpoint` in `lessons/acid-lab/config.js`.
 
 ## PC Builder Lab
 
@@ -268,6 +292,9 @@ shared/                            used by every lesson
   ui/                              canvas panels, labels, mouse/touch/controller/hand input
   util/sound.js                    synthesised sound effects
   fx/Flows.js                      animated flows between points (used for processes)
+lessons/acid-lab/
+  src/data/acid.js                 substances and pH values, paper colours, the unknown sets, method comparison, answers
+  src/model/                       Bench (beakers, papers, pH meter), Sorter (pH scale), Board (class board)
 lessons/heart-lab/
   models/heart.glb, heart.json     the anatomical heart (BodyParts3D, CC BY-SA) and its landmarks
   src/data/heart.js                parts, journey of the blood, cardiac-cycle timings, exercise, conditions, answers
