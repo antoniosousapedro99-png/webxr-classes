@@ -3,20 +3,49 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>WebXR Classes</title>
+  <title>WebXR Library</title>
   <style>
-    :root { color-scheme: dark; }
-    body { margin: 0; padding: 32px 16px; background: #0d1020; color: #eef1ff; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-    main { max-width: 760px; margin: 0 auto; }
-    h1 { margin: 0 0 8px; }
+    :root { color-scheme: dark; --accent: #7c8cff; }
+    body { margin: 0; background: #0d1020; color: #eef1ff; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .banner { background: linear-gradient(120deg, #2a2f7a 0%, #4b3fa8 45%, #1f6f9c 100%); padding: 44px 16px 40px; border-bottom: 1px solid rgba(154, 168, 255, 0.4); }
+    .banner-in { max-width: 980px; margin: 0 auto; display: flex; align-items: center; gap: 18px; }
+    .banner svg { width: 64px; height: 64px; flex: none; }
+    .banner h1 { margin: 0; font-size: clamp(34px, 6vw, 54px); letter-spacing: -0.01em; line-height: 1.05; }
+    main { max-width: 980px; margin: 0 auto; padding: 24px 16px 56px; }
     p { color: #c4cbef; line-height: 1.5; margin: 0 0 12px; }
+    .intro { font-size: 17px; max-width: 760px; }
     .name { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0 4px; color: #c4cbef; }
     input { font: 600 16px system-ui, sans-serif; padding: 10px 12px; border-radius: 10px; border: 1px solid #3a4470; background: #121831; color: #fff; }
     #code { font-family: ui-monospace, Menlo, monospace; text-transform: uppercase; letter-spacing: 0.15em; width: 7em; }
-    .card { display: block; width: 100%; text-align: left; margin-top: 18px; padding: 20px; border-radius: 16px; background: #161b33; border: 1px solid rgba(124, 140, 255, 0.45); color: inherit; font: inherit; cursor: pointer; }
-    .card:hover, .card:focus-visible { background: #1d2445; outline: none; border-color: #9aa8ff; }
-    .card h2 { margin: 8px 0 6px; }
-    .tag { display: inline-block; padding: 2px 10px; border-radius: 999px; background: #3a3470; font-size: 13px; }
+
+    /* subject filter */
+    .filters { display: flex; flex-wrap: wrap; gap: 10px; margin: 26px 0 4px; position: sticky; top: 0; z-index: 2; padding: 12px 0; background: rgba(13, 16, 32, 0.94); }
+    .filters button { font: 600 16px system-ui, sans-serif; padding: 11px 18px; border-radius: 999px; border: 1px solid #3a4470; background: #161b33; color: #dfe4ff; cursor: pointer; }
+    .filters button:hover, .filters button:focus-visible { border-color: #9aa8ff; outline: none; }
+    .filters button[aria-pressed="true"] { background: #5b6cff; border-color: #5b6cff; color: #fff; }
+    .filters .count { opacity: 0.7; font-weight: 400; margin-left: 6px; }
+
+    /* sections */
+    section { margin-top: 30px; --accent: #7c8cff; }
+    section[hidden] { display: none; }
+    section[data-subject="chemistry"] { --accent: #ffb454; }
+    section[data-subject="biology"] { --accent: #58d68d; }
+    section[data-subject="computing"] { --accent: #5bc0ff; }
+    section[data-subject="museum"] { --accent: #d59bff; }
+    section > h2 { display: flex; align-items: center; gap: 12px; margin: 0 0 4px; font-size: 26px; }
+    section > h2::before { content: ""; width: 8px; height: 28px; border-radius: 4px; background: var(--accent); }
+    section > h2 small { font-size: 15px; font-weight: 400; color: #a3abd1; }
+    section > p { margin: 0 0 2px 20px; color: #a3abd1; font-size: 15px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 16px; margin-top: 14px; }
+    .card { display: flex; flex-direction: column; width: 100%; box-sizing: border-box; text-align: left; padding: 20px; border-radius: 16px; background: #161b33; border: 1px solid rgba(124, 140, 255, 0.3); border-top: 4px solid var(--accent); color: inherit; font: inherit; cursor: pointer; }
+    .card:hover, .card:focus-visible { background: #1d2445; outline: none; border-color: var(--accent); }
+    .card h3 { margin: 10px 0 6px; font-size: 22px; }
+    .card p { margin: 0; font-size: 15px; }
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag { display: inline-block; padding: 3px 10px; border-radius: 999px; background: #2b3260; font-size: 13px; color: #dfe4ff; }
+    .tag.subject { background: var(--accent); color: #10142a; font-weight: 700; }
+    .open { margin-top: auto; padding-top: 14px; color: var(--accent); font-weight: 700; font-size: 15px; }
+
     dialog { max-width: 440px; width: calc(100% - 32px); box-sizing: border-box; border: 1px solid rgba(124, 140, 255, 0.5); border-radius: 18px; background: #141a33; color: #eef1ff; padding: 24px; }
     dialog::backdrop { background: rgba(5, 7, 15, 0.7); }
     dialog h2 { margin: 0 0 4px; }
@@ -34,46 +63,87 @@
   </style>
 </head>
 <body>
+  <header class="banner">
+    <div class="banner-in">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="4" y="18" width="56" height="30" rx="12" fill="none" stroke="#fff" stroke-width="4"/><circle cx="21" cy="33" r="7" fill="#fff"/><circle cx="43" cy="33" r="7" fill="#fff"/><path d="M27 48c2-5 8-5 10 0" fill="none" stroke="#fff" stroke-width="4"/></svg>
+      <h1>WebXR Library</h1>
+    </div>
+  </header>
   <main>
-    <h1>WebXR Classes</h1>
-    <p>Mixed reality lessons that run in the browser. Open them on a Meta Quest (or another WebXR headset), or explore on any screen. Work alone, or start a shared session so colleagues can work beside you.</p>
+    <p class="intro">Mixed reality lessons that run in the browser. Open them on a Meta Quest (or another WebXR headset), or explore on any screen. Work alone, or start a shared session so colleagues can work beside you.</p>
     <label class="name">Your name (shown to the others in shared sessions) <input id="name" maxlength="24" placeholder="e.g. Alex" autocomplete="nickname"></label>
 
-    <button class="card" data-lesson="atomic-models">
-      <span class="tag">Chemistry</span>
-      <h2>Atom Scale Lab</h2>
-      <p>Build and explore atomic models, compare the sizes of atoms and molecules, perform reactions by hand and discover the real scale of an atom — all you need to do is look out of the window.</p>
-    </button>
-    <button class="card" data-lesson="acid-lab" data-same-room="1">
-      <span class="tag">Chemistry</span>
-      <h2>Acid Lab</h2>
-      <p>A lab bench for every student: sort everyday substances on the pH scale, test mystery solutions with litmus, universal indicator paper and a digital pH meter, record the results and compare how accurate each method is.</p>
-    </button>
-    <button class="card" data-lesson="pc-builder">
-      <span class="tag">Computer Science</span>
-      <h2>PC Builder Lab</h2>
-      <p>Build your own computer from real, life-size parts like Lego — check that everything is compatible, power it on, and follow the power and data to see how the components work together.</p>
-    </button>
-    <button class="card" data-lesson="cell-explorer">
-      <span class="tag">Biology</span>
-      <h2>Cell Explorer</h2>
-      <p>Investigate animal, plant and bacterial cells thousands of times bigger than life — name every part, pull organelles out to examine them, and see what happens to the cell when one goes missing.</p>
-    </button>
-    <button class="card" data-lesson="heart-lab" data-same-room="1">
-      <span class="tag">Biology</span>
-      <h2>Heart Lab</h2>
-      <p>A beating human heart on every desk and a big one for the whole class: name every part, follow the blood through the chambers and valves, step through the cardiac cycle with a live ECG, and see what exercise and heart disease do.</p>
-    </button>
-    <button class="card" data-lesson="reef-dive" data-same-room="1">
-      <span class="tag">Biology · IB</span>
-      <h2>Reef Dive</h2>
-      <p>The classroom becomes the sea floor: identify marine life swimming around the room at real size, and test how temperature, pH, nutrients and light change the reef.</p>
-    </button>
-    <button class="card" data-lesson="hintze-hall" data-solo="1">
-      <span class="tag">Museum visit · VR</span>
-      <h2>Hintze Hall</h2>
-      <p>Step inside the Natural History Museum in London: climb the stairs to Charles Darwin, walk both balconies, stand beneath Hope the blue whale and discover the story behind every exhibit.</p>
-    </button>
+    <nav class="filters" aria-label="Subjects" id="filters"></nav>
+
+    <section data-subject="chemistry" id="chemistry">
+      <h2>Chemistry <small>2 lessons</small></h2>
+      <p>Atoms, molecules, reactions and measuring in the lab.</p>
+      <div class="grid">
+        <button class="card" data-lesson="atomic-models">
+          <span class="tags"><span class="tag subject">Chemistry</span><span class="tag">Mixed reality</span></span>
+          <h3>Atom Scale Lab</h3>
+          <p>Build and explore atomic models, compare the sizes of atoms and molecules, perform reactions by hand and discover the real scale of an atom — all you need to do is look out of the window.</p>
+          <span class="open">Open lesson →</span>
+        </button>
+        <button class="card" data-lesson="acid-lab" data-same-room="1">
+          <span class="tags"><span class="tag subject">Chemistry</span><span class="tag">Mixed reality</span><span class="tag">Class board</span></span>
+          <h3>Acid Lab</h3>
+          <p>A lab bench for every student: sort everyday substances on the pH scale, test mystery solutions with litmus, universal indicator paper and a digital pH meter, record the results and compare how accurate each method is.</p>
+          <span class="open">Open lesson →</span>
+        </button>
+      </div>
+    </section>
+
+    <section data-subject="biology" id="biology">
+      <h2>Biology <small>3 lessons</small></h2>
+      <p>Cells, the human body and ecosystems.</p>
+      <div class="grid">
+        <button class="card" data-lesson="cell-explorer">
+          <span class="tags"><span class="tag subject">Biology</span><span class="tag">Mixed reality</span></span>
+          <h3>Cell Explorer</h3>
+          <p>Investigate animal, plant and bacterial cells thousands of times bigger than life — name every part, pull organelles out to examine them, and see what happens to the cell when one goes missing.</p>
+          <span class="open">Open lesson →</span>
+        </button>
+        <button class="card" data-lesson="heart-lab" data-same-room="1">
+          <span class="tags"><span class="tag subject">Biology</span><span class="tag">Mixed reality</span><span class="tag">Class heart</span></span>
+          <h3>Heart Lab</h3>
+          <p>A beating human heart on every desk and a big one for the whole class: name every part, follow the blood through the chambers and valves, step through the cardiac cycle with a live ECG, and see what exercise and heart disease do.</p>
+          <span class="open">Open lesson →</span>
+        </button>
+        <button class="card" data-lesson="reef-dive" data-same-room="1">
+          <span class="tags"><span class="tag subject">Biology</span><span class="tag">IB</span><span class="tag">Mixed reality</span><span class="tag">Whole room</span></span>
+          <h3>Reef Dive</h3>
+          <p>The classroom becomes the sea floor: identify marine life swimming around the room at real size, and test how temperature, pH, nutrients and light change the reef.</p>
+          <span class="open">Open lesson →</span>
+        </button>
+      </div>
+    </section>
+
+    <section data-subject="computing" id="computing">
+      <h2>Computer Science <small>1 lesson</small></h2>
+      <p>Hardware and how computers work.</p>
+      <div class="grid">
+        <button class="card" data-lesson="pc-builder">
+          <span class="tags"><span class="tag subject">Computer Science</span><span class="tag">Mixed reality</span></span>
+          <h3>PC Builder Lab</h3>
+          <p>Build your own computer from real, life-size parts like Lego — check that everything is compatible, power it on, and follow the power and data to see how the components work together.</p>
+          <span class="open">Open lesson →</span>
+        </button>
+      </div>
+    </section>
+
+    <section data-subject="museum" id="museum">
+      <h2>Museum visits <small>1 lesson</small></h2>
+      <p>Walk through real places in virtual reality.</p>
+      <div class="grid">
+        <button class="card" data-lesson="hintze-hall" data-solo="1">
+          <span class="tags"><span class="tag subject">Museum visit</span><span class="tag">VR</span><span class="tag">Solo</span></span>
+          <h3>Hintze Hall</h3>
+          <p>Step inside the Natural History Museum in London: climb the stairs to Charles Darwin, walk both balconies, stand beneath Hope the blue whale and discover the story behind every exhibit.</p>
+          <span class="open">Open lesson →</span>
+        </button>
+      </div>
+    </section>
   </main>
 
   <dialog id="start">
@@ -101,13 +171,35 @@
       try { localStorage.setItem('webxr-classes:name', nameInput.value.trim()); } catch {}
     });
 
+    // subject filter: one button per section (made from the sections, so adding a section adds its button)
+    const filters = document.getElementById('filters');
+    const sections = [...document.querySelectorAll('main section')];
+    const show = (subject) => {
+      for (const sec of sections) sec.hidden = subject !== 'all' && sec.dataset.subject !== subject;
+      for (const b of filters.children) b.setAttribute('aria-pressed', String(b.dataset.subject === subject));
+      try { sessionStorage.setItem('webxr-classes:subject', subject); } catch {}
+    };
+    const addFilter = (subject, label, n) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.dataset.subject = subject;
+      b.innerHTML = `${label}<span class="count">${n}</span>`;
+      b.onclick = () => show(subject);
+      filters.appendChild(b);
+    };
+    addFilter('all', 'All lessons', document.querySelectorAll('.card').length);
+    for (const sec of sections) addFilter(sec.dataset.subject, sec.querySelector('h2').firstChild.textContent.trim(), sec.querySelectorAll('.card').length);
+    let saved = 'all';
+    try { saved = sessionStorage.getItem('webxr-classes:subject') || 'all'; } catch {}
+    show(sections.some((x) => x.dataset.subject === saved) ? saved : 'all');
+
     const dialog = document.getElementById('start');
     let lesson = null;
     for (const card of document.querySelectorAll('.card')) {
       card.addEventListener('click', () => {
         lesson = card.dataset.lesson;
         if (card.dataset.solo) return go(null); // a solo visit: straight in
-        document.getElementById('lesson-title').textContent = card.querySelector('h2').textContent;
+        document.getElementById('lesson-title').textContent = card.querySelector('h3').textContent;
         document.getElementById('error').textContent = '';
         document.getElementById('same-room').checked = card.dataset.sameRoom === '1'; // Reef Dive is designed for one shared room
         dialog.showModal();
