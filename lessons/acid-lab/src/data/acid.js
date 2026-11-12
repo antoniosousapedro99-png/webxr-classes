@@ -125,17 +125,6 @@ export const METHODS = [
   { id: 'meter', name: 'Digital pH meter', tells: 'pH to 0.01', pros: 'Accurate and precise. A number, so no judging colours. Works in coloured liquids. Can log data.', cons: 'Expensive and fragile. Must be calibrated, rinsed between samples and given time to settle.' },
 ];
 
-/** Sticky notes are built by picking: one opening, then one or two endings. */
-export const NOTE_GROUPS = [
-  { id: 'meter', start: 'Digital pH meters', items: ['give an exact number, to 0.01', 'don’t depend on judging colours by eye', 'work in coloured or cloudy liquids', 'give the same answer whoever uses them', 'must be calibrated and rinsed to stay accurate'] },
-  { id: 'paper', start: 'Indicator papers', items: ['are cheap, quick and need no batteries', 'only give a rough answer', 'are fine for a quick acid-or-alkali check', 'can be read differently by different people'] },
-  { id: 'real', start: 'In real life, accurate pH matters for', items: ['swimming pools and drinking water', 'soil for growing crops', 'blood tests in hospitals', 'aquariums and fish farms', 'making food and drink safely'] },
-];
-export const noteText = (group, picks) => {
-  const g = NOTE_GROUPS.find((x) => x.id === group);
-  return `${g.start} ${picks.map((i) => g.items[i]).join(', and ')}.`;
-};
-
 export const SAFETY = 'In a real lab: wear eye protection, never taste or sniff the solutions, and tell your teacher about any spill. Strong acids and alkalis are corrosive.';
 
 // ───────────── ask the chemist (pre-written; an AI chemist can be connected in config.js) ─────────────

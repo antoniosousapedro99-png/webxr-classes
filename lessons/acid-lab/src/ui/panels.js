@@ -1,7 +1,7 @@
-import { SUBSTANCES, LETTERS, LEVELS, UI_CHART, css, LITMUS_WORDS, METHODS, NOTE_GROUPS, noteText, QUESTIONS, SAFETY, describePH, hydrogen } from '../data/acid.js';
+import { SUBSTANCES, LETTERS, LEVELS, UI_CHART, css, LITMUS_WORDS, METHODS, QUESTIONS, SAFETY, describePH, hydrogen } from '../data/acid.js';
 import { THEME, font } from '../../../../shared/ui/CanvasPanel.js';
 
-export const MODES = [['scale', 'pH scale'], ['paper', 'Test papers'], ['meter', 'pH meter'], ['compare', 'Compare'], ['notes', 'Takeaway']];
+export const MODES = [['scale', 'pH scale'], ['paper', 'Test papers'], ['meter', 'pH meter'], ['compare', 'Compare']];
 const GOOD = '#7ee2a8';
 const BAD = '#ff8a8a';
 const WARN = '#ffd166';
@@ -16,7 +16,7 @@ export function drawControls(ui, app) {
     ui.text(`Chosen by ${app.adminName}`, { size: 21, color: THEME.dim });
   } else {
     ui.heading('Activity');
-    ui.buttons(MODES.map(([id, label]) => ({ id: `mode-${id}`, label, active: s.mode === id, onClick: () => app.setMode(id) })), { cols: 3, height: 56, size: 23, gap: 8 });
+    ui.buttons(MODES.map(([id, label]) => ({ id: `mode-${id}`, label, active: s.mode === id, onClick: () => app.setMode(id) })), { cols: 2, height: 56, size: 23, gap: 8 });
   }
   ui.gap(6);
 
@@ -41,13 +41,11 @@ export function drawControls(ui, app) {
       }
       ui.text(`${s.level === 'advanced' ? '1. Calibrate: stand the probe in the pH 7.00 buffer, wait, press Calibrate.\n2' : '1'}. Dip the probe in a solution (let go: it stands in the beaker).\n• Wait for STABLE, then record.\n• Rinse in distilled water before the next one.`, { size: 21, color: THEME.dim });
     }
-  } else if (s.mode === 'compare') {
+  } else {
     const done = app.progress();
     ui.text(`${done} of 18 results recorded`, { size: 26, weight: 700 });
     ui.buttons([{ id: 'check', label: s.checked ? 'Hide the answers' : 'Check my results', active: s.checked, onClick: () => app.toggleCheck() }], { height: 58, size: 25 });
     ui.text('See how close each method got to the real pH, then decide: which would you trust, and when?', { size: 21, color: THEME.dim });
-  } else {
-    drawNoteBuilder(ui, app);
   }
 
   if (!app.followsAdmin) {
@@ -64,24 +62,6 @@ export function drawControls(ui, app) {
   }
   ui.divider();
   ui.buttons(app.generalButtons(), { cols: 3, height: 52, size: 21, gap: 8 });
-}
-
-function drawNoteBuilder(ui, app) {
-  const s = app.state;
-  const n = s.note;
-  ui.text('Build a sticky note: choose how it starts, then one or two endings.', { size: 21, color: THEME.dim });
-  ui.buttons(NOTE_GROUPS.map((g) => ({ id: `ng-${g.id}`, label: `${g.start}…`, active: n.group === g.id, onClick: () => app.noteGroup(g.id) })), { cols: 1, height: 44, size: 20, gap: 6 });
-  const g = NOTE_GROUPS.find((x) => x.id === n.group);
-  if (g) {
-    ui.gap(4);
-    ui.buttons(g.items.map((text, i) => ({ id: `ni-${i}`, label: `… ${text}`, active: n.picks.includes(i), onClick: () => app.notePick(i) })), { cols: 1, height: 42, size: 19, gap: 6 });
-    if (n.picks.length) ui.box(noteText(n.group, n.picks), { size: 20, color: '#ffe873' });
-  }
-  ui.buttons([
-    { id: 'stick', label: 'Stick it on the board', disabled: !g || !n.picks.length || s.notes.length >= 3, onClick: () => app.stickNote() },
-    { id: 'unstick', label: 'Remove my last', disabled: !s.notes.length, onClick: () => app.removeNote() },
-  ], { height: 52, size: 21, gap: 8 });
-  ui.text(`${s.notes.length} of 3 notes on the board`, { size: 20, color: THEME.dim });
 }
 
 // ───────────────────────── Right: information and recording ─────────────────────────
@@ -134,7 +114,7 @@ export function drawInfo(ui, app) {
     ui.buttons([{ id: 'rec-meter', label: inSample ? `Record the reading for ${m.in}` : 'Record the reading', disabled: !inSample, onClick: () => app.recordMeter() }], { height: 58, size: 24 });
     void l;
     drawTable(ui, app, false);
-  } else if (s.mode === 'compare') {
+  } else {
     ui.title('Results', { size: 36 });
     drawTable(ui, app, s.checked);
     if (s.checked) {
@@ -152,11 +132,6 @@ export function drawInfo(ui, app) {
       ui.text(`+ ${m.pros}`, { size: 19, color: GOOD });
       ui.text(`− ${m.cons}`, { size: 19, color: BAD });
     }
-  } else {
-    ui.title('Your takeaway', { size: 36 });
-    ui.text('Where does measuring pH matter in the real world, and why would you choose a digital meter over paper?', { size: 22 });
-    if (!s.notes.length) ui.text('Your notes will appear here and on the class board.', { size: 21, color: THEME.dim });
-    for (const n of s.notes) ui.box(n, { size: 21, color: '#ffe873' });
   }
 
   ui.divider();

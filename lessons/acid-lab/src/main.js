@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { LessonApp } from '../../../shared/LessonApp.js';
 import { CanvasPanel } from '../../../shared/ui/CanvasPanel.js';
 import { sound } from '../../../shared/util/sound.js';
-import { SUBSTANCES, LETTERS, PAPERS, unknownsFor, litmusShows, describePH, hydrogen, noteText, ANSWERS, SAFETY } from './data/acid.js';
+import { SUBSTANCES, LETTERS, PAPERS, unknownsFor, litmusShows, describePH, hydrogen, ANSWERS, SAFETY } from './data/acid.js';
 import { Bench } from './model/Bench.js';
 import { Sorter } from './model/Sorter.js';
 import { Board } from './model/Board.js';
@@ -10,7 +10,7 @@ import { drawControls, drawInfo, drawCard, MODES } from './ui/panels.js';
 
 // Acid Lab: every student has a lab bench (a pH scale to sort everyday substances onto, six unknown solutions,
 // litmus and universal indicator papers, a digital pH meter) and records their own results. A big class board
-// shows the pH scale, the teacher's current test and everyone's sticky-note takeaways. In a shared session the
+// shows the pH scale and the teacher's current test. In a shared session the
 // teacher (admin) picks the activity, the level and the set of solutions for everyone.
 
 const BOARD_IN_LAB = new THREE.Vector3(0, 1.0, -2.0); // behind your bench (solo, or before the room is found)
@@ -31,8 +31,6 @@ class App extends LessonApp {
       checked: false,
       goggles: false,
       substance: null, // { id, known } shown on the info panel (pH scale activity)
-      note: { group: null, picks: [] },
-      notes: [],
       big: true,
       bio: { qid: null, answer: null },
       explain: {
@@ -118,7 +116,6 @@ class App extends LessonApp {
       paper: ['Test papers', 'Six mystery solutions, A to F. Dip red litmus, blue litmus and universal indicator paper into each one, look carefully at the colours, and record what you see.'],
       meter: ['The digital pH meter', 'Now measure the same solutions with the meter. Wait for the reading to settle, and rinse the probe in distilled water between solutions, or your readings will be wrong.'],
       compare: ['Compare the methods', 'Press “Check my results” to see the real pH of each solution and how close litmus, indicator paper and the meter got.'],
-      notes: ['Your takeaway', 'Build a sticky note about what you found and stick it on the class board.'],
     }[mode];
     s.explain = { title: text[0], text: text[1] };
     this.refresh();
@@ -300,34 +297,6 @@ class App extends LessonApp {
     });
   }
 
-  // ───────────── sticky notes ─────────────
-
-  noteGroup(id) {
-    this.state.note = { group: id, picks: [] };
-  }
-
-  notePick(i) {
-    const p = this.state.note.picks;
-    if (p.includes(i)) p.splice(p.indexOf(i), 1);
-    else {
-      p.push(i);
-      if (p.length > 2) p.shift(); // one or two endings
-    }
-  }
-
-  stickNote() {
-    const s = this.state;
-    if (!s.note.group || !s.note.picks.length || s.notes.length >= 3) return;
-    s.notes.push(noteText(s.note.group, s.note.picks));
-    s.note = { group: null, picks: [] };
-    sound.snap();
-    this.explain({ title: 'Stuck on the board', text: 'Your note is on the class board for everyone to read.' });
-  }
-
-  removeNote() {
-    this.state.notes.pop();
-  }
-
   // ───────────── ask the chemist ─────────────
 
   ask(qid) {
@@ -369,14 +338,6 @@ class App extends LessonApp {
 
   get demo() {
     return this.followsAdmin && this.adminDemo ? this.adminDemo : this.myDemo();
-  }
-
-  /** Everyone's sticky notes: mine, then each colleague's. */
-  allNotes() {
-    const me = this.presence?.name ?? 'Me';
-    const notes = this.state.notes.map((text) => ({ text, by: me }));
-    for (const p of this.presence?.peers.values() ?? []) for (const text of p.replica?.notes ?? []) notes.push({ text, by: p.name });
-    return notes;
   }
 
   /** Same-room session: fixed in the classroom for every headset. Otherwise: behind your bench. */
@@ -466,20 +427,18 @@ class App extends LessonApp {
 
   // ───────────── shared sessions ─────────────
 
-  /** What colleagues need from me: my sticky notes (for the board) and how much I've recorded (for the teacher). */
+  /** What colleagues need from me: how much I've recorded (for the teacher). */
   netState() {
-    return { notes: this.state.notes, n: this.progress() };
+    return { n: this.progress() };
   }
 
-  /** Others' benches aren't drawn beside mine (the class board is the shared thing); I keep their notes and progress. */
+  /** Others' benches aren't drawn beside mine (the class board is the shared thing); I keep their progress. */
   createReplica() {
     const r = {
       group: new THREE.Group(),
-      notes: [],
       n: null,
       apply: (st) => {
         const fresh = st.n !== r.n;
-        r.notes = Array.isArray(st.notes) ? st.notes.slice(0, 3).map((t) => String(t).slice(0, 200)) : [];
         r.n = st.n;
         if (fresh && this.isAdmin && this.adminPanel?.mesh.visible) this.adminPanel.redraw();
       },
@@ -492,7 +451,6 @@ class App extends LessonApp {
   grabTargets() {
     const m = this.state.mode;
     if (m === 'scale') return this.sorter.grabTargets;
-    if (m === 'notes') return [];
     return this.bench.grabTargets;
   }
 
@@ -514,7 +472,7 @@ class App extends LessonApp {
       const unknowns = d.seed === this.state.seed ? this.unknowns : unknownsFor(d.seed);
       const test = d.test ? { ...d.test, ph: unknowns.find((u) => u.letter === d.test.l)?.ph ?? 7 } : null;
       const who = !this.presence ? '' : this.isAdmin ? this.presence.name : this.adminName === 'the teacher' ? 'Teacher' : this.adminName;
-      this.board.draw({ sorted: d.sorted ?? [], test, who }, this.allNotes());
+      this.board.draw({ sorted: d.sorted ?? [], test, who });
     }
 
     if (this.isAdmin) {

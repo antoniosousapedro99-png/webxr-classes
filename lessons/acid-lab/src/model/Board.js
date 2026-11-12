@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { SUBSTANCES, PAPERS, paperColor, css } from '../data/acid.js';
 import { drawScale } from './Sorter.js';
 
-// The class board (about 2.6 m wide): the pH scale with the substances the teacher has placed, the teacher's
-// current test (papers and meter reading, shown big), and everyone's sticky notes. One canvas, redrawn only
+// The class board (about 2.6 m wide): the pH scale with the substances the teacher has placed, and the teacher's
+// current test (papers and meter reading, shown big). One canvas, redrawn only
 // when something on it changes.
 
 const W = 1664;
@@ -32,7 +32,6 @@ const rr = (c, x, y, w, h, r) => {
   c.arcTo(x, y, x + w, y, r);
   c.closePath();
 };
-const NOTE_COLORS = ['#ffe873', '#ffc9de', '#bdf0c2', '#bfe3ff', '#ffd9a3'];
 
 export class Board {
   constructor() {
@@ -51,10 +50,9 @@ export class Board {
 
   /**
    * d: what the teacher (or you, solo) is doing: { sorted: [ids], test: { l, ph, red, blue, ui, m, stable }, who }.
-   * notes: [{ text, by }].
    */
-  draw(d, notes) {
-    const key = JSON.stringify([d, notes]);
+  draw(d) {
+    const key = JSON.stringify(d);
     if (key === this.key) return;
     this.key = key;
     const c = this.canvas.getContext('2d');
@@ -70,8 +68,8 @@ export class Board {
     c.font = '400 26px system-ui, sans-serif';
     c.fillStyle = '#aab3d8';
     c.fillText(d.sorted.length ? `${d.sorted.length} placed${d.who ? ` by ${d.who}` : ''}` : 'Substances appear here as they are placed', 330, 60);
-    const sx = 40;
-    const sw = 1020;
+    const sx = 60;
+    const sw = W - 120;
     const sy = 330;
     drawScale(c, sx, sy, sw, 64, { big: true });
     const step = sw / 15;
@@ -80,7 +78,7 @@ export class Board {
       const s = SUBSTANCES[id];
       if (!s) continue;
       const x = sx + (s.ph + 0.5) * step;
-      c.font = '600 24px system-ui, sans-serif';
+      c.font = '600 28px system-ui, sans-serif';
       const text = `${s.short ?? s.name} ${s.ph}`;
       const w = c.measureText(text).width + 20;
       let row = 0;
@@ -139,62 +137,23 @@ export class Board {
         }
         c.textAlign = 'left';
       };
-      chip(180, 'Red litmus', 'red');
-      chip(350, 'Blue litmus', 'blue');
-      chip(520, 'Indicator', 'ui');
+      chip(300, 'Red litmus', 'red');
+      chip(500, 'Blue litmus', 'blue');
+      chip(700, 'Indicator', 'ui');
       // meter
-      rr(c, 710, ty + 40, 350, 150, 18);
+      rr(c, 960, ty + 40, 440, 150, 18);
       c.fillStyle = '#0b1f16';
       c.fill();
       c.fillStyle = t.m == null ? '#3d6b55' : t.stable ? '#7dffb0' : '#e9f5c9';
       c.font = '700 104px ui-monospace, Menlo, Consolas, monospace';
       c.textAlign = 'center';
-      c.fillText(t.m == null ? '--.--' : t.m.toFixed(t.stable ? 2 : 1), 885, ty + 152);
+      c.fillText(t.m == null ? '--.--' : t.m.toFixed(t.stable ? 2 : 1), 1180, ty + 152);
       c.font = '600 24px system-ui, sans-serif';
       c.fillStyle = '#ffffff';
-      c.fillText(t.m == null ? 'pH meter' : t.stable ? 'pH meter · stable' : 'pH meter · settling…', 885, ty + 224);
+      c.fillText(t.m == null ? 'pH meter' : t.stable ? 'pH meter · stable' : 'pH meter · settling…', 1180, ty + 224);
       c.textAlign = 'left';
     }
 
-    // ── sticky notes
-    const nx = 1110;
-    c.fillStyle = '#ffffff';
-    c.font = '700 46px system-ui, sans-serif';
-    c.fillText('Our takeaways', nx, 62);
-    if (!notes.length) {
-      c.fillStyle = '#aab3d8';
-      c.font = '400 26px system-ui, sans-serif';
-      wrap(c, 'Sticky notes appear here in the Takeaway activity.', 500).forEach((l, i) => c.fillText(l, nx, 120 + i * 34));
-    }
-    const shown = notes.slice(-9);
-    shown.forEach((n, i) => {
-      const col = i % 3;
-      const row = Math.floor(i / 3);
-      const x = nx + col * 176;
-      const y = 92 + row * 240;
-      c.save();
-      c.translate(x + 82, y + 110);
-      c.rotate(((i * 37) % 7 - 3) * 0.012);
-      c.fillStyle = 'rgba(0,0,0,0.35)';
-      c.fillRect(-78, -100, 164, 220);
-      c.fillStyle = NOTE_COLORS[(n.by.length + i) % NOTE_COLORS.length];
-      c.fillRect(-82, -106, 164, 220);
-      c.fillStyle = '#1a1a1a';
-      let size = 20;
-      c.font = `500 ${size}px system-ui, sans-serif`;
-      let lines = wrap(c, n.text, 146);
-      while (lines.length * size * 1.2 > 168 && size > 12) {
-        size -= 1;
-        c.font = `500 ${size}px system-ui, sans-serif`;
-        lines = wrap(c, n.text, 146);
-      }
-      c.textAlign = 'left';
-      lines.forEach((l, k) => c.fillText(l, -73, -80 + k * size * 1.2));
-      c.font = '700 17px system-ui, sans-serif';
-      c.fillStyle = '#444';
-      c.fillText(`— ${n.by}`.slice(0, 20), -73, 104);
-      c.restore();
-    });
     this.tex.needsUpdate = true;
   }
 }
