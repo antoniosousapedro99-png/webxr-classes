@@ -25,6 +25,12 @@ import { newSessionCode } from './net/code.js';
 //   netState()           a small JSON snapshot of what it shows (sent to the others when it changes)
 //   createReplica()      → { group, apply(snapshot), update(dt)? } to show someone else's work
 
+// Where the side panels sit (lab coordinates): far enough out to the sides, and high enough, to stay clear of
+// the bench and anything on it (benches are up to about 0.92 m wide).
+export const PANEL_X = 0.74;
+export const PANEL_Y = 0.04;
+export const PANEL_Z = 0.14;
+
 export class LessonApp {
   constructor({ labPos = new THREE.Vector3(0, 1.2, 0), camPos = new THREE.Vector3(0, 1.45, 1.35), background = 0x0d1020 } = {}) {
     this.labPos = labPos.clone();
@@ -53,7 +59,7 @@ export class LessonApp {
     if (session) {
       this.presence = new Presence(this, { lessonId: this.lessonId, ...session });
       this.sessionPanel = new CanvasPanel({ width: 0.5, height: session.sameRoom ? 0.19 : 0.14, name: 'session' });
-      this.sessionPanel.mesh.position.set(-0.62, session.sameRoom ? -0.475 : -0.45, 0.14);
+      this.sessionPanel.mesh.position.set(-PANEL_X, PANEL_Y + (session.sameRoom ? -0.475 : -0.45), PANEL_Z);
       this.sessionPanel.mesh.rotation.y = 0.42;
       this.lab.add(this.sessionPanel.mesh);
       this.sessionPanel.setBuilder((ui) => this.drawSession(ui));
@@ -122,9 +128,9 @@ export class LessonApp {
 
     this.controlPanel = new CanvasPanel({ width: 0.5, height: 0.72, name: 'controls' });
     this.infoPanel = new CanvasPanel({ width: 0.5, height: 0.72, name: 'info' });
-    this.controlPanel.mesh.position.set(-0.62, 0, 0.14);
+    this.controlPanel.mesh.position.set(-PANEL_X, PANEL_Y, PANEL_Z);
     this.controlPanel.mesh.rotation.y = 0.42;
-    this.infoPanel.mesh.position.set(0.62, 0, 0.14);
+    this.infoPanel.mesh.position.set(PANEL_X, PANEL_Y, PANEL_Z);
     this.infoPanel.mesh.rotation.y = -0.42;
     // Floating card above the model that explains whatever you just picked up or changed.
     this.explainPanel = new CanvasPanel({ width: 0.68, height: 0.25, name: 'explain' });
@@ -322,7 +328,7 @@ export class LessonApp {
   initPlayerList() {
     this.playersOpen = false;
     const add = (panel, y) => {
-      panel.mesh.position.set(0.62, y, 0.14);
+      panel.mesh.position.set(PANEL_X, PANEL_Y + y, PANEL_Z);
       panel.mesh.rotation.y = -0.42;
       this.lab.add(panel.mesh);
       this.panels.push(panel);
@@ -470,7 +476,7 @@ export class LessonApp {
     this.admin = { lock: false }; // what the admin has set for everyone
     this.lockedByAdmin = false; // (students) the admin has locked my menus
     this.adminPanel = new CanvasPanel({ width: 0.5, height: 0.72, name: 'admin' });
-    this.adminPanel.mesh.position.set(-1.0, 0, 0.46);
+    this.adminPanel.mesh.position.set(-1.0 - (PANEL_X - 0.62), PANEL_Y, 0.46);
     this.adminPanel.mesh.rotation.y = 0.95;
     this.adminPanel.mesh.visible = false;
     this.adminPanel.setBuilder((ui) => this.drawAdmin(ui));
