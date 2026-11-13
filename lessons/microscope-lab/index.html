@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Microscope Lab</title>
+  <meta name="description" content="Microscopes in mixed reality (WebXR): prepare slides of real samples, focus a light microscope at three magnifications and label the cells you see.">
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script src="config.js"></script>
+</head>
+<body>
+  <div id="overlay">
+    <h1>Microscope Lab</h1>
+    <p>Prepare slides of onion, cheek cells, pondweed, blood, pond water and gut tissue, focus the microscope at ×40, ×100 and ×400, and label the cells you see.</p>
+    <div class="buttons">
+      <button id="btn-ar" disabled>Checking for mixed reality…</button>
+      <button id="btn-vr" class="secondary" hidden>Enter VR</button>
+    </div>
+    <p class="hint" id="hint"></p>
+  </div>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

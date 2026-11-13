@@ -12,7 +12,11 @@ Mixed reality lessons built with [WebXR](https://immersiveweb.dev/) and [three.j
 | **PC Builder Lab** | Computer Science | [`lessons/pc-builder/`](lessons/pc-builder/) |
 | **Cell Explorer** | Biology | [`lessons/cell-explorer/`](lessons/cell-explorer/) |
 | **Heart Lab** | Biology | [`lessons/heart-lab/`](lessons/heart-lab/) |
-| **Enzyme Lab** | Biology | [`lessons/enzyme-lab/`](lessons/enzyme-lab/) |
+| **Enzyme Lab** | Biology | [`lessons/microscope-lab/
+  src/data/micro.js                samples and stains, labels, microscope parts, quiz, answers
+  src/model/                       Specimens (every sample drawn in code, and what can be labelled where), Bench (slides, pipette, coverslips, microscope), Board
+lessons/enzyme-lab/`](lessons/enzyme-lab/) |
+| **Microscope Lab** | Biology | [`lessons/microscope-lab/`](lessons/microscope-lab/) |
 | **Reef Dive** | Biology (IB) | [`lessons/reef-dive/`](lessons/reef-dive/) |
 | **Hintze Hall** | Museum visit (VR) | [`lessons/hintze-hall/`](lessons/hintze-hall/) |
 
@@ -33,7 +37,7 @@ Every lesson can be opened **solo** or in a **shared session**:
 
 Each person has **their own models**. Everyone else's work appears beside you at their own desk as a live copy: you can see their PC being built part by part, their atom or molecule, or their cell with its knock-outs. Desks sit side by side in the same order for everyone, so if you see someone on your right, they see you on their left. There are **no avatars**: the lessons are mixed reality, so you see the real people.
 
-**Same room:** tick **"We're in the same room"** when starting or joining a session (Acid Lab, Waves Lab, Bounce Lab, Radiation Lab, Heart Lab, Enzyme Lab and Reef Dive tick it for you). Everyone then sees the same things in the same real places, with **nothing to press**:
+**Same room:** tick **"We're in the same room"** when starting or joining a session (Acid Lab, Waves Lab, Bounce Lab, Radiation Lab, Heart Lab, Enzyme Lab, Microscope Lab and Reef Dive tick it for you). Everyone then sees the same things in the same real places, with **nothing to press**:
 
 - **Before class, once per headset:** scan the classroom with Quest **Settings › Physical space › Space Setup** (about 2 minutes; mark the walls, door, windows and tables). If the browser asks to use spatial data, allow it.
 - In the lesson, each headset finds the room by itself from its scan (`shared/net/RoomAlign.js`): the room's walls give the directions, and the middle of the room, on the floor, is the shared origin. Which way round is settled by the door, windows, tables and other fittings, which every headset matches against the admin's headset. It checks again every second, so a headset that recentres or loses tracking puts itself right. In a simulation with realistic scan noise, headsets agreed to within about 5 cm and never got the room the wrong way round.
@@ -49,6 +53,7 @@ Each person has **their own models**. Everyone else's work appears beside you at
 - **Bounce Lab:** **Activity for everyone** (Predict / Drop + measure / Compare), **Level for everyone**, **Ball on the class chart**, the **Class board** position (same room), and who has answered the prediction (or how many drops each student has recorded). The teacher’s own controls choose the prediction and reveal the answer.
 - **Radiation Lab:** **Activity for everyone** (The counter / Test sources / Half-life at Advanced / Class results), **Level for everyone**, **Reveal the answers** (class results), the **Class board** position (same room) and how many sources each student has decided about. The board shows the teacher’s Geiger counter, half-life graph or the class’s verdicts.
 - **Enzyme Lab:** **Activity for everyone** (Starter quiz / Experiment / Class graph), **Level for everyone**, the **Class board** position (same room) and how many temperatures each student has done. The board shows everyone’s quiz scores, then the class graph.
+- **Microscope Lab:** **Activity for everyone** (Microscope parts / Prepare + view / Quiz), **Level for everyone**, the **Class board** position (same room) and how many labels each student has placed. The board shows the part the teacher taps, the teacher’s view down the microscope, or everyone’s quiz scores.
 - **Heart Lab:** **Activity for everyone**, **Level for everyone** (Core / Advanced) and, in the same room, **Class heart** position (middle of the room, or in front of the teacher). The class heart mirrors the teacher’s own heart; a part the teacher taps lights up for everyone. While students label, the menu shows each student’s score.
 - **Reef position** (Reef Dive, same room): in the middle of the room (default) or **Put it here** (centred where the admin stands). It stays fixed in the room for everyone.
 - **Students:** **Menus: locked** hides students' settings (moving the panels, placing, seated mode, water level, leaving with ← Lessons; only Voice stays). **Re-find room (all)** makes every headset read its room scan again. Each student is listed with their room status and a **Remove** button (press twice) that takes them out of the session.
@@ -302,6 +307,26 @@ Rebuilt from the original EngageVR lesson, with the same set-up and steps: a pie
 **Advanced:** the equation 2 H₂O₂ → 2 H₂O + O₂ on the panel, two extra quiz questions, and the **rate of reaction** worked out from the first 30 s (cm³ per minute), checked on the keypad.
 
 **Ask the biologist:** 8 pre-written answers (what an enzyme is, lock and key, why liver, why heat speeds it up, denaturing, why collect over water, fair testing, uses of enzymes). An AI biologist can be connected later with `biologistEndpoint` in `lessons/enzyme-lab/config.js`.
+
+## Microscope Lab
+
+Rebuilt from the original EngageVR lesson, with the same bench and steps: a row of sample slides, a pipette, coverslips and a microscope with − / + focus buttons; the view down the microscope is on a screen above it. Everything is built in code, including every sample seen through the eyepiece.
+
+**Steps (as in the original):** hold the pipette over a slide to add a drop (the right stain for that sample, or water), put a coverslip on it, move it onto the stage, focus. A slide without its drop and coverslip can’t go on the stage.
+
+**The microscope:** three objective lenses (×4, ×10, ×40; ×10 eyepiece, so ×40, ×100 and ×400), coarse and fine focus (the − / + buttons on the microscope use coarse at low power and fine at ×40). Each lens is sharp at a slightly different place, so switching needs a little refocusing; the coarse focus is refused at ×40 (it could crack the slide). Fields of view are realistic (4, 1.6 and 0.4 mm).
+
+**Samples:** onion skin (iodine), cheek cells (methylene blue), pondweed (water: chloroplasts), human blood (stained smear), pond water (paramecia swimming with beating cilia, and algae) and small intestine (pink and purple stain, like the original’s slide).
+
+**Labelling:** pick a label, then tap that structure in the view (at ×100 or ×400, in focus). Core: cell wall / membrane, nucleus, cytoplasm, chloroplast, red and white blood cells, single-celled organism, algae, villus. Advanced adds vacuole, bacteria, platelets, cilia, goblet cells and epithelium.
+
+| Lesson plan | In the Microscope Lab |
+| --- | --- |
+| (starter) How a microscope works; why microscopes matter | **Microscope parts:** tap each of the 10 parts (eyepiece, objectives, nosepiece, stage, clips, coarse and fine focus, light, arm, base) to learn its job; the class board shows a labelled diagram with the part highlighted. |
+| Prepare cell samples; focus; identify what is seen | **Prepare + view:** the original steps, the lenses and focus, and labelling. The teacher’s view is big on the class board. |
+| (plenary) Discussion; quick quiz on parts, functions and slide preparation | **Quiz:** 7 questions (9 at Advanced) on each student’s panel, with scores on the board; discussion prompts at the end. |
+
+**Ask the biologist:** 8 pre-written answers (why microscopes matter, how they work, magnification, starting at low power, stains, coverslips, plant vs animal cells, real uses).
 
 ## Reef Dive
 
