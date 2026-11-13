@@ -2,44 +2,39 @@ import * as THREE from 'three';
 import { LessonApp } from '../../../shared/LessonApp.js';
 import { CanvasPanel } from '../../../shared/ui/CanvasPanel.js';
 import { sound } from '../../../shared/util/sound.js';
-import { STATEMENTS, CARDS, SYSTEMS, QUIZ, ANSWERS, STARTER_OPTIONS } from './data/organs.js';
+import { CARDS, SYSTEMS, QUIZ, ANSWERS } from './data/organs.js';
 import { Body, loadBody } from './model/Body.js';
-import { Pen, drawStrokes } from './model/Pen.js';
 import { Board } from './model/Board.js';
 import { MODES, drawControls, drawInfo, drawCard } from './ui/panels.js';
 
 // Identifying Organs, rebuilt from the original EngageVR lesson: every student has their own life-size
-// skeleton standing beside their desk, and the organs laid out on the desk. Starter (the plan's four
-// options), put each organ in its place, match the function cards, then the plenary (the whole body, one
-// system at a time, and how they depend on each other) and the plan's 10-question quiz. A class board shows
-// the starter poster and sticky notes, everyone's progress, the system being discussed, and the quiz results.
+// skeleton standing beside their desk, and the organs laid out on the desk. Sticky notes (an organ and what it
+// does, on the class board), put each organ in its place, match the function cards, then the plenary (the whole
+// body, one system at a time, and how they depend on each other) and the plan's 10-question quiz. A class board
+// shows the sticky notes, everyone's progress, the system being discussed, and the quiz results.
 // The teacher (admin) picks the activity, level and system for everyone, and can show the answers.
 
 const BOARD_IN_LAB = new THREE.Vector3(0, 1.0, -2.2);
 const BOARD_HEIGHT = 1.7;
-const RECALL_SECONDS = 60;
 
 class App extends LessonApp {
   constructor() {
     super({ labPos: new THREE.Vector3(0, 1.2, 0), camPos: new THREE.Vector3(0.05, 1.42, 1.55), panelX: 1.02 });
     this.state = {
       ...this.state,
-      mode: 'starter',
+      mode: 'notes',
       level: 'core',
       big: true,
       revealed: false,
       answers: false, // the teacher's "show the answers" (ghosts in every skeleton)
       system: null,
-      option: null,
-      tf: {},
       note: { organ: null, fn: null, stuck: null },
-      recall: { n: 0, running: false, left: RECALL_SECONDS, done: false },
       quiz: QUIZ.map(() => null),
       quizAt: 0,
       doc: { qid: null, answer: null },
       explain: {
         title: 'Welcome: identifying organs',
-        text: 'This skeleton is yours, and it is missing all its organs: they are on the desk. First, a starter task: pick one of the four options on the left.',
+        text: 'This skeleton is yours, and it is missing all its organs: they are on the desk. First, sticky notes: pick an organ and what it does on the right, and stick them on the class board.',
       },
     };
     this.initLesson();
@@ -56,7 +51,6 @@ class App extends LessonApp {
     this.infoPanel.mesh.rotation.y = -0.55;
     this.controlPanel.mesh.rotation.y = 0.55;
 
-    this.pen = new Pen(this);
     this.board = new Board();
     this.boardStage = new THREE.Group();
     this.boardStage.add(this.board.group);
@@ -87,7 +81,7 @@ class App extends LessonApp {
     this.applyMode();
     if (quiet) return;
     const text = {
-      starter: ['Starter tasks', 'Pick one of the four options on the left, as on the class board.'],
+      notes: ['Sticky notes', 'Pick an organ and what it does on the right, then stick the pair on the class board. Do you agree with everyone else’s?'],
       build: ['Build the body', this.state.level === 'advanced'
         ? 'No names this time: work out each organ from its shape and put it where it belongs. Press “Check my body” on the left when you are ready.'
         : 'Pick up each organ from the desk and put it in its place in your skeleton. It snaps in when you are close. Stuck? Press its name on the right for a hint.'],
@@ -101,7 +95,6 @@ class App extends LessonApp {
 
   applyMode() {
     const m = this.state.mode;
-    this.pen.setVisible(m === 'starter' && this.state.option === 'pen');
     const b = this.body;
     if (!b) return;
     b.showCards(m === 'functions');
@@ -117,52 +110,7 @@ class App extends LessonApp {
     this.refresh();
   }
 
-  // ───────────── starter ─────────────
-
-  setOption(id) {
-    this.state.option = id;
-    this.applyMode();
-    const o = STARTER_OPTIONS.find((x) => x.id === id);
-    this.explain({ kicker: o.name.toUpperCase(), title: o.title, text: o.here });
-  }
-
-  answerTF(i, t) {
-    if (this.state.tf[i] != null) return;
-    this.state.tf[i] = t;
-    sound[t === STATEMENTS[i].t ? 'bond' : 'refuse']();
-  }
-
-  setInk(i) {
-    this.pen.setInk(i);
-    sound.click();
-  }
-
-  penUndo() {
-    this.pen.undo();
-  }
-
-  penClear() {
-    this.pen.clear();
-    this.pen.label = null;
-    this.pen.hidden = false;
-    this.pen.redraw();
-  }
-
-  penLabel(name) {
-    this.pen.label = this.pen.label === name ? null : name;
-    this.pen.redraw();
-    sound.click();
-  }
-
-  penHide() {
-    this.pen.hidden = !this.pen.hidden;
-    this.pen.redraw();
-    sound.click();
-  }
-
-  onDrawingChanged() {
-    this.refresh();
-  }
+  // ───────────── sticky notes ─────────────
 
   noteFunctions() {
     return this.noteOrder;
@@ -186,17 +134,6 @@ class App extends LessonApp {
     n.stuck = [n.organ, n.fn];
     sound.snap();
     this.explain({ kicker: 'STICKY NOTES', title: 'On the board', text: 'Your pair is on the class board. Read everyone’s: do you agree with them all? Your teacher can mark them.' });
-  }
-
-  recallStart() {
-    this.state.recall = { n: 0, running: true, left: RECALL_SECONDS, done: false };
-    sound.power();
-  }
-
-  recallAdd(d) {
-    const r = this.state.recall;
-    r.n = Math.max(0, r.n + d);
-    sound.click();
   }
 
   // ───────────── building the body ─────────────
@@ -379,12 +316,9 @@ class App extends LessonApp {
   boardView() {
     const d = this.demo;
     const all = this.everyone();
-    if (d.mode === 'starter') {
-      const counts = {};
-      for (const p of all) if (p.st.o) counts[p.st.o] = (counts[p.st.o] ?? 0) + 1;
-      const notes = all.filter((p) => p.st.note).map((p) => ({ organ: CARDS.find((c) => c.id === p.st.note[0])?.name ?? '?', fn: CARDS.find((c) => c.id === p.st.note[1])?.text ?? '?', right: p.st.note[0] === p.st.note[1], color: p.color }));
-      const recall = all.filter((p) => p.st.rc).map((p) => ({ name: p.name, n: p.st.rc })).sort((a, b) => b.n - a.n);
-      return { kind: 'starter', counts, notes, recall, revealed: !!d.rev };
+    if (d.mode === 'notes') {
+      const notes = all.filter((p) => p.st.note).map((p) => ({ organ: CARDS.find((c) => c.id === p.st.note[0])?.name ?? '?', fn: CARDS.find((c) => c.id === p.st.note[1])?.text ?? '?', right: p.st.note[0] === p.st.note[1], color: p.color, name: p.name }));
+      return { kind: 'notes', notes, revealed: !!d.rev };
     }
     if (d.mode === 'systems') return { kind: 'systems', system: d.sys ?? null };
     if (d.mode === 'quiz') {
@@ -491,12 +425,8 @@ class App extends LessonApp {
   netState() {
     const s = this.state;
     const b = this.body;
-    const pen = s.mode === 'starter' && s.option === 'pen' && this.pen.strokes.length ? { s: this.pen.strokes, l: this.pen.label, h: this.pen.hidden } : null;
     return {
-      o: s.option,
       note: s.note.stuck,
-      rc: s.recall.done || s.recall.running ? s.recall.n : null,
-      pen,
       p: b?.placed ?? 0,
       n: b?.active.length ?? 0,
       w: b?.wrong ?? 0,
@@ -511,15 +441,9 @@ class App extends LessonApp {
     const r = {
       group: new THREE.Group(),
       st: null,
-      penKey: '',
       apply: (st) => {
         const before = JSON.stringify(r.st);
         r.st = st;
-        const penKey = JSON.stringify(st.pen ?? null);
-        if (penKey !== r.penKey) {
-          r.penKey = penKey;
-          drawStrokes(r.group, st.pen?.s ?? [], st.pen?.l, st.pen?.h);
-        }
         if (JSON.stringify(st) !== before) this.refresh();
       },
     };
@@ -529,7 +453,7 @@ class App extends LessonApp {
   // ───────────── wiring ─────────────
 
   grabTargets() {
-    return [...(this.body?.targets ?? []), ...(this.state.mode === 'starter' ? this.pen.targets : [])];
+    return this.body?.targets ?? [];
   }
 
   refresh() {
@@ -553,18 +477,6 @@ class App extends LessonApp {
       this.body.showAnswers = !!d.ans;
       if (s.mode === 'systems') this.body.system = d.sys ?? null;
       this.body.update(real, this.floorY());
-    }
-
-    const r = s.recall;
-    if (r.running) {
-      r.left -= real;
-      if (r.left <= 0) {
-        r.left = 0;
-        r.running = false;
-        r.done = true;
-        sound.beep();
-        this.explain({ kicker: 'MEMORY LIST', title: `Time’s up: ${r.n} organs`, text: 'Compare your list with your partner’s. Who remembered the most? Did either of you remember one the other forgot?' });
-      }
     }
 
     this.liveClock = (this.liveClock ?? 0) + dt;

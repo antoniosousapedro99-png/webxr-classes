@@ -1,5 +1,5 @@
-// Identifying Organs: the organs, their places and jobs, the body systems, the starter tasks and the quiz.
-// The starter tasks and quiz follow the original Inspired Education lesson plan.
+// Identifying Organs: the organs, their places and jobs, the body systems, the sticky notes and the quiz.
+// The sticky notes and quiz follow the original Inspired Education lesson plan.
 
 export const LEVELS = [['core', 'Core'], ['advanced', 'Advanced']];
 
@@ -91,25 +91,9 @@ export const DISCUSS = [
   'If the kidneys stopped working, what would build up in the blood?',
 ];
 
-// ───────────── starter tasks (from the lesson plan) ─────────────
+// ───────────── sticky notes (from the lesson plan's starter) ─────────────
 
-export const STARTER_OPTIONS = [
-  { id: 'truefalse', name: 'Option 1', title: 'True or false?', poster: 'On a sticky note, write a true or false statement about a human organ. Example: “The heart pumps blood.” Then write TRUE or FALSE.', here: 'Decide whether each statement is true or false. Then pick one to challenge your partner with.' },
-  { id: 'pen', name: 'Option 2', title: '3D pen', poster: 'Use the 3D pen tool. Draw a human organ from memory (e.g. brain, kidney, heart). Add a label. Can your partner guess which organ it is?', here: 'Pick up the pen on the desk and draw an organ in the air. Add a label, hide it, and let your partner guess.' },
-  { id: 'notes', name: 'Option 3', title: 'Sticky notes', poster: 'On one sticky note, write the name of an organ. On another, write what it does. Stick both next to each other on the wall.', here: 'Choose an organ and what it does, then stick the pair on the class board for everyone to see.' },
-  { id: 'recall', name: 'Option 4', title: 'Memory list', poster: 'Write down the names of as many human organs as you can remember. Compare your list with a partner’s: who remembered the most?', here: 'Start the 60-second timer and count every organ you can name (write them down or say them to your partner). Your score goes on the board.' },
-];
-
-export const STATEMENTS = [
-  { s: 'The heart pumps blood.', t: true, why: 'True: about 70 times a minute, all your life.' },
-  { s: 'Most people have one kidney.', t: false, why: 'False: most people have two, one each side of the spine.' },
-  { s: 'The ribcage protects the heart and lungs.', t: true, why: 'True: the ribs, breastbone and spine make a cage around them.' },
-  { s: 'The bladder makes urine.', t: false, why: 'False: the kidneys make urine; the bladder only stores it.' },
-  { s: 'The liver is the largest organ inside the body.', t: true, why: 'True: about 1.5 kg. (The skin, outside, is larger still.)' },
-  { s: 'The small intestine is shorter than the large intestine.', t: false, why: 'False: the small intestine is about 6 m long, the large intestine about 1.5 m. “Small” means narrower.' },
-  { s: 'The diaphragm helps you breathe.', t: true, why: 'True: it contracts and flattens, pulling air into the lungs.' },
-  { s: 'The heart is on the far left of the chest.', t: false, why: 'False: it is in the middle, between the lungs, just tipped towards the left.' },
-];
+export const NOTES_TASK = 'On one sticky note, the name of an organ. On another, what it does. Stick both next to each other on the board.';
 
 // ───────────── quiz (from the lesson plan) ─────────────
 

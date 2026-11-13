@@ -1,8 +1,7 @@
-import { LEVELS, STARTER_OPTIONS, STATEMENTS, CARDS, SYSTEMS, QUIZ, QUESTIONS, DISCUSS } from '../data/organs.js';
-import { INKS } from '../model/Pen.js';
+import { LEVELS, CARDS, SYSTEMS, QUIZ, QUESTIONS, DISCUSS, NOTES_TASK } from '../data/organs.js';
 import { THEME, font } from '../../../../shared/ui/CanvasPanel.js';
 
-export const MODES = [['starter', 'Starter'], ['build', 'Build the body'], ['functions', 'Functions'], ['systems', 'Body systems'], ['quiz', 'Quiz']];
+export const MODES = [['notes', 'Sticky notes'], ['build', 'Build the body'], ['functions', 'Functions'], ['systems', 'Body systems'], ['quiz', 'Quiz']];
 const GOOD = '#7ee2a8';
 const BAD = '#ff8a8a';
 const WARN = '#ffd166';
@@ -25,22 +24,8 @@ export function drawControls(ui, app) {
 
   if (!b) {
     ui.text('Loading the skeleton…', { size: 22, color: WARN });
-  } else if (s.mode === 'starter') {
-    ui.heading('Starter: pick an option', { size: 24 });
-    ui.buttons(STARTER_OPTIONS.map((o) => ({ id: `opt-${o.id}`, label: `${o.name.replace('Option ', '')}. ${o.title}`, active: s.option === o.id, onClick: () => app.setOption(o.id) })), { cols: 2, height: 50, size: 19, gap: 8 });
-    if (s.option === 'pen') {
-      ui.heading('Ink', { size: 22 });
-      ui.buttons(INKS.map((c, i) => ({ id: `ink-${i}`, label: '●', color: css(c), active: app.pen.ink === i, onClick: () => app.setInk(i) })), { height: 46, size: 26, gap: 6 });
-      ui.buttons([
-        { id: 'pen-undo', label: 'Undo', disabled: !app.pen.strokes.length, onClick: () => app.penUndo() },
-        { id: 'pen-clear', label: 'Clear', disabled: !app.pen.strokes.length, onClick: () => app.penClear() },
-        { id: 'pen-hide', label: app.pen.hidden ? 'Show label' : 'Hide label', active: app.pen.hidden, disabled: !app.pen.label, onClick: () => app.penHide() },
-      ], { height: 48, size: 19, gap: 8 });
-    } else if (s.option === 'recall') {
-      const r = s.recall;
-      ui.text(r.running ? `${Math.ceil(r.left)} s left` : r.done ? 'Time’s up!' : '60 seconds', { size: 34, weight: 700, color: r.running ? WARN : r.done ? GOOD : THEME.text });
-      ui.buttons([{ id: 'recall-start', label: r.running ? 'Running…' : r.done ? 'Start again' : 'Start the timer', disabled: r.running, active: r.running, onClick: () => app.recallStart() }], { height: 54, size: 22 });
-    }
+  } else if (s.mode === 'notes') {
+    ui.text('Pick an organ and what it does on the right, then stick the pair on the class board.', { size: 20, color: THEME.dim });
   } else if (s.mode === 'build') {
     ui.heading('Skeleton', { size: 22 });
     ui.buttons([['solid', 'Ribs solid'], ['clear', 'See-through'], ['hidden', 'Ribs hidden']].map(([id, label]) => ({ id: `ribs-${id}`, label, active: b.ribs === id, onClick: () => app.setRibs(id) })), { height: 46, size: 17, gap: 6 });
@@ -64,7 +49,7 @@ export function drawControls(ui, app) {
     ui.text(`${done} of ${QUIZ.length} answered`, { size: 24, weight: 700 });
     ui.buttons([{ id: 'quiz-restart', label: 'Start the quiz again', disabled: !done, onClick: () => app.quizRestart() }], { height: 46, size: 19 });
   }
-  if (app.controlsBoard && (s.mode === 'quiz' || s.mode === 'starter')) {
+  if (app.controlsBoard && (s.mode === 'quiz' || s.mode === 'notes')) {
     ui.buttons([{ id: 'reveal', label: s.revealed ? 'Hide the answers' : s.mode === 'quiz' ? 'Show the class results' : 'Mark the sticky notes', active: s.revealed, onClick: () => app.reveal() }], { height: 48, size: 19 });
   }
 
@@ -81,7 +66,7 @@ export function drawControls(ui, app) {
 
 export function drawInfo(ui, app) {
   const s = app.state;
-  if (s.mode === 'starter') drawStarter(ui, app);
+  if (s.mode === 'notes') drawNotes(ui, app);
   else if (s.mode === 'build') drawBuild(ui, app);
   else if (s.mode === 'functions') drawFunctions(ui, app);
   else if (s.mode === 'systems') drawSystems(ui, app);
@@ -94,50 +79,15 @@ export function drawInfo(ui, app) {
   if (s.doc.answer) ui.box(s.doc.answer, { size: 20 });
 }
 
-function drawStarter(ui, app) {
-  const s = app.state;
-  const o = STARTER_OPTIONS.find((x) => x.id === s.option);
-  if (!o) {
-    ui.title('Starter tasks', { size: 32 });
-    ui.text('Four options, as on the class board. Pick one on the left.', { size: 21 });
-    for (const x of STARTER_OPTIONS) ui.text(`${x.name}: ${x.title}. ${x.here}`, { size: 19, color: THEME.dim });
-    return;
-  }
-  ui.title(`${o.name}: ${o.title}`, { size: 30 });
-  ui.text(o.here, { size: 20, color: THEME.dim });
-  if (o.id === 'truefalse') {
-    let right = 0;
-    STATEMENTS.forEach((st, i) => {
-      const a = s.tf[i];
-      ui.text(`${i + 1}. ${st.s}`, { size: 20, weight: 700 });
-      if (a == null) ui.buttons([{ id: `tf-${i}-t`, label: 'TRUE', onClick: () => app.answerTF(i, true) }, { id: `tf-${i}-f`, label: 'FALSE', onClick: () => app.answerTF(i, false) }], { height: 42, size: 18, gap: 8 });
-      else {
-        if (a === st.t) right++;
-        ui.text(`${a === st.t ? '✓' : '✗'} ${st.why}`, { size: 18, color: a === st.t ? GOOD : BAD });
-      }
-    });
-    const n = Object.keys(s.tf).length;
-    if (n) ui.text(`${right} of ${n} right.`, { size: 22, weight: 700, color: THEME.accent });
-    if (n === STATEMENTS.length) ui.text('Now make up your own true-or-false statement about an organ, and try it on your partner.', { size: 20, color: WARN });
-  } else if (o.id === 'pen') {
-    ui.heading('Label your drawing', { size: 22 });
-    ui.buttons(CARDS.slice(0, 9).map((c) => ({ id: `lab-${c.id}`, label: c.name, active: app.pen.label === c.name, onClick: () => app.penLabel(c.name) })), { cols: 3, height: 44, size: 16, gap: 6 });
-    ui.text(app.pen.label ? (app.pen.hidden ? 'Label hidden: can your partner guess?' : `Labelled: ${app.pen.label}. Hide the label on the left so your partner can guess.`) : 'Draw first, then pick its name.', { size: 19, color: THEME.dim });
-    ui.text(`Ink used: ${Math.round((app.pen.points / 700) * 100)}%`, { size: 17, color: THEME.dim });
-  } else if (o.id === 'notes') {
-    const n = s.note;
-    ui.heading('Note 1: the organ', { size: 22 });
-    ui.buttons(CARDS.slice(0, 9).map((c) => ({ id: `no-${c.id}`, label: c.name, active: n.organ === c.id, onClick: () => app.noteOrgan(c.id) })), { cols: 3, height: 44, size: 16, gap: 6 });
-    ui.heading('Note 2: what it does', { size: 22 });
-    for (const c of app.noteFunctions()) ui.buttons([{ id: `nf-${c.id}`, label: c.text, active: n.fn === c.id, onClick: () => app.noteFunction(c.id) }], { height: 40, size: 15, gap: 5 });
-    ui.buttons([{ id: 'stick', label: n.stuck ? 'Stuck on the board ✓ (stick a new pair)' : 'Stick them on the board', disabled: !n.organ || !n.fn, active: !!n.stuck, onClick: () => app.stickNote() }], { height: 50, size: 19 });
-  } else if (o.id === 'recall') {
-    const r = s.recall;
-    ui.text('Every time you write down (or say) an organ, add one.', { size: 20 });
-    ui.text(String(r.n), { size: 90, weight: 800, color: THEME.accent });
-    ui.buttons([{ id: 'recall-minus', label: '− 1', disabled: !r.n, onClick: () => app.recallAdd(-1) }, { id: 'recall-plus', label: '+ 1 organ', disabled: !r.running, onClick: () => app.recallAdd(1) }], { height: 64, size: 26, gap: 10 });
-    if (r.done) ui.text(`You remembered ${r.n}. Compare lists with your partner: who remembered the most? The class's best are on the board.`, { size: 20, color: GOOD });
-  }
+function drawNotes(ui, app) {
+  const n = app.state.note;
+  ui.title('Sticky notes', { size: 30 });
+  ui.text(NOTES_TASK, { size: 20, color: THEME.dim });
+  ui.heading('Note 1: the organ', { size: 22 });
+  ui.buttons(CARDS.slice(0, 9).map((c) => ({ id: `no-${c.id}`, label: c.name, active: n.organ === c.id, onClick: () => app.noteOrgan(c.id) })), { cols: 3, height: 44, size: 16, gap: 6 });
+  ui.heading('Note 2: what it does', { size: 22 });
+  for (const c of app.noteFunctions()) ui.buttons([{ id: `nf-${c.id}`, label: c.text, active: n.fn === c.id, onClick: () => app.noteFunction(c.id) }], { height: 40, size: 15, gap: 5 });
+  ui.buttons([{ id: 'stick', label: n.stuck ? 'Stuck on the board ✓ (stick a new pair)' : 'Stick them on the board', disabled: !n.organ || !n.fn, active: !!n.stuck, onClick: () => app.stickNote() }], { height: 50, size: 19 });
 }
 
 function drawBuild(ui, app) {

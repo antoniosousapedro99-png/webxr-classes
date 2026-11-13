@@ -58,7 +58,7 @@ Each person has **their own models**. Everyone else's work appears beside you at
 - **Enzyme Lab:** **Activity for everyone** (Starter quiz / Experiment / Class graph), **Level for everyone**, the **Class board** position (same room) and how many temperatures each student has done. The board shows everyone’s quiz scores, then the class graph.
 - **Microscope Lab:** **Activity for everyone** (Microscope parts / Prepare + view / Quiz), **Level for everyone**, the **Class board** position (same room) and how many labels each student has placed. The board shows the part the teacher taps, the teacher’s view down the microscope, or everyone’s quiz scores.
 - **Osmosis Lab:** **Activity for everyone** (Predict / Experiment / Class graph), **Level for everyone**, the **Class board** position (same room) and how many pieces each student has finished. The board shows the prediction question, then everyone’s % mass change plotted against concentration; the teacher’s own controls choose the prediction and reveal the answer.
-- **Identifying Organs:** **Activity for everyone** (Starter / Build the body / Functions / Body systems / Quiz), **Level for everyone**, **Show the answers in every skeleton** (a glowing ghost of each missing organ in its place, like the original "Load Answers"), **System for everyone** (in Body systems), the **Class board** position (same room) and how many organs each student has in place. The teacher's own controls mark the sticky notes and show the class quiz results.
+- **Identifying Organs:** **Activity for everyone** (Sticky notes / Build the body / Functions / Body systems / Quiz), **Level for everyone**, **Show the answers in every skeleton** (a glowing ghost of each missing organ in its place, like the original "Load Answers"), **System for everyone** (in Body systems), the **Class board** position (same room) and how many organs each student has in place. The teacher's own controls mark the sticky notes and show the class quiz results.
 - **Heart Lab:** **Activity for everyone**, **Level for everyone** (Core / Advanced) and, in the same room, **Class heart** position (middle of the room, or in front of the teacher). The class heart mirrors the teacher’s own heart; a part the teacher taps lights up for everyone. While students label, the menu shows each student’s score.
 - **Reef position** (Reef Dive, same room): in the middle of the room (default) or **Put it here** (centred where the admin stands). It stays fixed in the room for everyone.
 - **Students:** **Menus: locked** hides students' settings (moving the panels, placing, seated mode, water level, leaving with ← Lessons; only Voice stays). **Re-find room (all)** makes every headset read its room scan again. Each student is listed with their room status and a **Remove** button (press twice) that takes them out of the session.
@@ -393,13 +393,13 @@ Rebuilt from the original EngageVR lesson, where students filled skeletons with 
 
 | Lesson plan | In Identifying Organs |
 | --- | --- |
-| Starter tasks, four options (true-or-false statement, 3D pen drawing, organ and function sticky notes, memory list) | **Starter:** the plan's poster on the class board, and all four options: 8 true-or-false statements with explanations; a **3D pen** to draw an organ in the air, label it and hide the label so a partner can guess (drawings are shared, so partners see them at your desk); an organ and a function **sticky note** stuck on the class board (the teacher can mark them); a 60-second **memory list** count, with the class's best on the board. |
+| (starter) Sticky notes: the name of an organ, and what it does, stuck side by side on the wall | **Sticky notes:** choose an organ and what it does on your own panel and stick the pair on the class board, with everyone else's; the teacher can mark them. |
 | Place the organs in the correct locations in the skeleton | **Build the body:** Core, 9 organs (11 pieces: both lungs and both kidneys): each snaps in when it is close to its place; a clearly wrong place is a mistake and it goes back to the desk, with a message (including left and right being the body's own); hints show a glowing ghost in the right place and say where it is. Advanced adds the pancreas, spleen, gallbladder, oesophagus, trachea and diaphragm, takes the names off the desk, and leaves organs wherever they are put until **Check my body** marks them. |
 | What does each organ do? | **Functions:** a function card for each organ (or pair) on the desk; drag it onto the organ that does that job and it becomes a label beside the skeleton, so the finished skeleton is a labelled diagram. |
 | (plenary) Revisit the whole organ-skeleton system, focusing on interdependence | **Body systems:** the completed body; digestive, respiratory, circulatory, urinary and nervous systems light up one at a time (the rest fade), and the board shows each system's job and what it depends on; discussion prompts. |
 | 10-question quiz | **Quiz:** the plan's 10 questions on each student's panel with instant feedback; scores on the class board, and how the class did on each question when the teacher shows the results. |
 
-**Class board:** the starter poster and sticky notes, then everyone's progress (organs in place, mistakes, cards matched), the system being discussed, and the quiz results.
+**Class board:** the sticky notes, then everyone's progress (organs in place, mistakes, cards matched), the system being discussed, and the quiz results.
 
 **Ask the doctor:** 8 pre-written answers (what an organ is, the biggest organ, organs you can live without, why one lung is smaller, how long the intestines are, what the bones protect, how organs are controlled, transplants). An AI doctor can be connected later with `doctorEndpoint` in `lessons/organs-lab/config.js`.
 
@@ -510,8 +510,8 @@ lessons/heart-lab/
 tools/heart-model/                 rebuilds the Heart Lab model from the BodyParts3D files (not needed to run anything)
 lessons/organs-lab/
   models/body.glb                  the skeleton (with a removable skull cap) and 17 organs (BodyParts3D, CC BY-SA)
-  src/data/organs.js               organs and where they go, function cards, body systems, starter tasks, quiz, answers
-  src/model/                       Body (skeleton, desk, organs, function cards), Pen (3D pen), Board (class board)
+  src/data/organs.js               organs and where they go, function cards, body systems, sticky notes, quiz, answers
+  src/model/                       Body (skeleton, desk, organs, function cards), Board (class board)
 tools/organs-model/                rebuilds body.glb from the BodyParts3D files (not needed to run anything)
 lessons/pc-builder/
   src/data/parts.js, rules.js      the parts catalogue and compatibility rules

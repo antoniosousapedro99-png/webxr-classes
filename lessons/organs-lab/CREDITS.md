@@ -20,6 +20,6 @@ Commercial use is allowed, with this credit kept.
 
 ## Everything else
 
-The desk, the function cards, the 3D pen, the class board and the sounds (Web Audio API) are made in code for
-this project. The lesson, its starter tasks and its quiz follow the original Inspired Education EngageVR lesson
+The desk, the function cards, the class board and the sounds (Web Audio API) are made in code for
+this project. The lesson, its sticky notes and its quiz follow the original Inspired Education EngageVR lesson
 plan "Identifying Organs".

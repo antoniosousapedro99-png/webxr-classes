@@ -1,9 +1,8 @@
 import * as THREE from 'three';
-import { STARTER_OPTIONS, SYSTEMS, QUIZ, organ } from '../data/organs.js';
+import { SYSTEMS, QUIZ, NOTES_TASK, organ } from '../data/organs.js';
 
 // The class board (2.6 m wide):
-//   starter   – the four starter tasks (as on the lesson plan's poster), the class's sticky notes (an organ
-//               and what it does, stuck side by side) and who remembered the most organs;
+//   notes     – the class's sticky notes: an organ and what it does, stuck side by side (marked by the teacher);
 //   build / functions – everyone's progress: organs in place, mistakes, function cards matched;
 //   systems   – the system the teacher has picked, its organs, its job and what it depends on;
 //   quiz      – everyone's score, and how the class did on each question.
@@ -65,7 +64,7 @@ export class Board {
     c.fillRect(0, 0, W, H);
     c.textBaseline = 'alphabetic';
     c.textAlign = 'left';
-    if (v.kind === 'starter') this.drawStarter(c, v);
+    if (v.kind === 'notes') this.drawNotes(c, v);
     else if (v.kind === 'systems') this.drawSystems(c, v);
     else if (v.kind === 'quiz') this.drawQuiz(c, v);
     else this.drawProgress(c, v);
@@ -83,65 +82,40 @@ export class Board {
     }
   }
 
-  drawStarter(c, v) {
-    this.title(c, 'Starter tasks', 'Pick one option on your own panel.');
-    const w = (W - 80 - 3 * 20) / 4;
-    STARTER_OPTIONS.forEach((o, i) => {
-      const x = 40 + i * (w + 20);
-      const y = 132;
-      rr(c, x, y, w, 300, 18);
-      c.fillStyle = ['#5a2f45', '#24406a', '#5a4026', '#3e3a3a'][i];
-      c.fill();
-      c.fillStyle = '#ffffff';
-      c.font = `800 32px ${FONT}`;
-      c.fillText(`${o.name}: ${o.title}`, x + 18, y + 46);
-      c.font = `400 23px ${FONT}`;
-      c.fillStyle = '#e6eaff';
-      wrap(c, o.poster, w - 36).slice(0, 8).forEach((l, k) => c.fillText(l, x + 18, y + 88 + k * 30));
-      c.font = `700 22px ${FONT}`;
-      c.fillStyle = '#ffd166';
-      c.fillText(`${v.counts[o.id] ?? 0} doing this`, x + 18, y + 284);
-    });
-    // sticky notes
-    c.fillStyle = '#ffffff';
-    c.font = `700 30px ${FONT}`;
-    c.fillText('Our sticky notes', 40, 484);
-    const nw = 150;
-    const nh = 110;
-    v.notes.slice(0, 10).forEach((n, i) => {
-      const x = 40 + (i % 5) * (2 * nw + 30);
-      const y = 502 + Math.floor(i / 5) * (nh + 16);
+  drawNotes(c, v) {
+    this.title(c, 'Our sticky notes', NOTES_TASK);
+    const nw = 170;
+    const nh = 130;
+    const per = 4;
+    v.notes.slice(0, 16).forEach((n, i) => {
+      const x = 40 + (i % per) * (2 * nw + 50);
+      const y = 140 + Math.floor(i / per) * (nh + 30);
       const colour = NOTE_COLS[i % NOTE_COLS.length];
       for (const [k, text] of [[0, n.organ], [1, n.fn]]) {
-        rr(c, x + k * (nw + 4), y, nw, nh, 6);
+        rr(c, x + k * (nw + 6), y, nw, nh, 6);
         c.fillStyle = colour;
         c.fill();
         c.fillStyle = '#1d2236';
-        c.font = `${k ? 600 : 800} ${k ? 17 : 22}px ${FONT}`;
-        wrap(c, text, nw - 16).slice(0, k ? 5 : 3).forEach((l, j) => c.fillText(l, x + k * (nw + 4) + 9, y + 28 + j * (k ? 20 : 26)));
+        c.font = `${k ? 600 : 800} ${k ? 20 : 26}px ${FONT}`;
+        wrap(c, text, nw - 18).slice(0, k ? 5 : 3).forEach((l, j) => c.fillText(l, x + k * (nw + 6) + 10, y + 32 + j * (k ? 23 : 30)));
       }
       c.fillStyle = css(n.color);
       c.beginPath();
-      c.arc(x + 2 * nw - 8, y + nh - 12, 7, 0, Math.PI * 2);
+      c.arc(x + 2 * nw - 6, y + nh - 14, 8, 0, Math.PI * 2);
       c.fill();
+      c.font = `600 18px ${FONT}`;
+      c.fillStyle = DIM;
+      c.fillText(n.name ?? '', x, y + nh + 22);
       if (v.revealed) {
-        c.font = `800 26px ${FONT}`;
+        c.font = `800 30px ${FONT}`;
         c.fillStyle = n.right ? '#2f8a5c' : '#c03a3a';
-        c.fillText(n.right ? '✓' : '✗', x + 2 * nw - 30, y + 26);
+        c.fillText(n.right ? '✓' : '✗', x + 2 * nw - 28, y + 30);
       }
     });
     if (!v.notes.length) {
-      c.font = `400 26px ${FONT}`;
+      c.font = `400 28px ${FONT}`;
       c.fillStyle = DIM;
-      c.fillText('Notes from option 3 appear here.', 40, 534);
-    }
-    // memory list
-    if (v.recall.length) {
-      c.fillStyle = '#ffffff';
-      c.font = `700 26px ${FONT}`;
-      c.textAlign = 'right';
-      c.fillText(`Most organs remembered: ${v.recall.slice(0, 3).map((r) => `${r.name} ${r.n}`).join(' · ')}`, W - 40, H - 24);
-      c.textAlign = 'left';
+      c.fillText('Sticky notes appear here as people stick them.', 40, 190);
     }
   }
 
