@@ -6,13 +6,14 @@ Mixed reality lessons built with [WebXR](https://immersiveweb.dev/) and [three.j
 | --- | --- | --- |
 | **Atom Scale Lab** | Chemistry | [`lessons/atomic-models/`](lessons/atomic-models/) |
 | **Acid Lab** | Chemistry | [`lessons/acid-lab/`](lessons/acid-lab/) |
+| **Waves Lab** | Physics | [`lessons/waves-lab/`](lessons/waves-lab/) |
 | **PC Builder Lab** | Computer Science | [`lessons/pc-builder/`](lessons/pc-builder/) |
 | **Cell Explorer** | Biology | [`lessons/cell-explorer/`](lessons/cell-explorer/) |
 | **Heart Lab** | Biology | [`lessons/heart-lab/`](lessons/heart-lab/) |
 | **Reef Dive** | Biology (IB) | [`lessons/reef-dive/`](lessons/reef-dive/) |
 | **Hintze Hall** | Museum visit (VR) | [`lessons/hintze-hall/`](lessons/hintze-hall/) |
 
-**The lessons page** (`index.html`, titled *WebXR Library*) groups the lessons into subject sections (Chemistry, Biology, Computer Science, Museum visits), with a row of subject buttons that show one section at a time. To add a lesson, copy a `<button class="card">` block inside the right `<section>`; to add a subject, copy a whole `<section>` and give it a new `data-subject` (its button and counts appear by themselves; its colour is one line in the page’s styles).
+**The lessons page** (`index.html`, titled *WebXR Library*) groups the lessons into subject sections (Chemistry, Physics, Biology, Computer Science, Museum visits), with a row of subject buttons that show one section at a time. To add a lesson, copy a `<button class="card">` block inside the right `<section>`; to add a subject, copy a whole `<section>` and give it a new `data-subject` (its button and counts appear by themselves; its colour is one line in the page’s styles).
 
 **Getting around:** every lesson has a **← Lessons** button in its control panel (press it twice, so nobody leaves by accident) and an *All lessons* link on its start screen. Panels that hold more than fits get a scrollbar: use its ▲ ▼ buttons, the thumbstick while pointing at the panel, or pinch / pull the trigger on the panel and drag (mouse wheel or drag on a computer).
 
@@ -29,7 +30,7 @@ Every lesson can be opened **solo** or in a **shared session**:
 
 Each person has **their own models**. Everyone else's work appears beside you at their own desk as a live copy: you can see their PC being built part by part, their atom or molecule, or their cell with its knock-outs. Desks sit side by side in the same order for everyone, so if you see someone on your right, they see you on their left. There are **no avatars**: the lessons are mixed reality, so you see the real people.
 
-**Same room:** tick **"We're in the same room"** when starting or joining a session (Acid Lab, Heart Lab and Reef Dive tick it for you). Everyone then sees the same things in the same real places, with **nothing to press**:
+**Same room:** tick **"We're in the same room"** when starting or joining a session (Acid Lab, Waves Lab, Heart Lab and Reef Dive tick it for you). Everyone then sees the same things in the same real places, with **nothing to press**:
 
 - **Before class, once per headset:** scan the classroom with Quest **Settings › Physical space › Space Setup** (about 2 minutes; mark the walls, door, windows and tables). If the browser asks to use spatial data, allow it.
 - In the lesson, each headset finds the room by itself from its scan (`shared/net/RoomAlign.js`): the room's walls give the directions, and the middle of the room, on the floor, is the shared origin. Which way round is settled by the door, windows, tables and other fittings, which every headset matches against the admin's headset. It checks again every second, so a headset that recentres or loses tracking puts itself right. In a simulation with realistic scan noise, headsets agreed to within about 5 cm and never got the room the wrong way round.
@@ -41,6 +42,7 @@ Each person has **their own models**. Everyone else's work appears beside you at
 - **Cell Explorer:** **Cell for everyone** (Animal / Plant / Bacterium) and **Activity for everyone** (Explore / Label it / Follow a process / Compare sizes). Students see the admin's choice instead of those buttons; knock-outs, cut-away, names and process steps stay their own.
 - **PC Builder:** **Case for everyone** (**Free choice**, the default, or one case that every student must use), **Turn all off** (switches off every computer) and **Empty all cases** (press twice; every student starts again with an empty case).
 - **Acid Lab:** **Activity for everyone**, **Level for everyone**, the **Class board** position (same room) and each student’s progress (results recorded out of 18). Everyone gets the admin’s set of solutions; **New solutions** (in the admin’s own controls) deals a new set to the whole class.
+- **Waves Lab:** **Activity for everyone** (Predict / Rope wave / Ripple tank / Mystery wave), **Level for everyone**, the **Class board** position (same room), and who has answered the question on the board (or each student’s investigation steps, out of 6). The board shows the teacher’s wave and question; the teacher’s own controls choose the prediction, deal a new mystery wave and reveal the answer.
 - **Heart Lab:** **Activity for everyone**, **Level for everyone** (Core / Advanced) and, in the same room, **Class heart** position (middle of the room, or in front of the teacher). The class heart mirrors the teacher’s own heart; a part the teacher taps lights up for everyone. While students label, the menu shows each student’s score.
 - **Reef position** (Reef Dive, same room): in the middle of the room (default) or **Put it here** (centred where the admin stands). It stays fixed in the room for everyone.
 - **Students:** **Menus: locked** hides students' settings (moving the panels, placing, seated mode, water level, leaving with ← Lessons; only Voice stays). **Re-find room (all)** makes every headset read its room scan again. Each student is listed with their room status and a **Remove** button (press twice) that takes them out of the session.
@@ -138,6 +140,25 @@ Everyone in a session gets the **same six solutions** as the teacher (chosen fro
 **Teacher (admin):** chooses the activity, the level and (with *New solutions*) the set of unknowns for everyone, places the class board, and sees how many of the 18 results each student has recorded. The class board mirrors the teacher's own bench: the substances the teacher has placed on the scale and the test the teacher is doing.
 
 **Ask the chemist:** 8 pre-written answers (what pH measures, why each step is ×10, why litmus gives no number, rinsing, calibrating, neutralisation, who measures pH in real life, alkali safety). An AI chemist can be connected later with `chemistEndpoint` in `lessons/acid-lab/config.js`.
+
+## Waves Lab
+
+Every student has a **rope** and a **ripple tank**, built entirely in code. Behind them a **class board** (2.6 m wide) shows the teacher’s wave with its settings, and the class’s answers. In a same-room session (pre-selected) the board is fixed in the classroom for every headset. Two levels: **Core** (no numbers: “more / less”, what you see) and **Advanced** (hertz, centimetres, cm/s, the period, and *speed = frequency × wavelength* worked out live).
+
+**Speed is set by the material, as in real physics:** students change how tight the rope is, or how deep the water is, and the speed follows. Changing the frequency changes the wavelength and never the speed. The rope is in slow motion (20–45 cm/s) so the wave can be followed by eye; the relationships are the real ones, and the wave really travels: a change made at the shaken end can be watched moving along the rope.
+
+### Lesson objectives → activities
+
+| Lesson plan | In the Waves Lab |
+| --- | --- |
+| (starter) A static wave; “what will happen if…?”; predictions | **Predict:** the wave on the board is frozen and a question asks what changing frequency, amplitude or speed (tension) will do. Every student picks an answer on their own panel; the teacher presses **Test it** and the wave unfreezes as BEFORE and AFTER, with the class’s answers counted on the board and each student told whether they were right. |
+| Manipulate frequency, amplitude and speed (0–100 %) and observe | **Rope wave:** three controls in 10 % steps. A red bead shows that the rope only moves up and down. **See it as:** *Sound* (the headset plays the wave: pitch follows frequency, loudness follows amplitude), *Light* (frequency is the colour from red to violet, amplitude the brightness), *Ocean* (the same wave as the sea with a boat bobbing on it). |
+| Guided investigations of each variable | A short explanation after every change says what changed and what stayed the same. A checklist on the info panel (6 steps) tracks the investigation. |
+| Record observations with diagrams | **Freeze + measure:** drag two yellow markers onto neighbouring crests (they click onto them) to measure the wavelength, and a green line to the top of a crest for the amplitude. **Keep snapshot:** up to three still copies of earlier waves stand behind the rope, with arrows showing which settings differ. |
+| Real-world waves (water) | **Ripple tank**, seen from above: frequency, amplitude and water depth, plus **Barrier** (reflection), **Gap** (diffraction, narrow or wide), **Two sources** (interference) and **Shallow patch** (refraction). It can be frozen and measured too. |
+| (plenary) Diagrams: which variable was changed? | **Mystery wave:** BEFORE and AFTER on the board; students answer on their panel (Core: which variable; Advanced: which variable and which way, e.g. *Tension went down*), the teacher reveals the answer and the class’s results. |
+
+**Ask the physicist:** 8 pre-written answers (what a wave is, the three properties, the wave equation, why speed is set by the material, transverse and longitudinal waves, sound, light, how realistic the rope is). An AI physicist can be connected later with `physicistEndpoint` in `lessons/waves-lab/config.js`.
 
 ## PC Builder Lab
 
@@ -296,6 +317,9 @@ shared/                            used by every lesson
 lessons/acid-lab/
   src/data/acid.js                 substances and pH values, paper colours, the unknown sets, method comparison, answers
   src/model/                       Bench (beakers, papers, pH meter), Sorter (pH scale), Board (class board)
+lessons/waves-lab/
+  src/data/waves.js                how the controls become a wave, ripple tank set-ups, predictions, mystery waves, answers
+  src/model/                       Rope (the travelling wave), Tank (ripple tank shader), Rulers, Board (class board), tone
 lessons/heart-lab/
   models/heart.glb, heart.json     the anatomical heart (BodyParts3D, CC BY-SA) and its landmarks
   src/data/heart.js                parts, journey of the blood, cardiac-cycle timings, exercise, conditions, answers
