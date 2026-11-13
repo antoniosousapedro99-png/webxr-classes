@@ -6,6 +6,8 @@ Mixed reality lessons built with [WebXR](https://immersiveweb.dev/) and [three.j
 | --- | --- | --- |
 | **Atom Scale Lab** | Chemistry | [`lessons/atomic-models/`](lessons/atomic-models/) |
 | **Acid Lab** | Chemistry | [`lessons/acid-lab/`](lessons/acid-lab/) |
+| **Lithium Reactions** | Chemistry | [`lessons/lithium-lab/`](lessons/lithium-lab/) |
+| **Kinetics Lab** | Chemistry | [`lessons/kinetics-lab/`](lessons/kinetics-lab/) |
 | **Waves Lab** | Physics | [`lessons/waves-lab/`](lessons/waves-lab/) |
 | **Bounce Lab** | Physics | [`lessons/bounce-lab/`](lessons/bounce-lab/) |
 | **Radiation Lab** | Physics | [`lessons/radiation-lab/`](lessons/radiation-lab/) |
@@ -35,7 +37,7 @@ Every lesson can be opened **solo** or in a **shared session**:
 
 Each person has **their own models**. Everyone else's work appears beside you at their own desk as a live copy: you can see their PC being built part by part, their atom or molecule, or their cell with its knock-outs. Desks sit side by side in the same order for everyone, so if you see someone on your right, they see you on their left. There are **no avatars**: the lessons are mixed reality, so you see the real people.
 
-**Same room:** tick **"We're in the same room"** when starting or joining a session (Acid Lab, Waves Lab, Bounce Lab, Radiation Lab, Heart Lab, Enzyme Lab, Microscope Lab, Osmosis Lab and Reef Dive tick it for you). Everyone then sees the same things in the same real places, with **nothing to press**:
+**Same room:** tick **"We're in the same room"** when starting or joining a session (Acid Lab, Lithium Reactions, Kinetics Lab, Waves Lab, Bounce Lab, Radiation Lab, Heart Lab, Enzyme Lab, Microscope Lab, Osmosis Lab and Reef Dive tick it for you). Everyone then sees the same things in the same real places, with **nothing to press**:
 
 - **Before class, once per headset:** scan the classroom with Quest **Settings › Physical space › Space Setup** (about 2 minutes; mark the walls, door, windows and tables). If the browser asks to use spatial data, allow it.
 - In the lesson, each headset finds the room by itself from its scan (`shared/net/RoomAlign.js`): the room's walls give the directions, and the middle of the room, on the floor, is the shared origin. Which way round is settled by the door, windows, tables and other fittings, which every headset matches against the admin's headset. It checks again every second, so a headset that recentres or loses tracking puts itself right. In a simulation with realistic scan noise, headsets agreed to within about 5 cm and never got the room the wrong way round.
@@ -47,6 +49,8 @@ Each person has **their own models**. Everyone else's work appears beside you at
 - **Cell Explorer:** **Cell for everyone** (Animal / Plant / Bacterium) and **Activity for everyone** (Explore / Label it / Follow a process / Compare sizes). Students see the admin's choice instead of those buttons; knock-outs, cut-away, names and process steps stay their own.
 - **PC Builder:** **Case for everyone** (**Free choice**, the default, or one case that every student must use), **Turn all off** (switches off every computer) and **Empty all cases** (press twice; every student starts again with an empty case).
 - **Acid Lab:** **Activity for everyone**, **Level for everyone**, the **Class board** position (same room) and each student’s progress (results recorded out of 18). Everyone gets the admin’s set of solutions; **New solutions** (in the admin’s own controls) deals a new set to the whole class.
+- **Lithium Reactions:** **Activity for everyone** (Predict / Experiment / Class results), **Level for everyone**, **Reveal the answers** (class results), the **Class board** position (same room) and how many metals each student has tested and identified. Everyone gets the admin’s set of mystery metals; **New mystery metals** (in the admin’s own controls) shuffles them for the whole class.
+- **Kinetics Lab:** **Activity for everyone** (Predict / Experiment / Summary), **Factor for everyone** (temperature, surface area, concentration, catalyst), **Level for everyone**, the **Class board** position (same room) and how many runs each student has done. The board shows the prediction, then the class chart for the factor the teacher is on.
 - **Waves Lab:** **Activity for everyone** (Predict / Rope wave / Ripple tank / Mystery wave), **Level for everyone**, the **Class board** position (same room), and who has answered the question on the board (or each student’s investigation steps, out of 6). The board shows the teacher’s wave and question; the teacher’s own controls choose the prediction, deal a new mystery wave and reveal the answer.
 - **Bounce Lab:** **Activity for everyone** (Predict / Drop + measure / Compare), **Level for everyone**, **Ball on the class chart**, the **Class board** position (same room), and who has answered the prediction (or how many drops each student has recorded). The teacher’s own controls choose the prediction and reveal the answer.
 - **Radiation Lab:** **Activity for everyone** (The counter / Test sources / Half-life at Advanced / Class results), **Level for everyone**, **Reveal the answers** (class results), the **Class board** position (same room) and how many sources each student has decided about. The board shows the teacher’s Geiger counter, half-life graph or the class’s verdicts.
@@ -150,6 +154,41 @@ Everyone in a session gets the **same six solutions** as the teacher (chosen fro
 **Teacher (admin):** chooses the activity, the level and (with *New solutions*) the set of unknowns for everyone, places the class board, and sees how many of the 18 results each student has recorded. The class board mirrors the teacher's own bench: the substances the teacher has placed on the scale and the test the teacher is doing.
 
 **Ask the chemist:** 8 pre-written answers (what pH measures, why each step is ×10, why litmus gives no number, rinsing, calibrating, neutralisation, who measures pH in real life, alkali safety). An AI chemist can be connected later with `chemistEndpoint` in `lessons/acid-lab/config.js`.
+
+## Lithium Reactions
+
+Rebuilt from the original EngageVR lesson, with the same bench and steps: metal cubes, a Bunsen burner and a tank of water ("pick up a metal cube, place it in the water / over the fire, observe the reaction"), with the flame-colour and reaction-with-water reference charts. Everything is built in code.
+
+**The metals:** lithium (labelled A) and four mystery metals B–E, which are sodium, potassium, rubidium and caesium shuffled (the same shuffle for the whole class, from the teacher's set). In the water each one floats or sinks by its real density (Li, Na and K float; Rb and Cs sink), fizzes, darts about, melts into a ball (all but lithium), may set its hydrogen alight (orange for sodium, lilac for potassium), and disappears faster and more violently down the group, from about 13 s for lithium to under half a second for caesium. Potassium, rubidium and caesium end with an explosion. In the Bunsen flame each gives its own colour (crimson, orange-yellow, lilac, red-violet, blue).
+
+**Safety screen:** a clear screen slides across in front of the tank. Test a violent metal without it and the explosion is twice as big, with a safety warning, and it is counted on the student's results panel.
+
+| Lesson plan | In the Lithium Reactions Lab |
+| --- | --- |
+| (starter) What happens when lithium is placed in water? How might it compare with other metals? | **Predict:** 4 questions on the class board (lithium in water, the trend down the group, which metal sinks, why flames are coloured). |
+| Test four mystery metals in water and in a Bunsen flame; match observations to a reference chart | **Experiment:** the original steps by hand (or with buttons), an observation table that fills in itself (floats or sinks, time to react, flame colour), the reference chart, and a choice of identity for each mystery metal. |
+| (plenary) Most and least reactive? What evidence? How do the results support the trend? | **Class results:** the class's identifications for each metal; once the teacher reveals the answers, the true identities and a bar chart of the class's reaction times in group order (Li → Cs); discussion prompts. |
+
+**Advanced:** each metal's electron arrangement on the reference chart and the equation for each reaction with water (2M + 2H₂O → 2MOH + H₂).
+
+**Ask the chemist:** 8 pre-written answers (why reactivity increases, floating and sinking, flame colours, the gas, storage under oil, safety screens, why "Group 1", uses). An AI chemist can be connected later with `chemistEndpoint` in `lessons/lithium-lab/config.js`.
+
+## Kinetics Lab
+
+Rebuilt from the original EngageVR lesson (flasks of acid at 20–40 °C, magnesium strips dropped in and timed until they disappear), extended to the four factors of the lesson plan, with two ways of measuring the rate. Everything is built in code.
+
+- **Timing method** (temperature, surface area): drop a solid into a flask of acid; each flask has its own timer, which stops when the solid has gone. Magnesium in acid at 20, 25, 30, 35 and 40 °C (about 40 s down to 10 s: the rate roughly doubles every 10 °C); the same mass of marble as one lump, small chips or powder (about 30, 13 and 4 s).
+- **Gas syringe method** (concentration, catalyst): tap an acid bottle (0.5–2.5 M) and drag marble chips into the flask, or drag a catalyst (copper(II) oxide or manganese(IV) oxide) into hydrogen peroxide, or start with no catalyst. The gas pushes the plunger out for 30 s, and a graph of volume against time is drawn as it goes.
+
+| Lesson plan | In the Kinetics Lab |
+| --- | --- |
+| (starter) What might speed up or slow down a reaction? | **Predict:** 4 questions on the class board, one per factor. |
+| Concentration, temperature, surface area, catalysts | **Experiment:** the four factors, each with its own set-up; results tables (and gas curves) on the info panel; the class chart for the teacher's factor on the board. |
+| (plenary) Summary table of each factor; real-world uses | **Summary:** for each factor, whether the rate goes up or down and the collision-theory reason, checked; discussion prompts on industry, food and medicine. |
+
+**Advanced:** the equation for each reaction, rates (1 ÷ time, or cm³ per second), and reading the steepness of the gas curves.
+
+**Ask the chemist:** 8 pre-written answers (rate, collision theory, activation energy, catalysts, ways of measuring, fair tests, industry, medicine and food).
 
 ## Waves Lab
 
@@ -422,6 +461,12 @@ shared/                            used by every lesson
 lessons/acid-lab/
   src/data/acid.js                 substances and pH values, paper colours, the unknown sets, method comparison, answers
   src/model/                       Bench (beakers, papers, pH meter), Sorter (pH scale), Board (class board)
+lessons/lithium-lab/
+  src/data/lithium.js              the five alkali metals (density, reactivity, flame colour), the mystery shuffle, predictions, answers
+  src/model/                       Bench (metal cubes, Bunsen burner, water tank, safety screen, reactions), Board, sounds
+lessons/kinetics-lab/
+  src/data/kinetics.js             the four factors and their numbers, predictions, summary table, answers
+  src/model/                       Bench (timing rig with flasks and timers, gas syringe rig), Board (class chart)
 lessons/waves-lab/
   src/data/waves.js                how the controls become a wave, ripple tank set-ups, predictions, mystery waves, answers
   src/model/                       Rope (the travelling wave), Tank (ripple tank shader), Rulers, Board (class board), tone

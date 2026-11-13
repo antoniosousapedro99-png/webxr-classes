@@ -58,6 +58,8 @@ The project's own code has **no licence file yet**: the owner should choose one 
 | Some Reef Dive models | CC0 | yes |
 | **Heart Lab heart model** (`lessons/heart-lab/models/heart.glb`, `heart.json`) | CC BY-SA 2.1 Japan (BodyParts3D) | yes, keep the credit in its `CREDITS.md`; changes to these two files stay under the same licence |
 | Acid Lab (everything) | made in code for this project | yes (it is the project’s own) |
+| Lithium Reactions (everything) | made in code for this project, following the original Inspired Education EngageVR lesson | yes (it is the project’s own) |
+| Kinetics Lab (everything) | made in code for this project, following the original Inspired Education EngageVR lesson | yes (it is the project’s own) |
 | Waves Lab (everything) | made in code for this project | yes (it is the project’s own) |
 | Bounce Lab (everything) | made in code for this project | yes (it is the project’s own) |
 | Radiation Lab (everything) | made in code for this project | yes (it is the project’s own) |
