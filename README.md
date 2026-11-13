@@ -7,6 +7,7 @@ Mixed reality lessons built with [WebXR](https://immersiveweb.dev/) and [three.j
 | **Atom Scale Lab** | Chemistry | [`lessons/atomic-models/`](lessons/atomic-models/) |
 | **Acid Lab** | Chemistry | [`lessons/acid-lab/`](lessons/acid-lab/) |
 | **Waves Lab** | Physics | [`lessons/waves-lab/`](lessons/waves-lab/) |
+| **Bounce Lab** | Physics | [`lessons/bounce-lab/`](lessons/bounce-lab/) |
 | **PC Builder Lab** | Computer Science | [`lessons/pc-builder/`](lessons/pc-builder/) |
 | **Cell Explorer** | Biology | [`lessons/cell-explorer/`](lessons/cell-explorer/) |
 | **Heart Lab** | Biology | [`lessons/heart-lab/`](lessons/heart-lab/) |
@@ -30,7 +31,7 @@ Every lesson can be opened **solo** or in a **shared session**:
 
 Each person has **their own models**. Everyone else's work appears beside you at their own desk as a live copy: you can see their PC being built part by part, their atom or molecule, or their cell with its knock-outs. Desks sit side by side in the same order for everyone, so if you see someone on your right, they see you on their left. There are **no avatars**: the lessons are mixed reality, so you see the real people.
 
-**Same room:** tick **"We're in the same room"** when starting or joining a session (Acid Lab, Waves Lab, Heart Lab and Reef Dive tick it for you). Everyone then sees the same things in the same real places, with **nothing to press**:
+**Same room:** tick **"We're in the same room"** when starting or joining a session (Acid Lab, Waves Lab, Bounce Lab, Heart Lab and Reef Dive tick it for you). Everyone then sees the same things in the same real places, with **nothing to press**:
 
 - **Before class, once per headset:** scan the classroom with Quest **Settings › Physical space › Space Setup** (about 2 minutes; mark the walls, door, windows and tables). If the browser asks to use spatial data, allow it.
 - In the lesson, each headset finds the room by itself from its scan (`shared/net/RoomAlign.js`): the room's walls give the directions, and the middle of the room, on the floor, is the shared origin. Which way round is settled by the door, windows, tables and other fittings, which every headset matches against the admin's headset. It checks again every second, so a headset that recentres or loses tracking puts itself right. In a simulation with realistic scan noise, headsets agreed to within about 5 cm and never got the room the wrong way round.
@@ -43,6 +44,7 @@ Each person has **their own models**. Everyone else's work appears beside you at
 - **PC Builder:** **Case for everyone** (**Free choice**, the default, or one case that every student must use), **Turn all off** (switches off every computer) and **Empty all cases** (press twice; every student starts again with an empty case).
 - **Acid Lab:** **Activity for everyone**, **Level for everyone**, the **Class board** position (same room) and each student’s progress (results recorded out of 18). Everyone gets the admin’s set of solutions; **New solutions** (in the admin’s own controls) deals a new set to the whole class.
 - **Waves Lab:** **Activity for everyone** (Predict / Rope wave / Ripple tank / Mystery wave), **Level for everyone**, the **Class board** position (same room), and who has answered the question on the board (or each student’s investigation steps, out of 6). The board shows the teacher’s wave and question; the teacher’s own controls choose the prediction, deal a new mystery wave and reveal the answer.
+- **Bounce Lab:** **Activity for everyone** (Predict / Drop + measure / Compare), **Level for everyone**, **Ball on the class chart**, the **Class board** position (same room), and who has answered the prediction (or how many drops each student has recorded). The teacher’s own controls choose the prediction and reveal the answer.
 - **Heart Lab:** **Activity for everyone**, **Level for everyone** (Core / Advanced) and, in the same room, **Class heart** position (middle of the room, or in front of the teacher). The class heart mirrors the teacher’s own heart; a part the teacher taps lights up for everyone. While students label, the menu shows each student’s score.
 - **Reef position** (Reef Dive, same room): in the middle of the room (default) or **Put it here** (centred where the admin stands). It stays fixed in the room for everyone.
 - **Students:** **Menus: locked** hides students' settings (moving the panels, placing, seated mode, water level, leaving with ← Lessons; only Voice stays). **Re-find room (all)** makes every headset read its room scan again. Each student is listed with their room status and a **Remove** button (press twice) that takes them out of the session.
@@ -159,6 +161,25 @@ Every student has a **rope** and a **ripple tank**, built entirely in code. Behi
 | (plenary) Diagrams: which variable was changed? | **Mystery wave:** BEFORE and AFTER on the board; students answer on their panel (Core: which variable; Advanced: which variable and which way, e.g. *Tension went down*), the teacher reveals the answer and the class’s results. |
 
 **Ask the physicist:** 8 pre-written answers (what a wave is, the three properties, the wave equation, why speed is set by the material, transverse and longitudinal waves, sound, light, how realistic the rope is). An AI physicist can be connected later with `physicistEndpoint` in `lessons/waves-lab/config.js`.
+
+## Bounce Lab
+
+A row of seven surface mats lies on the **real classroom floor** in front of each student: concrete, a wooden floor, carpet, grass, sand, a trampoline and a patch of **the Moon** (a sixth of the gravity and no air). Six real-size balls sit on a shelf in the middle of the lab: rubber, tennis, basketball, golf, ping-pong and plasticine. A 2 m ruler stands at the back of whichever mat was last used. Behind it all, a **class board** shows the predictions and then the **class results chart**. Everything is built in code (no model files).
+
+**Dropping:** pick a ball up, hold it over a mat at any height and let go (on a computer, drag it with the mouse), or choose a ball, a surface and a height (10–200 cm) and press **Drop**. Each drop is worked out with real physics: gravity, air resistance (it matters for the ping-pong ball, and there is none on the Moon), and a coefficient of restitution for every ball and surface that falls slightly for harder hits on soft balls. Values match published figures where they exist (a tennis ball bounces back to about 53% of a 2.54 m drop onto concrete, a basketball to about 1.2 m from 1.8 m). Sand keeps a dent, plasticine stays squashed, the trampoline sags, each surface has its own bounce sound, and the Moon is silent.
+
+**Measuring:** after each drop a **slow-motion replay** (a ghost ball) stops at the top of the first bounce, with a yellow line from the bottom of the ball to the ruler. Students read the height and type it on a keypad. A reading more than 3 cm out (2 cm at Advanced) gets one *look again*; a second miss records the true value and says so.
+
+**Realistic scatter and anomalies:** no two drops are identical (about ±2.5% in the bounce), about one drop in twelve goes wrong (the ball spins off sideways), and a ball let go over the edge of a mat lands on the edge and bounces much lower. Students tap a drop’s number to leave it out of their means; the lab then tells them whether something really went wrong in that drop.
+
+| Lesson plan | In the Bounce Lab |
+| --- | --- |
+| (starter) Momentum; why does a ball bounce differently on concrete and grass? | **Predict:** four questions on the class board (surfaces, drop height, plasticine on a trampoline, the Moon). Students answer on their own panel; the teacher reveals the answer and the class’s choices. |
+| Drop balls from different heights onto different surfaces; measure and record the rebound | **Drop + measure:** six balls, seven surfaces, drops up to 2 m by hand, read from the slow-motion replay and recorded in the student’s table with the bounce as a percentage. |
+| Calculate momentum loss; energy transfer | **Core:** bounce % only. **Advanced:** for each drop, speed before and after, the starting energy (mgh), the % of energy lost, momentum before and after, momentum lost, and the change in momentum the floor gave the ball. |
+| (plenary) Compare results, explain anomalies, real-world applications | **Compare:** the student’s means for every ball and surface, surfaces ranked from bounciest with the reason for each, and **Find odd results** (drops more than 10 points from the student’s other drops of the same ball and surface). The **class chart** on the board shows, for the ball the teacher picks, every student’s mean on each surface as a dot and the class mean as a bar; results that don’t fit the class are circled with the student’s name. |
+
+**Ask the physicist:** 8 pre-written answers (why a ball bounces, where the energy goes, momentum, why never higher, why the ping-pong ball is odd, why repeat and average, anomalies, real-world uses). An AI physicist can be connected later with `physicistEndpoint` in `lessons/bounce-lab/config.js`.
 
 ## PC Builder Lab
 
@@ -320,6 +341,9 @@ lessons/acid-lab/
 lessons/waves-lab/
   src/data/waves.js                how the controls become a wave, ripple tank set-ups, predictions, mystery waves, answers
   src/model/                       Rope (the travelling wave), Tank (ripple tank shader), Rulers, Board (class board), tone
+lessons/bounce-lab/
+  src/data/bounce.js               the balls and surfaces (restitution, mass, air resistance), predictions, answers
+  src/model/                       Floor (mats, ruler, the physics of a drop, slow-motion replay), Balls, Board (class chart), sounds
 lessons/heart-lab/
   models/heart.glb, heart.json     the anatomical heart (BodyParts3D, CC BY-SA) and its landmarks
   src/data/heart.js                parts, journey of the blood, cardiac-cycle timings, exercise, conditions, answers
