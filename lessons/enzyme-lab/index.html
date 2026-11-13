@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Enzyme Lab</title>
+  <meta name="description" content="Enzymes in mixed reality (WebXR): liver and hydrogen peroxide, collecting the oxygen over water, and the effect of temperature on catalase.">
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script src="config.js"></script>
+</head>
+<body>
+  <div id="overlay">
+    <h1>Enzyme Lab</h1>
+    <p>Cut the liver, drop it into hydrogen peroxide and put the stopper on: the oxygen made by the enzyme catalase pushes the water down a measuring cylinder. How does temperature change it?</p>
+    <div class="buttons">
+      <button id="btn-ar" disabled>Checking for mixed reality…</button>
+      <button id="btn-vr" class="secondary" hidden>Enter VR</button>
+    </div>
+    <p class="hint" id="hint"></p>
+  </div>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

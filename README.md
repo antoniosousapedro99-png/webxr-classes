@@ -12,6 +12,7 @@ Mixed reality lessons built with [WebXR](https://immersiveweb.dev/) and [three.j
 | **PC Builder Lab** | Computer Science | [`lessons/pc-builder/`](lessons/pc-builder/) |
 | **Cell Explorer** | Biology | [`lessons/cell-explorer/`](lessons/cell-explorer/) |
 | **Heart Lab** | Biology | [`lessons/heart-lab/`](lessons/heart-lab/) |
+| **Enzyme Lab** | Biology | [`lessons/enzyme-lab/`](lessons/enzyme-lab/) |
 | **Reef Dive** | Biology (IB) | [`lessons/reef-dive/`](lessons/reef-dive/) |
 | **Hintze Hall** | Museum visit (VR) | [`lessons/hintze-hall/`](lessons/hintze-hall/) |
 
@@ -32,7 +33,7 @@ Every lesson can be opened **solo** or in a **shared session**:
 
 Each person has **their own models**. Everyone else's work appears beside you at their own desk as a live copy: you can see their PC being built part by part, their atom or molecule, or their cell with its knock-outs. Desks sit side by side in the same order for everyone, so if you see someone on your right, they see you on their left. There are **no avatars**: the lessons are mixed reality, so you see the real people.
 
-**Same room:** tick **"We're in the same room"** when starting or joining a session (Acid Lab, Waves Lab, Bounce Lab, Radiation Lab, Heart Lab and Reef Dive tick it for you). Everyone then sees the same things in the same real places, with **nothing to press**:
+**Same room:** tick **"We're in the same room"** when starting or joining a session (Acid Lab, Waves Lab, Bounce Lab, Radiation Lab, Heart Lab, Enzyme Lab and Reef Dive tick it for you). Everyone then sees the same things in the same real places, with **nothing to press**:
 
 - **Before class, once per headset:** scan the classroom with Quest **Settings › Physical space › Space Setup** (about 2 minutes; mark the walls, door, windows and tables). If the browser asks to use spatial data, allow it.
 - In the lesson, each headset finds the room by itself from its scan (`shared/net/RoomAlign.js`): the room's walls give the directions, and the middle of the room, on the floor, is the shared origin. Which way round is settled by the door, windows, tables and other fittings, which every headset matches against the admin's headset. It checks again every second, so a headset that recentres or loses tracking puts itself right. In a simulation with realistic scan noise, headsets agreed to within about 5 cm and never got the room the wrong way round.
@@ -47,6 +48,7 @@ Each person has **their own models**. Everyone else's work appears beside you at
 - **Waves Lab:** **Activity for everyone** (Predict / Rope wave / Ripple tank / Mystery wave), **Level for everyone**, the **Class board** position (same room), and who has answered the question on the board (or each student’s investigation steps, out of 6). The board shows the teacher’s wave and question; the teacher’s own controls choose the prediction, deal a new mystery wave and reveal the answer.
 - **Bounce Lab:** **Activity for everyone** (Predict / Drop + measure / Compare), **Level for everyone**, **Ball on the class chart**, the **Class board** position (same room), and who has answered the prediction (or how many drops each student has recorded). The teacher’s own controls choose the prediction and reveal the answer.
 - **Radiation Lab:** **Activity for everyone** (The counter / Test sources / Half-life at Advanced / Class results), **Level for everyone**, **Reveal the answers** (class results), the **Class board** position (same room) and how many sources each student has decided about. The board shows the teacher’s Geiger counter, half-life graph or the class’s verdicts.
+- **Enzyme Lab:** **Activity for everyone** (Starter quiz / Experiment / Class graph), **Level for everyone**, the **Class board** position (same room) and how many temperatures each student has done. The board shows everyone’s quiz scores, then the class graph.
 - **Heart Lab:** **Activity for everyone**, **Level for everyone** (Core / Advanced) and, in the same room, **Class heart** position (middle of the room, or in front of the teacher). The class heart mirrors the teacher’s own heart; a part the teacher taps lights up for everyone. While students label, the menu shows each student’s score.
 - **Reef position** (Reef Dive, same room): in the middle of the room (default) or **Put it here** (centred where the admin stands). It stays fixed in the room for everyone.
 - **Students:** **Menus: locked** hides students' settings (moving the panels, placing, seated mode, water level, leaving with ← Lessons; only Voice stays). **Re-find room (all)** makes every headset read its room scan again. Each student is listed with their room status and a **Remove** button (press twice) that takes them out of the session.
@@ -281,6 +283,26 @@ A beating human heart for every student and a big one for the whole class. The h
 
 All timings (chambers, valves, blood, sounds, ECG, pressures) come from one table in `src/data/heart.js`, so they always agree.
 
+## Enzyme Lab
+
+Rebuilt from the original EngageVR lesson, with the same set-up and steps: a piece of liver and a scalpel on a tile, a conical flask of hydrogen peroxide on a hot plate (− / + on the plate, 0–80 °C in steps of 10), and a stopper whose delivery tube runs to an upside-down measuring cylinder standing in a trough of water. Everything is built in code.
+
+**The steps (as in the original):** cut the liver in half with the scalpel, put one half in the flask (it fizzes straight away), put the stopper on. The oxygen bubbles across and pushes the water down the cylinder. The stopper has to go on after the liver, and the temperature can’t be changed during a run (fair test). **Next run** gives a fresh flask and refilled cylinder, using the other half of the liver or a new piece.
+
+**Readings:** the stopwatch starts when the stopper goes on and the run lasts 2 minutes. Every 30 s a red ring marks the water level on the cylinder (labelled 30 s, 60 s, 90 s, 120 s), and students read each ring on a keypad (within 1.5 cm³; a second miss records the true value). The 2-minute volume is their result for that temperature.
+
+**The reaction:** catalase activity roughly doubles every 10 °C and falls away above about 45 °C as the enzyme denatures. Oxygen after 2 minutes: about 6 cm³ at 0 °C, 21 at 20 °C, 35 at 30 °C, 46 at 40 °C, 30 at 50 °C, 5 at 60 °C and almost none at 70–80 °C, with a few per cent of variation between runs.
+
+| Lesson plan | In the Enzyme Lab |
+| --- | --- |
+| (starter) Quiz on enzymes and reaction rates; predict what happens | **Starter quiz:** 6 questions (8 at Advanced) answered on each student’s panel, with an explanation after each; everyone’s score is on the class board. |
+| Prepare the experiment: liver, hydrogen peroxide, apparatus; observe and analyse | **Experiment:** the original steps by hand, the hot plate, the readings every 30 s, and the 2-minute result for each temperature. |
+| (plenary) Explain how the oxygen shows an enzyme is present; summarise; real-life uses | **Class graph:** every student’s 2-minute volumes against temperature on the board, with the class mean joined up and the best temperature named; each student also sees their own graph, with discussion questions. |
+
+**Advanced:** the equation 2 H₂O₂ → 2 H₂O + O₂ on the panel, two extra quiz questions, and the **rate of reaction** worked out from the first 30 s (cm³ per minute), checked on the keypad.
+
+**Ask the biologist:** 8 pre-written answers (what an enzyme is, lock and key, why liver, why heat speeds it up, denaturing, why collect over water, fair testing, uses of enzymes). An AI biologist can be connected later with `biologistEndpoint` in `lessons/enzyme-lab/config.js`.
+
 ## Reef Dive
 
 The classroom becomes the sea floor. Through passthrough, the water fades the real room into teal-to-navy depths (the **Water** button in the Dive panel sets it to light, medium or deep; in a shared session only the admin has it, and it applies to everyone). A sandy sea bed covers the real floor. Sunlight shimmers on the surface overhead, light rays and sun shafts slant down, light ripples across the sand, soft marine snow and glowing plankton drift past, bubbles rise from your hands, and far-off animals fade into blue haze, all with muffled ocean sound. You stand in a sandy clearing with seagrass meadows, ringed by a coral reef: ten coral-covered outcrops about 2.4–2.8 m away, with narrow gaps between them. Nineteen species live there at **real size**, including a 1.6 m reef shark, a 3 m great hammerhead, a young giant manta ray (3 m across), a turtle, barracuda, a parrotfish school, clownfish in their anemone, cleaner wrasse, jellyfish, an octopus, crabs, urchins and sea cucumbers. Crabs and sea cucumbers live on the sand of the clearing, jellyfish drift overhead, parrotfish graze their way round the reef, and the shark, barracudas and turtle cruise outside the ring in the blue. Animals steer around people and never swim through the reef.
@@ -366,6 +388,9 @@ lessons/bounce-lab/
 lessons/radiation-lab/
   src/data/radiation.js            alpha/beta/gamma, sources and their count rates, absorbers, doses, equations, answers
   src/model/                       Bench (sources, absorbers, tongs, Geiger counter), Rays (X-ray vision), Board (class board)
+lessons/enzyme-lab/
+  src/data/enzymes.js              catalase activity against temperature, the steps, the quiz, answers
+  src/model/                       Bench (liver, scalpel, flask, hot plate, stopper and tube, trough and cylinder), Board (class board)
 lessons/heart-lab/
   models/heart.glb, heart.json     the anatomical heart (BodyParts3D, CC BY-SA) and its landmarks
   src/data/heart.js                parts, journey of the blood, cardiac-cycle timings, exercise, conditions, answers
