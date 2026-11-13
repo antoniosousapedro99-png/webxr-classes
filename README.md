@@ -12,11 +12,9 @@ Mixed reality lessons built with [WebXR](https://immersiveweb.dev/) and [three.j
 | **PC Builder Lab** | Computer Science | [`lessons/pc-builder/`](lessons/pc-builder/) |
 | **Cell Explorer** | Biology | [`lessons/cell-explorer/`](lessons/cell-explorer/) |
 | **Heart Lab** | Biology | [`lessons/heart-lab/`](lessons/heart-lab/) |
-| **Enzyme Lab** | Biology | [`lessons/microscope-lab/
-  src/data/micro.js                samples and stains, labels, microscope parts, quiz, answers
-  src/model/                       Specimens (every sample drawn in code, and what can be labelled where), Bench (slides, pipette, coverslips, microscope), Board
-lessons/enzyme-lab/`](lessons/enzyme-lab/) |
+| **Enzyme Lab** | Biology | [`lessons/enzyme-lab/`](lessons/enzyme-lab/) |
 | **Microscope Lab** | Biology | [`lessons/microscope-lab/`](lessons/microscope-lab/) |
+| **Osmosis Lab** | Biology | [`lessons/osmosis-lab/`](lessons/osmosis-lab/) |
 | **Reef Dive** | Biology (IB) | [`lessons/reef-dive/`](lessons/reef-dive/) |
 | **Hintze Hall** | Museum visit (VR) | [`lessons/hintze-hall/`](lessons/hintze-hall/) |
 
@@ -37,7 +35,7 @@ Every lesson can be opened **solo** or in a **shared session**:
 
 Each person has **their own models**. Everyone else's work appears beside you at their own desk as a live copy: you can see their PC being built part by part, their atom or molecule, or their cell with its knock-outs. Desks sit side by side in the same order for everyone, so if you see someone on your right, they see you on their left. There are **no avatars**: the lessons are mixed reality, so you see the real people.
 
-**Same room:** tick **"We're in the same room"** when starting or joining a session (Acid Lab, Waves Lab, Bounce Lab, Radiation Lab, Heart Lab, Enzyme Lab, Microscope Lab and Reef Dive tick it for you). Everyone then sees the same things in the same real places, with **nothing to press**:
+**Same room:** tick **"We're in the same room"** when starting or joining a session (Acid Lab, Waves Lab, Bounce Lab, Radiation Lab, Heart Lab, Enzyme Lab, Microscope Lab, Osmosis Lab and Reef Dive tick it for you). Everyone then sees the same things in the same real places, with **nothing to press**:
 
 - **Before class, once per headset:** scan the classroom with Quest **Settings › Physical space › Space Setup** (about 2 minutes; mark the walls, door, windows and tables). If the browser asks to use spatial data, allow it.
 - In the lesson, each headset finds the room by itself from its scan (`shared/net/RoomAlign.js`): the room's walls give the directions, and the middle of the room, on the floor, is the shared origin. Which way round is settled by the door, windows, tables and other fittings, which every headset matches against the admin's headset. It checks again every second, so a headset that recentres or loses tracking puts itself right. In a simulation with realistic scan noise, headsets agreed to within about 5 cm and never got the room the wrong way round.
@@ -54,6 +52,7 @@ Each person has **their own models**. Everyone else's work appears beside you at
 - **Radiation Lab:** **Activity for everyone** (The counter / Test sources / Half-life at Advanced / Class results), **Level for everyone**, **Reveal the answers** (class results), the **Class board** position (same room) and how many sources each student has decided about. The board shows the teacher’s Geiger counter, half-life graph or the class’s verdicts.
 - **Enzyme Lab:** **Activity for everyone** (Starter quiz / Experiment / Class graph), **Level for everyone**, the **Class board** position (same room) and how many temperatures each student has done. The board shows everyone’s quiz scores, then the class graph.
 - **Microscope Lab:** **Activity for everyone** (Microscope parts / Prepare + view / Quiz), **Level for everyone**, the **Class board** position (same room) and how many labels each student has placed. The board shows the part the teacher taps, the teacher’s view down the microscope, or everyone’s quiz scores.
+- **Osmosis Lab:** **Activity for everyone** (Predict / Experiment / Class graph), **Level for everyone**, the **Class board** position (same room) and how many pieces each student has finished. The board shows the prediction question, then everyone’s % mass change plotted against concentration; the teacher’s own controls choose the prediction and reveal the answer.
 - **Heart Lab:** **Activity for everyone**, **Level for everyone** (Core / Advanced) and, in the same room, **Class heart** position (middle of the room, or in front of the teacher). The class heart mirrors the teacher’s own heart; a part the teacher taps lights up for everyone. While students label, the menu shows each student’s score.
 - **Reef position** (Reef Dive, same room): in the middle of the room (default) or **Put it here** (centred where the admin stands). It stays fixed in the room for everyone.
 - **Students:** **Menus: locked** hides students' settings (moving the panels, placing, seated mode, water level, leaving with ← Lessons; only Voice stays). **Re-find room (all)** makes every headset read its room scan again. Each student is listed with their room status and a **Remove** button (press twice) that takes them out of the session.
@@ -328,6 +327,25 @@ Rebuilt from the original EngageVR lesson, with the same bench and steps: a row 
 
 **Ask the biologist:** 8 pre-written answers (why microscopes matter, how they work, magnification, starting at low power, stains, coverslips, plant vs animal cells, real uses).
 
+## Osmosis Lab
+
+Rebuilt from the original EngageVR lesson, with the same bench and steps: a potato and a digital scalpel on a cutting board, a paper towel, a balance, five beakers of salt solution and a timer with play / reset buttons. Everything is built in code.
+
+**Steps (as in the original):** drag the scalpel across the potato to cut 5 equal pieces, dry each on the towel and weigh it (its starting mass), drop it into one of the five beakers (0, 0.25, 0.5, 0.75 and 1.00 mol/dm³ salt), press **play** to run a simulated 24-hour soak, then dry and weigh each piece again. Weighing a piece before it is dry gives an inflated reading, a genuine source of error students can spot and discuss; an unevenly cut piece behaves a little differently too, so repeat trials ("New potato") show the kind of scatter a real class would see.
+
+**The model:** a potato's cells behave as if they held about 0.32 mol/dm³ of salt (its "isotonic point"). Anything weaker and water moves in, so the piece gains mass; anything stronger and it loses mass, the change growing quickly at first and then levelling off as the simulated hours pass — which is why watching the clock run matters, not just skipping to the end.
+
+| Lesson plan | In the Osmosis Lab |
+| --- | --- |
+| (starter) Why do fingers wrinkle in water? What happens to plant cells in salty or pure water? | **Predict:** 4 questions on the class board (wrinkly fingers, a plant cell in pure water, the same cell in salt water, saline drips), answered on each student’s own panel; the teacher reveals the answer. |
+| Slice potato pieces, dry and weigh them, soak in different concentrations, observe over a simulated time lapse, weigh again, plot mass change vs concentration | **Experiment:** the original steps by hand, the 24-hour time-lapse with play / reset, and a results table of starting mass, final mass and the change in grams. |
+| Which solution caused a gain or loss? How does this relate to osmosis? What about animal cells? | **Class graph:** every student’s % mass change plotted against concentration, with the class mean joined up and the crossing point (close to the potato’s own concentration) named on the board; discussion prompts cover % vs grams, the saline-drip debate, odd results and animal cells. |
+| Exit ticket: summarise osmosis in one sentence and give a real-life example | Two quick multiple-choice questions on the results panel. |
+
+**Advanced:** % mass change alongside the grams (and why percentage lets pieces of different starting sizes be compared fairly), and a hypotonic / isotonic / hypertonic verdict for each concentration, checked against the true classification.
+
+**Ask the biologist:** 8 pre-written answers (what osmosis is, why water moves, partially permeable membranes, turgor and wilting, plasmolysis, water potential, saline drips, real-life uses). An AI biologist can be connected later with `biologistEndpoint` in `lessons/osmosis-lab/config.js`.
+
 ## Reef Dive
 
 The classroom becomes the sea floor. Through passthrough, the water fades the real room into teal-to-navy depths (the **Water** button in the Dive panel sets it to light, medium or deep; in a shared session only the admin has it, and it applies to everyone). A sandy sea bed covers the real floor. Sunlight shimmers on the surface overhead, light rays and sun shafts slant down, light ripples across the sand, soft marine snow and glowing plankton drift past, bubbles rise from your hands, and far-off animals fade into blue haze, all with muffled ocean sound. You stand in a sandy clearing with seagrass meadows, ringed by a coral reef: ten coral-covered outcrops about 2.4–2.8 m away, with narrow gaps between them. Nineteen species live there at **real size**, including a 1.6 m reef shark, a 3 m great hammerhead, a young giant manta ray (3 m across), a turtle, barracuda, a parrotfish school, clownfish in their anemone, cleaner wrasse, jellyfish, an octopus, crabs, urchins and sea cucumbers. Crabs and sea cucumbers live on the sand of the clearing, jellyfish drift overhead, parrotfish graze their way round the reef, and the shark, barracudas and turtle cruise outside the ring in the blue. Animals steer around people and never swim through the reef.
@@ -416,6 +434,12 @@ lessons/radiation-lab/
 lessons/enzyme-lab/
   src/data/enzymes.js              catalase activity against temperature, the steps, the quiz, answers
   src/model/                       Bench (liver, scalpel, flask, hot plate, stopper and tube, trough and cylinder), Board (class board)
+lessons/microscope-lab/
+  src/data/micro.js                samples and stains, labels, microscope parts, quiz, answers
+  src/model/                       Specimens (every sample drawn in code, and what can be labelled where), Bench (slides, pipette, coverslips, microscope), Board
+lessons/osmosis-lab/
+  src/data/osmosis.js              the osmosis model (% change by concentration and time), predictions, exit ticket, answers
+  src/model/                       Bench (potato, scalpel, towel, balance, beakers, timer), Board (class board)
 lessons/heart-lab/
   models/heart.glb, heart.json     the anatomical heart (BodyParts3D, CC BY-SA) and its landmarks
   src/data/heart.js                parts, journey of the blood, cardiac-cycle timings, exercise, conditions, answers

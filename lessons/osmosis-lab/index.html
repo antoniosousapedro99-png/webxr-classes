@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Osmosis Lab</title>
+  <meta name="description" content="Osmosis in mixed reality (WebXR): cut and weigh potato pieces, soak them in salt solutions of different strengths, and plot mass change against concentration.">
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script src="config.js"></script>
+</head>
+<body>
+  <div id="overlay">
+    <h1>Osmosis Lab</h1>
+    <p>Cut equal pieces from a potato, weigh them, soak them in five strengths of salt solution over a simulated 24 hours, then weigh them again to see how osmosis changes their mass.</p>
+    <div class="buttons">
+      <button id="btn-ar" disabled>Checking for mixed reality…</button>
+      <button id="btn-vr" class="secondary" hidden>Enter VR</button>
+    </div>
+    <p class="hint" id="hint"></p>
+  </div>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

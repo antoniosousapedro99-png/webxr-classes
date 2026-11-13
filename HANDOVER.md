@@ -63,6 +63,7 @@ The project's own code has **no licence file yet**: the owner should choose one 
 | Radiation Lab (everything) | made in code for this project | yes (it is the project’s own) |
 | Microscope Lab (everything) | made in code for this project, following the original Inspired Education EngageVR lesson | yes (it is the project’s own) |
 | Enzyme Lab (everything) | made in code for this project, following the original Inspired Education EngageVR lesson | yes (it is the project’s own) |
+| Osmosis Lab (everything) | made in code for this project, following the original Inspired Education EngageVR lesson | yes (it is the project’s own) |
 | Heart Lab sounds, blood flow, ECG, backup heart | made in code for this project | yes (it is the project’s own) |
 | **Reef Dive hammerhead** (`hammer.glb`) | CC BY-NC 4.0 | **no**: replace it before any commercial use |
 | **Reef Dive manta ray** (`manta.glb`) | CC BY-NC-SA 4.0 | **no**: replace it before any commercial use |
