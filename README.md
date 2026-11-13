@@ -17,6 +17,7 @@ Mixed reality lessons built with [WebXR](https://immersiveweb.dev/) and [three.j
 | **Enzyme Lab** | Biology | [`lessons/enzyme-lab/`](lessons/enzyme-lab/) |
 | **Microscope Lab** | Biology | [`lessons/microscope-lab/`](lessons/microscope-lab/) |
 | **Osmosis Lab** | Biology | [`lessons/osmosis-lab/`](lessons/osmosis-lab/) |
+| **Identifying Organs** | Biology | [`lessons/organs-lab/`](lessons/organs-lab/) |
 | **Reef Dive** | Biology (IB) | [`lessons/reef-dive/`](lessons/reef-dive/) |
 | **Hintze Hall** | Museum visit (VR) | [`lessons/hintze-hall/`](lessons/hintze-hall/) |
 
@@ -37,7 +38,7 @@ Every lesson can be opened **solo** or in a **shared session**:
 
 Each person has **their own models**. Everyone else's work appears beside you at their own desk as a live copy: you can see their PC being built part by part, their atom or molecule, or their cell with its knock-outs. Desks sit side by side in the same order for everyone, so if you see someone on your right, they see you on their left. There are **no avatars**: the lessons are mixed reality, so you see the real people.
 
-**Same room:** tick **"We're in the same room"** when starting or joining a session (Acid Lab, Lithium Reactions, Kinetics Lab, Waves Lab, Bounce Lab, Radiation Lab, Heart Lab, Enzyme Lab, Microscope Lab, Osmosis Lab and Reef Dive tick it for you). Everyone then sees the same things in the same real places, with **nothing to press**:
+**Same room:** tick **"We're in the same room"** when starting or joining a session (Acid Lab, Lithium Reactions, Kinetics Lab, Waves Lab, Bounce Lab, Radiation Lab, Heart Lab, Enzyme Lab, Microscope Lab, Osmosis Lab, Identifying Organs and Reef Dive tick it for you). Everyone then sees the same things in the same real places, with **nothing to press**:
 
 - **Before class, once per headset:** scan the classroom with Quest **Settings › Physical space › Space Setup** (about 2 minutes; mark the walls, door, windows and tables). If the browser asks to use spatial data, allow it.
 - In the lesson, each headset finds the room by itself from its scan (`shared/net/RoomAlign.js`): the room's walls give the directions, and the middle of the room, on the floor, is the shared origin. Which way round is settled by the door, windows, tables and other fittings, which every headset matches against the admin's headset. It checks again every second, so a headset that recentres or loses tracking puts itself right. In a simulation with realistic scan noise, headsets agreed to within about 5 cm and never got the room the wrong way round.
@@ -57,6 +58,7 @@ Each person has **their own models**. Everyone else's work appears beside you at
 - **Enzyme Lab:** **Activity for everyone** (Starter quiz / Experiment / Class graph), **Level for everyone**, the **Class board** position (same room) and how many temperatures each student has done. The board shows everyone’s quiz scores, then the class graph.
 - **Microscope Lab:** **Activity for everyone** (Microscope parts / Prepare + view / Quiz), **Level for everyone**, the **Class board** position (same room) and how many labels each student has placed. The board shows the part the teacher taps, the teacher’s view down the microscope, or everyone’s quiz scores.
 - **Osmosis Lab:** **Activity for everyone** (Predict / Experiment / Class graph), **Level for everyone**, the **Class board** position (same room) and how many pieces each student has finished. The board shows the prediction question, then everyone’s % mass change plotted against concentration; the teacher’s own controls choose the prediction and reveal the answer.
+- **Identifying Organs:** **Activity for everyone** (Starter / Build the body / Functions / Body systems / Quiz), **Level for everyone**, **Show the answers in every skeleton** (a glowing ghost of each missing organ in its place, like the original "Load Answers"), **System for everyone** (in Body systems), the **Class board** position (same room) and how many organs each student has in place. The teacher's own controls mark the sticky notes and show the class quiz results.
 - **Heart Lab:** **Activity for everyone**, **Level for everyone** (Core / Advanced) and, in the same room, **Class heart** position (middle of the room, or in front of the teacher). The class heart mirrors the teacher’s own heart; a part the teacher taps lights up for everyone. While students label, the menu shows each student’s score.
 - **Reef position** (Reef Dive, same room): in the middle of the room (default) or **Put it here** (centred where the admin stands). It stays fixed in the room for everyone.
 - **Students:** **Menus: locked** hides students' settings (moving the panels, placing, seated mode, water level, leaving with ← Lessons; only Voice stays). **Re-find room (all)** makes every headset read its room scan again. Each student is listed with their room status and a **Remove** button (press twice) that takes them out of the session.
@@ -385,6 +387,22 @@ Rebuilt from the original EngageVR lesson, with the same bench and steps: a pota
 
 **Ask the biologist:** 8 pre-written answers (what osmosis is, why water moves, partially permeable membranes, turgor and wilting, plasmolysis, water potential, saline drips, real-life uses). An AI biologist can be connected later with `biologistEndpoint` in `lessons/osmosis-lab/config.js`.
 
+## Identifying Organs
+
+Rebuilt from the original EngageVR lesson, where students filled skeletons with organs: here **every student has their own life-size skeleton** standing on the floor beside their desk, with its organs laid out on the desk (at 60% size so they fit; each grows to life size when picked up). The skeleton and the 17 organs are **real anatomy** from the BodyParts3D database (CC BY-SA 2.1 Japan, credited in `lessons/organs-lab/CREDITS.md`), about 970 KB in all, so every organ is in its true place. How the model was made, and how to rebuild it: `tools/organs-model/README.md`. The skull cap lifts off for the brain, and the ribcage can be solid, see-through or hidden.
+
+| Lesson plan | In Identifying Organs |
+| --- | --- |
+| Starter tasks, four options (true-or-false statement, 3D pen drawing, organ and function sticky notes, memory list) | **Starter:** the plan's poster on the class board, and all four options: 8 true-or-false statements with explanations; a **3D pen** to draw an organ in the air, label it and hide the label so a partner can guess (drawings are shared, so partners see them at your desk); an organ and a function **sticky note** stuck on the class board (the teacher can mark them); a 60-second **memory list** count, with the class's best on the board. |
+| Place the organs in the correct locations in the skeleton | **Build the body:** Core, 9 organs (11 pieces: both lungs and both kidneys): each snaps in when it is close to its place; a clearly wrong place is a mistake and it goes back to the desk, with a message (including left and right being the body's own); hints show a glowing ghost in the right place and say where it is. Advanced adds the pancreas, spleen, gallbladder, oesophagus, trachea and diaphragm, takes the names off the desk, and leaves organs wherever they are put until **Check my body** marks them. |
+| What does each organ do? | **Functions:** a function card for each organ (or pair) on the desk; drag it onto the organ that does that job and it becomes a label beside the skeleton, so the finished skeleton is a labelled diagram. |
+| (plenary) Revisit the whole organ-skeleton system, focusing on interdependence | **Body systems:** the completed body; digestive, respiratory, circulatory, urinary and nervous systems light up one at a time (the rest fade), and the board shows each system's job and what it depends on; discussion prompts. |
+| 10-question quiz | **Quiz:** the plan's 10 questions on each student's panel with instant feedback; scores on the class board, and how the class did on each question when the teacher shows the results. |
+
+**Class board:** the starter poster and sticky notes, then everyone's progress (organs in place, mistakes, cards matched), the system being discussed, and the quiz results.
+
+**Ask the doctor:** 8 pre-written answers (what an organ is, the biggest organ, organs you can live without, why one lung is smaller, how long the intestines are, what the bones protect, how organs are controlled, transplants). An AI doctor can be connected later with `doctorEndpoint` in `lessons/organs-lab/config.js`.
+
 ## Reef Dive
 
 The classroom becomes the sea floor. Through passthrough, the water fades the real room into teal-to-navy depths (the **Water** button in the Dive panel sets it to light, medium or deep; in a shared session only the admin has it, and it applies to everyone). A sandy sea bed covers the real floor. Sunlight shimmers on the surface overhead, light rays and sun shafts slant down, light ripples across the sand, soft marine snow and glowing plankton drift past, bubbles rise from your hands, and far-off animals fade into blue haze, all with muffled ocean sound. You stand in a sandy clearing with seagrass meadows, ringed by a coral reef: ten coral-covered outcrops about 2.4–2.8 m away, with narrow gaps between them. Nineteen species live there at **real size**, including a 1.6 m reef shark, a 3 m great hammerhead, a young giant manta ray (3 m across), a turtle, barracuda, a parrotfish school, clownfish in their anemone, cleaner wrasse, jellyfish, an octopus, crabs, urchins and sea cucumbers. Crabs and sea cucumbers live on the sand of the clearing, jellyfish drift overhead, parrotfish graze their way round the reef, and the shark, barracudas and turtle cruise outside the ring in the blue. Animals steer around people and never swim through the reef.
@@ -490,6 +508,11 @@ lessons/heart-lab/
   src/data/heart.js                parts, journey of the blood, cardiac-cycle timings, exercise, conditions, answers
   src/model/                       RealHeart (the anatomical model), Heart (backup built in code), blood flow, ECG, arteries, labelling quiz, heart sounds
 tools/heart-model/                 rebuilds the Heart Lab model from the BodyParts3D files (not needed to run anything)
+lessons/organs-lab/
+  models/body.glb                  the skeleton (with a removable skull cap) and 17 organs (BodyParts3D, CC BY-SA)
+  src/data/organs.js               organs and where they go, function cards, body systems, starter tasks, quiz, answers
+  src/model/                       Body (skeleton, desk, organs, function cards), Pen (3D pen), Board (class board)
+tools/organs-model/                rebuilds body.glb from the BodyParts3D files (not needed to run anything)
 lessons/pc-builder/
   src/data/parts.js, rules.js      the parts catalogue and compatibility rules
   src/model/                       life-size part models, the case + slots, tray, power-on + tour
