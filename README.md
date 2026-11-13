@@ -8,6 +8,7 @@ Mixed reality lessons built with [WebXR](https://immersiveweb.dev/) and [three.j
 | **Acid Lab** | Chemistry | [`lessons/acid-lab/`](lessons/acid-lab/) |
 | **Waves Lab** | Physics | [`lessons/waves-lab/`](lessons/waves-lab/) |
 | **Bounce Lab** | Physics | [`lessons/bounce-lab/`](lessons/bounce-lab/) |
+| **Radiation Lab** | Physics | [`lessons/radiation-lab/`](lessons/radiation-lab/) |
 | **PC Builder Lab** | Computer Science | [`lessons/pc-builder/`](lessons/pc-builder/) |
 | **Cell Explorer** | Biology | [`lessons/cell-explorer/`](lessons/cell-explorer/) |
 | **Heart Lab** | Biology | [`lessons/heart-lab/`](lessons/heart-lab/) |
@@ -31,7 +32,7 @@ Every lesson can be opened **solo** or in a **shared session**:
 
 Each person has **their own models**. Everyone else's work appears beside you at their own desk as a live copy: you can see their PC being built part by part, their atom or molecule, or their cell with its knock-outs. Desks sit side by side in the same order for everyone, so if you see someone on your right, they see you on their left. There are **no avatars**: the lessons are mixed reality, so you see the real people.
 
-**Same room:** tick **"We're in the same room"** when starting or joining a session (Acid Lab, Waves Lab, Bounce Lab, Heart Lab and Reef Dive tick it for you). Everyone then sees the same things in the same real places, with **nothing to press**:
+**Same room:** tick **"We're in the same room"** when starting or joining a session (Acid Lab, Waves Lab, Bounce Lab, Radiation Lab, Heart Lab and Reef Dive tick it for you). Everyone then sees the same things in the same real places, with **nothing to press**:
 
 - **Before class, once per headset:** scan the classroom with Quest **Settings › Physical space › Space Setup** (about 2 minutes; mark the walls, door, windows and tables). If the browser asks to use spatial data, allow it.
 - In the lesson, each headset finds the room by itself from its scan (`shared/net/RoomAlign.js`): the room's walls give the directions, and the middle of the room, on the floor, is the shared origin. Which way round is settled by the door, windows, tables and other fittings, which every headset matches against the admin's headset. It checks again every second, so a headset that recentres or loses tracking puts itself right. In a simulation with realistic scan noise, headsets agreed to within about 5 cm and never got the room the wrong way round.
@@ -45,6 +46,7 @@ Each person has **their own models**. Everyone else's work appears beside you at
 - **Acid Lab:** **Activity for everyone**, **Level for everyone**, the **Class board** position (same room) and each student’s progress (results recorded out of 18). Everyone gets the admin’s set of solutions; **New solutions** (in the admin’s own controls) deals a new set to the whole class.
 - **Waves Lab:** **Activity for everyone** (Predict / Rope wave / Ripple tank / Mystery wave), **Level for everyone**, the **Class board** position (same room), and who has answered the question on the board (or each student’s investigation steps, out of 6). The board shows the teacher’s wave and question; the teacher’s own controls choose the prediction, deal a new mystery wave and reveal the answer.
 - **Bounce Lab:** **Activity for everyone** (Predict / Drop + measure / Compare), **Level for everyone**, **Ball on the class chart**, the **Class board** position (same room), and who has answered the prediction (or how many drops each student has recorded). The teacher’s own controls choose the prediction and reveal the answer.
+- **Radiation Lab:** **Activity for everyone** (The counter / Test sources / Half-life at Advanced / Class results), **Level for everyone**, **Reveal the answers** (class results), the **Class board** position (same room) and how many sources each student has decided about. The board shows the teacher’s Geiger counter, half-life graph or the class’s verdicts.
 - **Heart Lab:** **Activity for everyone**, **Level for everyone** (Core / Advanced) and, in the same room, **Class heart** position (middle of the room, or in front of the teacher). The class heart mirrors the teacher’s own heart; a part the teacher taps lights up for everyone. While students label, the menu shows each student’s score.
 - **Reef position** (Reef Dive, same room): in the middle of the room (default) or **Put it here** (centred where the admin stands). It stays fixed in the room for everyone.
 - **Students:** **Menus: locked** hides students' settings (moving the panels, placing, seated mode, water level, leaving with ← Lessons; only Voice stays). **Re-find room (all)** makes every headset read its room scan again. Each student is listed with their room status and a **Remove** button (press twice) that takes them out of the session.
@@ -180,6 +182,23 @@ A row of seven surface mats lies on the **real classroom floor** in front of eac
 | (plenary) Compare results, explain anomalies, real-world applications | **Compare:** the student’s means for every ball and surface, surfaces ranked from bounciest with the reason for each, and **Find odd results** (drops more than 10 points from the student’s other drops of the same ball and surface). The **class chart** on the board shows, for the ball the teacher picks, every student’s mean on each surface as a dot and the class mean as a bar; results that don’t fit the class are circled with the student’s name. |
 
 **Ask the physicist:** 8 pre-written answers (why a ball bounces, where the energy goes, momentum, why never higher, why the ping-pong ball is odd, why repeat and average, anomalies, real-world uses). An AI physicist can be connected later with `physicistEndpoint` in `lessons/bounce-lab/config.js`.
+
+## Radiation Lab
+
+Every student has a radiation bench, built in code: a **lead box** with four sealed school sources (americium-241, strontium-90, cobalt-60, radium-226), a tray of **everyday things** (a smoke detector, an old luminous watch, uranium glass, granite, a banana, salt substitute and, as a control, table salt), a test stand (source holder, absorber slot and a clip that holds the Geiger probe 3 cm away), **paper, aluminium and lead** absorbers, **tongs**, and a **Geiger counter** with its probe on a cable. Behind it, a **class board**.
+
+**The counter really counts:** every click is drawn at random from the count rate at the probe’s window (background plus every source out of the box: alpha only reaches about 5 cm, beta and gamma fall off with distance, the absorber in the slot stops its share). So counts vary from one 10 s count to the next, as real ones do. The probe can be picked up to explore (e.g. how far alpha reaches), but **only counts taken with the probe in its clip are recorded**, so that the tests are fair.
+
+**Safety built in:** sources can only be picked up after taking the **tongs**, and they are drawn held in them; a **dose badge** adds up each student’s dose from the sources out of the box (real dose rates, falling with the square of the distance from the headset), with typical doses to compare (a banana, an X-ray, a flight); holding a source near your face gets a warning; **background** is measured first.
+
+| Lesson plan | In the Radiation Lab |
+| --- | --- |
+| (starter) Alpha, beta, gamma and their properties; how a Geiger counter works (clicks and counts) | **The counter:** it is already clicking: students measure the **background** three times (and see that it varies). The info panel lists what each kind of radiation is, what stops it, its range and how strongly it ionises; the class board shows the teacher’s counter in big numbers beside the same table. |
+| Test materials with the Geiger counter; decide alpha, beta, gamma or a mix | **Test sources:** put a source in the holder (tongs), count for 10 s with no absorber, paper, aluminium and lead. Each count fills the **count table** by itself; students tick **α β γ** (or ∅, not radioactive) for each source. **X-ray vision** shows the radiation as streaks being stopped (or not) by the absorber. |
+| Advanced extras | The **nuclear equation** of each source, with mass and atomic numbers, and its half-life. **Half-life:** shake a protactinium generator and the counter counts every 10 s by itself, plotting a decay graph (real time or ×4); students estimate the half-life (70 s) and check it. |
+| (plenary) Share results; penetration, ionisation, safety; real-world uses | **Class results:** the board collects everyone’s verdicts for every source; the teacher reveals the answers. The info panel has discussion questions (smoke detectors, gamma for tumours, nuclear power, results close to background). |
+
+**Ask the physicist:** 8 pre-written answers (what radioactivity is, how the counter works, background, random decay, ionising, which radiation is most dangerous inside and outside the body, staying safe, uses). An AI physicist can be connected later with `physicistEndpoint` in `lessons/radiation-lab/config.js`.
 
 ## PC Builder Lab
 
@@ -344,6 +363,9 @@ lessons/waves-lab/
 lessons/bounce-lab/
   src/data/bounce.js               the balls and surfaces (restitution, mass, air resistance), predictions, answers
   src/model/                       Floor (mats, ruler, the physics of a drop, slow-motion replay), Balls, Board (class chart), sounds
+lessons/radiation-lab/
+  src/data/radiation.js            alpha/beta/gamma, sources and their count rates, absorbers, doses, equations, answers
+  src/model/                       Bench (sources, absorbers, tongs, Geiger counter), Rays (X-ray vision), Board (class board)
 lessons/heart-lab/
   models/heart.glb, heart.json     the anatomical heart (BodyParts3D, CC BY-SA) and its landmarks
   src/data/heart.js                parts, journey of the blood, cardiac-cycle timings, exercise, conditions, answers

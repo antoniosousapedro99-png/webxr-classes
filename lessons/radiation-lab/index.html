@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Radiation Lab</title>
+  <meta name="description" content="Radioactivity in mixed reality (WebXR): use a Geiger counter, absorbers and tongs to find out which sources give off alpha, beta and gamma radiation.">
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script src="config.js"></script>
+</head>
+<body>
+  <div id="overlay">
+    <h1>Radiation Lab</h1>
+    <p>Your own radiation bench: sealed school sources, everyday things that are slightly radioactive, absorbers, tongs and a Geiger counter. Find out what each source gives off, and keep your dose low.</p>
+    <div class="buttons">
+      <button id="btn-ar" disabled>Checking for mixed reality…</button>
+      <button id="btn-vr" class="secondary" hidden>Enter VR</button>
+    </div>
+    <p class="hint" id="hint"></p>
+  </div>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
